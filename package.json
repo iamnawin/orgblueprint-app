@@ -1,0 +1,19 @@
+{
+  "name": "orgblueprint-app",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @orgblueprint/web",
+    "build": "npm run build -w @orgblueprint/core && npm run build -w @orgblueprint/web",
+    "lint": "npm run lint -w @orgblueprint/web",
+    "typecheck": "npm run typecheck -w @orgblueprint/core && npm run typecheck -w @orgblueprint/web",
+    "doctor": "node scripts/doctor.mjs",
+    "test:core": "tsx packages/core/test/regression.test.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0"
+  }
+}
