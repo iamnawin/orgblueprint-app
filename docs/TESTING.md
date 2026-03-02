@@ -1,0 +1,40 @@
+# OrgBlueprint MVP Testing Guide
+
+## 1) Install dependencies
+```bash
+npm install
+```
+
+## 2) Run quality checks
+```bash
+npm run lint
+npm run typecheck
+npm run build
+```
+
+## 3) Run app locally
+```bash
+npm run dev
+```
+Open http://localhost:3000
+
+## 4) Manual UI workflow verification
+1. Click **Start**.
+2. Enter business needs text and click **Continue**.
+3. Complete/skip 6 clarification questions.
+4. Click **Generate Blueprint**.
+5. Confirm all 11 result sections render.
+
+## 5) API check
+```bash
+curl -X POST http://localhost:3000/api/blueprint \
+  -H "Content-Type: application/json" \
+  -d '{"input":"Need sales and support with ERP integration","answers":{"users":80,"externalSystemsCount":2}}'
+```
+
+
+## 6) PowerShell compatibility
+On older Windows PowerShell versions, `&&` is not supported. Use:
+```powershell
+npm run lint; npm run typecheck; npm run build
+```

@@ -1,0 +1,82 @@
+# OrgBlueprint MVP
+
+OrgBlueprint is a conversational Salesforce product recommender and blueprint generator.
+
+## MVP capabilities
+- Text-only business need capture
+- Up to 6 skippable clarification questions (one at a time)
+- Deterministic rules engine (no LLM calls)
+- Structured dashboard output:
+  1. Executive Snapshot
+  2. Product recommendations (Recommended / Optional / Not needed)
+  3. Why mapping
+  4. OOTB vs Custom
+  5. Objects + Automations
+  6. Integration map
+  7. Analytics pack
+  8. Cost simulator with visible disclaimer
+  9. Roadmap phases
+  10. Document checklist
+  11. Risks + confidence score
+
+## Architecture
+- `apps/web`: Next.js App Router UI + API route handlers.
+- `packages/core`: TypeScript rules engine and schemas.
+- API route `POST /api/blueprint` calls `generateBlueprint()` from core.
+- Sessions persisted in browser localStorage (MVP only).
+
+## Guardrails implemented
+- No official Salesforce pricing output. Cost simulator is directional with disclaimer.
+- Data Cloud is only recommended when trigger conditions are present.
+- Agentforce/Einstein is not recommended by default; only suggested when AI triggers are present.
+- Standard objects are preferred; custom objects only when requirements indicate poor fit.
+
+## Run locally
+```bash
+npm install
+npm run dev
+```
+Open `http://localhost:3000`.
+
+## Quality checks
+```bash
+npm run lint
+npm run typecheck
+npm run build
+```
+
+
+## GitHub + local parallel save workflow
+Use this repository URL for your local clone:
+- `https://github.com/iamnawin/orgblueprint-app`
+
+### First-time setup (Windows PowerShell)
+```powershell
+git clone https://github.com/iamnawin/orgblueprint-app "C:\Users\Naveen\OneDrive\Desktop\orgblueprint"
+cd "C:\Users\Naveen\OneDrive\Desktop\orgblueprint"
+npm install
+```
+
+### Parallel local + git sync
+A ready-to-use PowerShell script is included at:
+- `scripts/sync-local-git.ps1`
+
+Example usage:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\sync-local-git.ps1 `
+  -RepoPath "C:\Users\Naveen\OneDrive\Desktop\orgblueprint" `
+  -BackupPath "C:\Users\Naveen\OneDrive\Desktop\orgblueprint-backup" `
+  -CommitMessage "Sync local + git"
+```
+This mirrors the repo to a local backup folder, then pulls/rebases, commits, and pushes if changes exist.
+
+Safety check included: the script verifies `-RepoPath` is the actual git root before staging, which prevents accidental `../../../` parent-folder scanning.
+
+## Testing
+See detailed testing steps in `docs/TESTING.md`.
+
+### PowerShell note
+If your PowerShell does not support `&&`, run commands separately or with semicolons:
+```powershell
+npm run lint; npm run typecheck; npm run build
+```
