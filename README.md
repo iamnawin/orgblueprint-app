@@ -46,6 +46,13 @@ npm run build
 ```
 
 
+## How pricing estimates are calculated (directional only)
+- **License estimate**: Uses directional per-user monthly ranges for assumed editions (currently Sales Cloud and Service Cloud assumptions in `packages/core/src/pricingAssumptions.ts`).
+- **User allocation**: If both Sales Cloud and Service Cloud are recommended, users are split 70/30; if only one is recommended, all users are assigned to that cloud.
+- **Implementation estimate**: Uses an MVP complexity band (Low/Medium/High) and adds uplift when integrations exceed 2.
+- **Year-1 total**: `license total + implementation total` shown as low/high range.
+- **Disclaimer**: Estimates are directional and are **not official Salesforce pricing or a quote**.
+
 
 ## Troubleshooting (Windows logs you shared)
 If `npm run` shows scripts from another app such as `structra-ai` (for example Vite scripts), you are in the wrong folder/repository.

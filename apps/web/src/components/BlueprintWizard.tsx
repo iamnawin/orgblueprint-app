@@ -138,15 +138,56 @@ export function BlueprintWizard() {
           <Card title="5) Objects + Automations" items={result.objectsAndAutomations} />
           <Card title="6) Integration map" items={result.integrationMap} />
           <Card title="7) Analytics pack" items={result.analyticsPack} />
-          <section className="rounded-lg bg-amber-50 p-4 shadow">
+          <section className="space-y-3 rounded-lg bg-amber-50 p-4 shadow">
             <h3 className="text-lg font-semibold">8) Cost simulator</h3>
-            <p className="font-medium">Directional range: {result.costSimulator.range}</p>
-            <ul className="list-disc pl-6">
-              {result.costSimulator.assumptions.map((a) => (
+            <div className="grid gap-3 md:grid-cols-3">
+              <section className="rounded bg-white p-3">
+                <h4 className="font-semibold">License Estimate</h4>
+                <table className="mt-2 w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th>Product</th>
+                      <th>Users</th>
+                      <th>Annual Range</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.costEstimate.license.breakdown.map((row) => (
+                      <tr key={row.product} className="border-b last:border-0">
+                        <td>{row.product} ({row.assumedEdition})</td>
+                        <td>{row.users}</td>
+                        <td>${row.annualLow.toLocaleString()} - ${row.annualHigh.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="mt-2 text-sm font-medium">
+                  Total: ${result.costEstimate.license.totalLow.toLocaleString()} - ${result.costEstimate.license.totalHigh.toLocaleString()}
+                </p>
+              </section>
+
+              <section className="rounded bg-white p-3">
+                <h4 className="font-semibold">Implementation Estimate</h4>
+                <p className="mt-2 text-sm">
+                  ${result.costEstimate.implementation.low.toLocaleString()} - ${result.costEstimate.implementation.high.toLocaleString()}
+                </p>
+                <p className="mt-2 text-xs text-slate-700">{result.costEstimate.implementation.rationale}</p>
+              </section>
+
+              <section className="rounded bg-white p-3">
+                <h4 className="font-semibold">Estimated Year-1 Investment</h4>
+                <p className="mt-2 text-lg font-bold text-slate-900">
+                  ${result.costEstimate.yearOneTotal.low.toLocaleString()} - ${result.costEstimate.yearOneTotal.high.toLocaleString()}
+                </p>
+              </section>
+            </div>
+
+            <ul className="list-disc pl-6 text-sm">
+              {result.costEstimate.assumptions.map((a) => (
                 <li key={a}>{a}</li>
               ))}
             </ul>
-            <p className="mt-2 rounded bg-amber-200 p-2 text-sm font-semibold">{result.costSimulator.disclaimer}</p>
+            <p className="mt-2 rounded bg-amber-200 p-2 text-sm font-semibold">{result.costEstimate.disclaimer}</p>
           </section>
           <Card title="9) Roadmap phases" items={result.roadmap.map((p) => `${p.phase}: ${p.outcomes.join(", ")}`)} />
           <Card title="10) Document pack checklist" items={result.documentChecklist} />
