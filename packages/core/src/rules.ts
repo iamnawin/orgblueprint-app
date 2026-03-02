@@ -1,38 +1,86 @@
-import {
-  BlueprintResult,
-  ClarificationAnswers,
-  OOTBRow,
-  ProductDecision,
-  ProductKey,
-  Signals,
-} from "./types";
-import { estimateLicenseCost } from "./estimateLicenses";
 import { estimateImplementation } from "./estimateImplementation";
+import { estimateLicenseCost } from "./estimateLicenses";
+import { BlueprintResult, ClarificationAnswers, OOTBRow, ProductDecision, ProductKey, Signals } from "./types";
 
 const has = (text: string, needles: string[]) => needles.some((n) => text.includes(n));
+const countMatches = (text: string, needles: string[]) => needles.filter((n) => text.includes(n)).length;
+
+function parseUsers(text: string): number | null {
+  const patterns = [
+    /(\d+)\s*\+\s*users?/, /(\d+)\+/, /(\d+)\s*users?/, /more than\s+(\d+)/, /over\s+(\d+)/,
+  ];
+  for (const p of patterns) {
+    const m = text.match(p);
+    if (m?.[1]) return Number(m[1]);
+  }
+  return null;
+}
+
+const systemsKeywords = [
+  ["ERP", ["erp"]],
+  ["Ecommerce", ["ecommerce", "e-commerce", "shopify", "magento"]],
+  ["Marketing Automation", ["marketing automation", "marketo", "hubspot", "pardot"]],
+  ["Billing", ["billing"]],
+] as const;
 
 export function extractSignals(input: string, answers: ClarificationAnswers = {}): Signals {
   const text = input.toLowerCase();
-  const users = answers.users ?? (has(text, ["enterprise", "global"]) ? 300 : 50);
-  const externalSystemsCount =
-    answers.externalSystemsCount ?? (has(text, ["erp", "billing", "marketing", "warehouse", "legacy"]) ? 2 : 0);
+  const parsedUsers = parseUsers(text);
+  let users = answers.users ?? parsedUsers ?? (has(text, ["enterprise", "global"]) ? 300 : 50);
+  if (has(text, ["enterprise"]) && has(text, ["500+", "500 +", "more than 500", "over 500", "500 users", "500+ users"])) {
+    users = Math.max(users, 500);
+  }
+
+  const explicitNoPortal = has(text, ["no portal", "without portal", "do not need portal"]);
+  const portalNeed =
+    !explicitNoPortal &&
+    (answers.needsSelfServicePortal ??
+      has(text, ["portal", "self-service", "self service", "customer portal", "partner portal", "login", "community"]));
+
+  const wantsFieldService =
+    answers.fieldOps ??
+    has(text, ["technician", "dispatch", "schedule visits", "work orders", "onsite service", "field service", "service appointment"]);
+
+  const systemsDetected = systemsKeywords
+    .filter(([, keys]) => has(text, [...keys]))
+    .map(([label]) => label as string);
+  const explicitExternalCount = answers.externalSystemsCount ?? 0;
+  const externalSystemsCount = Math.max(explicitExternalCount, systemsDetected.length);
+
+  const wantsSales = has(text, ["lead", "opportunity", "pipeline", "forecast", "sales"]);
+  const wantsService = has(text, ["support", "case", "ticket", "sla", "service"]);
+  const wantsCPQ = has(text, ["complex pricing", "quoting", "approvals for pricing", "discount approvals", "cpq"]);
+
+  const aiAutomationIntent = answers.aiAutomationIntent ?? has(text, ["ai-driven", "ai automation", "copilot", "agent assist", "generative", "auto-summarize", "deflection"]);
+
+  const needsSingleCustomerView = has(text, ["unified customer profile", "single customer view"]);
+  const needsRealtimeCustomerData = has(text, ["real-time"]) && has(text, ["customer data", "customer profile", "profiles"]);
+
+  const complexityLevel: "Low" | "Medium" | "High" =
+    externalSystemsCount >= 3 || wantsCPQ || needsSingleCustomerView ? "High" : wantsSales || wantsService || portalNeed ? "Medium" : "Low";
+
+  const userCountBand: Signals["userCountBand"] = users >= 200 ? "200+" : users >= 50 ? "50-199" : "1-49";
 
   return {
     rawText: input,
     users,
-    wantsSales: has(text, ["lead", "opportunity", "pipeline", "forecast", "sales"]),
-    wantsService: has(text, ["support", "case", "ticket", "sla", "service"]),
-    wantsPortal: answers.needsSelfServicePortal ?? has(text, ["portal", "community", "partner"]),
-    wantsFieldService: answers.fieldOps ?? has(text, ["technician", "dispatch", "field"]),
-    wantsCPQ: has(text, ["quote", "pricing", "proposal", "cpq", "contract"]),
+    userCountBand,
+    wantsSales,
+    wantsService,
+    portalNeed,
+    explicitNoPortal,
+    wantsFieldService,
+    wantsCPQ,
     externalSystemsCount,
-    needsSingleCustomerView: has(text, ["single customer view", "360 view", "unified profile"]),
-    needsRealtimeSegmentation: has(text, ["real-time segment", "personalization", "journey trigger"]),
-    crossCloudAnalytics: has(text, ["cross-cloud", "combined analytics", "multi cloud analytics"]),
-    aiAutomationIntent: answers.aiAutomationIntent ?? has(text, ["ai", "copilot", "assistant", "automate responses"]),
+    systemsDetected,
+    needsSingleCustomerView,
+    needsRealtimeCustomerData,
+    crossCloudAnalytics: has(text, ["cross-cloud analytics", "cross cloud analytics"]),
+    aiAutomationIntent,
     highCaseVolume: has(text, ["high case volume", "thousands of tickets", "large support queue"]),
-    deflectionIntent: has(text, ["deflect", "self-service", "reduce ticket"]),
-    salesCopilotIntent: has(text, ["sales copilot", "guided selling", "next best action"]),
+    deflectionIntent: has(text, ["deflection", "deflect"]),
+    salesCopilotIntent: has(text, ["sales copilot", "guided selling"]),
+    complexityLevel,
   };
 }
 
@@ -47,173 +95,156 @@ const products: Record<ProductKey, string> = {
 };
 
 export function decideProducts(signals: Signals): ProductDecision[] {
-  const decisions: ProductDecision[] = [];
-
-  decisions.push({
-    key: "sales_cloud",
-    name: products.sales_cloud,
-    level: signals.wantsSales ? "recommended" : "optional",
-    reasons: signals.wantsSales ? ["Lead/opportunity and forecast needs detected."] : ["Can be added later if sales process matures."],
-  });
-
-  decisions.push({
-    key: "service_cloud",
-    name: products.service_cloud,
-    level: signals.wantsService ? "recommended" : "optional",
-    reasons: signals.wantsService ? ["Case/ticket workflow requested."] : ["Optional unless support operations are central."],
-  });
-
-  decisions.push({
-    key: "experience_cloud",
-    name: products.experience_cloud,
-    level: signals.wantsPortal ? "recommended" : "not_needed",
-    reasons: signals.wantsPortal ? ["Portal/community requirement detected."] : ["No external portal requirement detected."],
-  });
-
-  decisions.push({
-    key: "field_service",
-    name: products.field_service,
-    level: signals.wantsFieldService ? "recommended" : "not_needed",
-    reasons: signals.wantsFieldService ? ["Field dispatch/technician needs present."] : ["No field operations trigger found."],
-  });
-
-  decisions.push({
-    key: "cpq_revenue",
-    name: products.cpq_revenue,
-    level: signals.wantsCPQ ? "recommended" : "optional",
-    reasons: signals.wantsCPQ ? ["Complex quote/pricing process identified."] : ["Optional if quoting remains simple."],
-  });
-
   const dataCloudTriggers =
     signals.externalSystemsCount >= 2 ||
     signals.needsSingleCustomerView ||
-    signals.needsRealtimeSegmentation ||
+    signals.needsRealtimeCustomerData ||
     signals.crossCloudAnalytics;
-
-  decisions.push({
-    key: "data_cloud",
-    name: products.data_cloud,
-    level: dataCloudTriggers ? "recommended" : "not_needed",
-    reasons: dataCloudTriggers
-      ? ["Triggered by integration/profile/segmentation analytics requirements."]
-      : ["Not recommended by default without explicit triggers."],
-  });
-
   const agentTriggers =
     signals.aiAutomationIntent || (signals.highCaseVolume && signals.deflectionIntent) || signals.salesCopilotIntent;
 
-  decisions.push({
-    key: "agentforce_einstein",
-    name: products.agentforce_einstein,
-    level: agentTriggers ? "optional" : "not_needed",
-    reasons: agentTriggers
-      ? ["AI automation or copilot trigger detected."]
-      : ["Not recommended by default without explicit AI/automation intent."],
-  });
-
-  return decisions;
+  return [
+    {
+      key: "sales_cloud",
+      name: products.sales_cloud,
+      level: signals.wantsSales ? "recommended" : "optional",
+      reasons: [signals.wantsSales ? "Sales process management needs detected." : "Optional for future sales process maturity."],
+      triggers: signals.wantsSales ? ["lead/opportunity/pipeline keywords"] : ["no explicit sales trigger"],
+    },
+    {
+      key: "service_cloud",
+      name: products.service_cloud,
+      level: signals.wantsService ? "recommended" : "optional",
+      reasons: [signals.wantsService ? "Support/case requirements detected." : "Optional unless service operations expand."],
+      triggers: signals.wantsService ? ["support/case/ticket keywords"] : ["no explicit service trigger"],
+    },
+    {
+      key: "experience_cloud",
+      name: products.experience_cloud,
+      level: signals.portalNeed ? "recommended" : signals.explicitNoPortal ? "not_needed" : "optional",
+      reasons: [signals.portalNeed ? "Portal/self-service access requirement detected." : "No portal trigger detected."],
+      triggers: signals.portalNeed ? ["portal/self-service/community keywords"] : ["no portal trigger"],
+    },
+    {
+      key: "field_service",
+      name: products.field_service,
+      level: signals.wantsFieldService ? "recommended" : "not_needed",
+      reasons: [signals.wantsFieldService ? "Explicit field operations keywords detected." : "No field service trigger keywords detected."],
+      triggers: signals.wantsFieldService ? ["technician/dispatch/work orders keywords"] : ["no field service keywords"],
+    },
+    {
+      key: "cpq_revenue",
+      name: products.cpq_revenue,
+      level: signals.wantsCPQ ? "recommended" : "optional",
+      reasons: [signals.wantsCPQ ? "Complex pricing/quoting requirements detected." : "Optional unless pricing complexity increases."],
+      triggers: signals.wantsCPQ ? ["complex pricing/quoting/discount approval keywords"] : ["no complex pricing trigger"],
+    },
+    {
+      key: "data_cloud",
+      name: products.data_cloud,
+      level: dataCloudTriggers ? "recommended" : "not_needed",
+      reasons: [dataCloudTriggers ? "Unified profile / multi-system / real-time customer data trigger detected." : "Not recommended without explicit data unification trigger."],
+      triggers: dataCloudTriggers ? ["2+ systems or unified profile or real-time customer data"] : ["no data cloud trigger"],
+    },
+    {
+      key: "agentforce_einstein",
+      name: products.agentforce_einstein,
+      level: agentTriggers ? (signals.wantsService ? "recommended" : "optional") : "not_needed",
+      reasons: [agentTriggers ? "AI automation/copilot intent detected." : "Not recommended by default without explicit AI intent."],
+      triggers: agentTriggers ? ["ai-driven/copilot/agent assist/deflection keywords"] : ["no ai trigger"],
+    },
+  ];
 }
 
 export function scoreOOTB(signals: Signals): OOTBRow[] {
-  const rows: OOTBRow[] = [
-    { capability: "Lead and Opportunity Management", approach: "OOTB", notes: "Use standard Lead, Account, Contact, Opportunity." },
-    { capability: "Case Management", approach: signals.wantsService ? "OOTB" : "Config", notes: "Standard Case with queues and assignment rules." },
-    { capability: "Approval Workflows", approach: "Config", notes: "Flow-first approvals before Apex." },
+  return [
     {
-      capability: "Industry-specific process",
-      approach: has(signals.rawText.toLowerCase(), ["proprietary", "unique compliance"]) ? "Custom" : "Config",
-      notes: "Custom objects only when standard model cannot fit requirements.",
+      area: "Lead & Opportunity Management",
+      ootbFit: "High",
+      customizationLevel: "Low",
+      risk: "Low",
+      notes: "Standard Lead, Account, Contact, Opportunity with flow automation.",
+    },
+    {
+      area: "Case & Service Operations",
+      ootbFit: signals.wantsService ? "High" : "Medium",
+      customizationLevel: "Medium",
+      risk: "Medium",
+      notes: "Case routing and SLA policies can be config-led using Flow.",
+    },
+    {
+      area: "Pricing & Approvals",
+      ootbFit: signals.wantsCPQ ? "Medium" : "Low",
+      customizationLevel: signals.wantsCPQ ? "High" : "Medium",
+      risk: signals.wantsCPQ ? "High" : "Medium",
+      notes: "Complex pricing and discount governance often require CPQ design.",
     },
   ];
-  return rows;
 }
 
 export function generateBlueprint(input: string, answers: ClarificationAnswers = {}): BlueprintResult {
   const signals = extractSignals(input, answers);
   const decisions = decideProducts(signals);
-  const recommended = decisions.filter((p) => p.level === "recommended").map((p) => p.name);
+  const recommendedNames = decisions.filter((d) => d.level === "recommended").map((d) => d.name);
+  const license = estimateLicenseCost({ userCount: signals.users, recommendedProducts: recommendedNames });
+
+  const enterpriseFloor = signals.users >= 200 ? 200 * 100 * 12 : 0;
+  const licenseLow = Math.max(license.totalLow, enterpriseFloor);
+  const implementationBand = estimateImplementation({ complexityLevel: signals.complexityLevel, integrationCount: signals.externalSystemsCount });
+  const implLow = signals.complexityLevel === "High" ? Math.max(implementationBand.implLow, 150000) : implementationBand.implLow;
+
+  const confidenceScore = Math.max(55, Math.min(94, 62 + countMatches(signals.rawText.toLowerCase(), ["users", "portal", "ai", "erp", "pricing"]) * 6));
 
   return {
-    executiveSnapshot: [
-      `Primary focus detected: ${signals.wantsSales ? "Sales" : "General CRM"}${signals.wantsService ? " + Service" : ""}.`,
-      `Estimated initial user cohort: ~${signals.users}.`,
-      `Recommendation confidence starts moderate due to heuristic parsing.`,
-    ],
+    executiveSnapshot: {
+      primaryFocus: signals.wantsSales && signals.wantsService ? "Sales + Service" : signals.wantsService ? "Service" : "Sales / CRM",
+      usersDetected: signals.users,
+      userCountBand: signals.userCountBand,
+      complexityLevel: signals.complexityLevel,
+      confidenceScore,
+    },
     products: decisions,
-    whyMapping: decisions
-      .filter((d) => d.level !== "not_needed")
-      .map((d) => ({ need: "Captured business needs", product: d.name, why: d.reasons[0] })),
+    whyMapping: decisions.filter((d) => d.level !== "not_needed").map((d) => ({ need: "Captured business needs", product: d.name, why: d.reasons[0] })),
     ootbVsCustom: scoreOOTB(signals),
     objectsAndAutomations: [
-      "Objects: Account, Contact, Lead, Opportunity, Case (as needed)",
-      "Automation: Lead routing flow, opportunity stage alerts, case escalation flow",
-      "Use record-triggered flows before Apex",
+      "Objects: Account, Contact, Lead, Opportunity, Case",
+      "Flow-first automations: lead routing, case triage, discount approval orchestration",
+      "Use custom objects only for non-standard domain entities",
     ],
-    integrationMap: [
-      "ERP/Billing -> Salesforce via API layer",
-      "Website forms -> Lead ingestion",
-      "Support inbox/chat -> Case creation",
-    ],
-    analyticsPack: [
-      "Pipeline by stage",
-      "Win rate trend",
-      "Case volume and SLA attainment",
-      "Agent productivity",
-    ],
-    costEstimate: (() => {
-      const recommendedNames = decisions.filter((d) => d.level === "recommended").map((d) => d.name);
-      const license = estimateLicenseCost({ userCount: signals.users, recommendedProducts: recommendedNames });
-
-      const complexityLevel: "Low" | "Medium" | "High" =
-        signals.externalSystemsCount > 2 || signals.wantsCPQ || signals.wantsFieldService
-          ? "High"
-          : signals.wantsService || signals.wantsSales || signals.wantsPortal
-            ? "Medium"
-            : "Low";
-
-      const implementationBand = estimateImplementation({
-        complexityLevel,
-        integrationCount: signals.externalSystemsCount,
-      });
-
-      return {
-        license,
-        implementation: {
-          low: implementationBand.implLow,
-          high: implementationBand.implHigh,
-          rationale: implementationBand.rationale,
-        },
-        yearOneTotal: {
-          low: license.totalLow + implementationBand.implLow,
-          high: license.totalHigh + implementationBand.implHigh,
-        },
-        assumptions: [
-          "License estimates are per-user, per-month directional ranges based on typical market assumptions.",
-          "Implementation range assumes phased delivery and flow-first configuration where possible.",
-          "User allocation assumes 70/30 Sales/Service split when both clouds are recommended.",
-        ],
-        disclaimer:
-          "Estimates shown are directional ranges based on typical market assumptions. This is not official Salesforce pricing or a quote.",
-      };
-    })(),
+    integrationMap: (signals.systemsDetected.length ? signals.systemsDetected : ["ERP", "Ecommerce", "Marketing Automation"]).map((system) => ({
+      system,
+      pattern: system === "Marketing Automation" ? "Event" : system === "ERP" ? "API" : "Batch",
+    })),
+    analyticsPack: ["Pipeline by stage", "Forecast attainment", "Case deflection trend", "SLA adherence", "Agent productivity"],
+    costEstimate: {
+      license: {
+        ...license,
+        totalLow: licenseLow,
+      },
+      implementation: {
+        low: implLow,
+        high: implementationBand.implHigh,
+        rationale: implementationBand.rationale,
+      },
+      yearOneTotal: {
+        low: licenseLow + implLow,
+        high: license.totalHigh + implementationBand.implHigh,
+      },
+      assumptions: [
+        "License estimate = users × monthly directional range × 12.",
+        "When both Sales and Service are recommended, user allocation defaults to 70/30.",
+        "Enterprise safeguard floor applied for 200+ users scenarios.",
+        "Implementation band scales by complexity and integration volume.",
+      ],
+      disclaimer: "Directional estimates only. Not official Salesforce pricing or a quote.",
+    },
     roadmap: [
-      { phase: "Phase 1 (0-6 weeks)", outcomes: ["Discovery", "Core data model", "MVP automations"] },
-      { phase: "Phase 2 (6-12 weeks)", outcomes: ["Dashboards", "Integrations", "User training"] },
-      { phase: "Phase 3 (post go-live)", outcomes: ["Optimization", "Advanced automation", "Optional AI"] },
+      { phase: "Phase 1", outcomes: ["Discovery and data model", "Core clouds rollout", "MVP flows"] },
+      { phase: "Phase 2", outcomes: ["Integrations and analytics", "Portal and automation tuning"] },
+      { phase: "Phase 3", outcomes: ["Optimization", "Advanced AI and governance"] },
     ],
-    documentChecklist: [
-      "Solution blueprint",
-      "Data model and field dictionary",
-      "Integration specification",
-      "Flow inventory",
-      "UAT test scripts",
-      "Adoption and training plan",
-    ],
-    risks: [
-      "Integration complexity underestimated",
-      "Data quality issues from legacy systems",
-      "Scope growth beyond MVP",
-    ],
-    confidenceScore: Math.max(55, Math.min(90, 60 + recommended.length * 5 + (signals.users > 200 ? 5 : 0))),
+    documentChecklist: ["Solution blueprint", "Data dictionary", "Integration design", "Flow catalog", "UAT scripts", "Adoption plan"],
+    risks: ["Legacy data quality", "Integration complexity", "Change adoption pacing"],
+    confidenceScore,
   };
 }
