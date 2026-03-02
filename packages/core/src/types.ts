@@ -57,7 +57,30 @@ export interface BlueprintResult {
   objectsAndAutomations: string[];
   integrationMap: string[];
   analyticsPack: string[];
-  costSimulator: { range: string; assumptions: string[]; disclaimer: string };
+  costEstimate: {
+    license: {
+      breakdown: Array<{
+        product: string;
+        users: number;
+        annualLow: number;
+        annualHigh: number;
+        assumedEdition: string;
+      }>;
+      totalLow: number;
+      totalHigh: number;
+    };
+    implementation: {
+      low: number;
+      high: number;
+      rationale: string;
+    };
+    yearOneTotal: {
+      low: number;
+      high: number;
+    };
+    assumptions: string[];
+    disclaimer: string;
+  };
   roadmap: Array<{ phase: string; outcomes: string[] }>;
   documentChecklist: string[];
   risks: string[];

@@ -6,6 +6,8 @@ import {
   ProductKey,
   Signals,
 } from "./types";
+import { estimateLicenseCost } from "./estimateLicenses";
+import { estimateImplementation } from "./estimateImplementation";
 
 const has = (text: string, needles: string[]) => needles.some((n) => text.includes(n));
 
@@ -158,14 +160,42 @@ export function generateBlueprint(input: string, answers: ClarificationAnswers =
       "Case volume and SLA attainment",
       "Agent productivity",
     ],
-    costSimulator: {
-      range: signals.users < 100 ? "$25k - $90k year-1" : "$120k - $450k year-1",
-      assumptions: [
-        "Directional estimate includes licenses, implementation, and change enablement",
-        "Assumes phased rollout and mostly configuration-led delivery",
-      ],
-      disclaimer: "Directional estimate only. This is not official Salesforce pricing or a quote.",
-    },
+    costEstimate: (() => {
+      const recommendedNames = decisions.filter((d) => d.level === "recommended").map((d) => d.name);
+      const license = estimateLicenseCost({ userCount: signals.users, recommendedProducts: recommendedNames });
+
+      const complexityLevel: "Low" | "Medium" | "High" =
+        signals.externalSystemsCount > 2 || signals.wantsCPQ || signals.wantsFieldService
+          ? "High"
+          : signals.wantsService || signals.wantsSales || signals.wantsPortal
+            ? "Medium"
+            : "Low";
+
+      const implementationBand = estimateImplementation({
+        complexityLevel,
+        integrationCount: signals.externalSystemsCount,
+      });
+
+      return {
+        license,
+        implementation: {
+          low: implementationBand.implLow,
+          high: implementationBand.implHigh,
+          rationale: implementationBand.rationale,
+        },
+        yearOneTotal: {
+          low: license.totalLow + implementationBand.implLow,
+          high: license.totalHigh + implementationBand.implHigh,
+        },
+        assumptions: [
+          "License estimates are per-user, per-month directional ranges based on typical market assumptions.",
+          "Implementation range assumes phased delivery and flow-first configuration where possible.",
+          "User allocation assumes 70/30 Sales/Service split when both clouds are recommended.",
+        ],
+        disclaimer:
+          "Estimates shown are directional ranges based on typical market assumptions. This is not official Salesforce pricing or a quote.",
+      };
+    })(),
     roadmap: [
       { phase: "Phase 1 (0-6 weeks)", outcomes: ["Discovery", "Core data model", "MVP automations"] },
       { phase: "Phase 2 (6-12 weeks)", outcomes: ["Dashboards", "Integrations", "User training"] },

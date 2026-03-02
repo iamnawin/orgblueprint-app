@@ -44,3 +44,83 @@ npm run lint
 npm run typecheck
 npm run build
 ```
+
+
+## How pricing estimates are calculated (directional only)
+- **License estimate**: Uses directional per-user monthly ranges for assumed editions (currently Sales Cloud and Service Cloud assumptions in `packages/core/src/pricingAssumptions.ts`).
+- **User allocation**: If both Sales Cloud and Service Cloud are recommended, users are split 70/30; if only one is recommended, all users are assigned to that cloud.
+- **Implementation estimate**: Uses an MVP complexity band (Low/Medium/High) and adds uplift when integrations exceed 2.
+- **Year-1 total**: `license total + implementation total` shown as low/high range.
+- **Disclaimer**: Estimates are directional and are **not official Salesforce pricing or a quote**.
+
+
+## Troubleshooting (Windows logs you shared)
+If `npm run` shows scripts from another app such as `structra-ai` (for example Vite scripts), you are in the wrong folder/repository.
+
+1. Verify location and project name:
+```powershell
+pwd
+git remote -v
+npm run doctor
+```
+Expected doctor output should confirm package `orgblueprint-app`.
+
+2. If commands like `'tsc' is not recognized` or `'vite' is not recognized` appear:
+- You are either in the wrong repo, or
+- Dependencies are not installed.
+
+Run:
+```powershell
+npm install
+npm run doctor
+```
+
+3. For older PowerShell (no `&&` support), use:
+```powershell
+npm run lint; npm run typecheck; npm run build
+```
+
+
+4. If `git remote -v` shows `Structra-AI-Architect-Studio` instead of `orgblueprint-app`, fix remote + branch:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\fix-orgblueprint-git.ps1 `
+  -RepoPath "C:\Users\Naveen\OneDrive\Desktop\orgblueprint" `
+  -RemoteUrl "https://github.com/iamnawin/orgblueprint-app.git" `
+  -Branch "work"
+```
+This script sets/updates `origin`, creates/switches `work` if missing, then pushes with upstream.
+
+## GitHub + local parallel save workflow
+Use this repository URL for your local clone:
+- `https://github.com/iamnawin/orgblueprint-app`
+
+### First-time setup (Windows PowerShell)
+```powershell
+git clone https://github.com/iamnawin/orgblueprint-app "C:\Users\Naveen\OneDrive\Desktop\orgblueprint"
+cd "C:\Users\Naveen\OneDrive\Desktop\orgblueprint"
+npm install
+```
+
+### Parallel local + git sync
+A ready-to-use PowerShell script is included at:
+- `scripts/sync-local-git.ps1`
+
+Example usage:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\sync-local-git.ps1 `
+  -RepoPath "C:\Users\Naveen\OneDrive\Desktop\orgblueprint" `
+  -BackupPath "C:\Users\Naveen\OneDrive\Desktop\orgblueprint-backup" `
+  -CommitMessage "Sync local + git"
+```
+This mirrors the repo to a local backup folder, then pulls/rebases, commits, and pushes if changes exist.
+
+Safety check included: the script verifies `-RepoPath` is the actual git root before staging, which prevents accidental `../../../` parent-folder scanning.
+
+## Testing
+See detailed testing steps in `docs/TESTING.md`.
+
+### PowerShell note
+If your PowerShell does not support `&&`, run commands separately or with semicolons:
+```powershell
+npm run lint; npm run typecheck; npm run build
+```
