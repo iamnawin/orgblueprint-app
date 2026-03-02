@@ -56,3 +56,22 @@ cd "C:\Users\Naveen\OneDrive\Desktop\orgblueprint"
 npm install
 npm run doctor
 ```
+
+
+## 9) If git remote/branch is wrong
+If `git remote -v` points to another repo (e.g., Structra) or `src refspec work does not match any`, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\fix-orgblueprint-git.ps1 `
+  -RepoPath "C:\Users\Naveen\OneDrive\Desktop\orgblueprint" `
+  -RemoteUrl "https://github.com/iamnawin/orgblueprint-app.git" `
+  -Branch "work"
+```
+
+Manual equivalent:
+```powershell
+git remote set-url origin https://github.com/iamnawin/orgblueprint-app.git
+git fetch origin
+git switch -c work   # or: git switch work
+git push -u origin work
+```

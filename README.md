@@ -73,6 +73,16 @@ npm run doctor
 npm run lint; npm run typecheck; npm run build
 ```
 
+
+4. If `git remote -v` shows `Structra-AI-Architect-Studio` instead of `orgblueprint-app`, fix remote + branch:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\fix-orgblueprint-git.ps1 `
+  -RepoPath "C:\Users\Naveen\OneDrive\Desktop\orgblueprint" `
+  -RemoteUrl "https://github.com/iamnawin/orgblueprint-app.git" `
+  -Branch "work"
+```
+This script sets/updates `origin`, creates/switches `work` if missing, then pushes with upstream.
+
 ## GitHub + local parallel save workflow
 Use this repository URL for your local clone:
 - `https://github.com/iamnawin/orgblueprint-app`
