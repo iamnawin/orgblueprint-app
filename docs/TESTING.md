@@ -38,3 +38,21 @@ On older Windows PowerShell versions, `&&` is not supported. Use:
 ```powershell
 npm run lint; npm run typecheck; npm run build
 ```
+
+
+## 7) Quick doctor check (recommended)
+```powershell
+npm run doctor
+```
+This confirms you are in the correct repository (`orgblueprint-app`), required scripts exist, core paths are present, and dependencies are installed.
+
+## 8) If output shows another project (e.g., `structra-ai`)
+You are in the wrong local folder. Re-clone and run from:
+`C:\Users\Naveen\OneDrive\Desktop\orgblueprint`
+
+```powershell
+git clone https://github.com/iamnawin/orgblueprint-app "C:\Users\Naveen\OneDrive\Desktop\orgblueprint"
+cd "C:\Users\Naveen\OneDrive\Desktop\orgblueprint"
+npm install
+npm run doctor
+```

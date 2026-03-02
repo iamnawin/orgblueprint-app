@@ -46,6 +46,33 @@ npm run build
 ```
 
 
+
+## Troubleshooting (Windows logs you shared)
+If `npm run` shows scripts from another app such as `structra-ai` (for example Vite scripts), you are in the wrong folder/repository.
+
+1. Verify location and project name:
+```powershell
+pwd
+git remote -v
+npm run doctor
+```
+Expected doctor output should confirm package `orgblueprint-app`.
+
+2. If commands like `'tsc' is not recognized` or `'vite' is not recognized` appear:
+- You are either in the wrong repo, or
+- Dependencies are not installed.
+
+Run:
+```powershell
+npm install
+npm run doctor
+```
+
+3. For older PowerShell (no `&&` support), use:
+```powershell
+npm run lint; npm run typecheck; npm run build
+```
+
 ## GitHub + local parallel save workflow
 Use this repository URL for your local clone:
 - `https://github.com/iamnawin/orgblueprint-app`
