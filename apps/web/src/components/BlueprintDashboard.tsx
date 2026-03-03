@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { BlueprintResult, ProductDecision } from "@orgblueprint/core";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { PRODUCT_PRICING, PRICING_DISCLAIMER, computeAnnualCost } from "@/lib/pricing";
+import { PRODUCT_DETAILS } from "@/lib/productDetails";
+import { APPEXCHANGE_APPS } from "@/lib/appExchange";
+import { generateChecklist } from "@/lib/implementationChecklist";
 
 interface Props {
   result: BlueprintResult;
@@ -19,7 +22,7 @@ interface Props {
   onReset?: () => void;
 }
 
-// ─── Category config ────────────────────────────────────────────────────────────
+// ─── Category config ──────────────────────────────────────────────────────────
 const PRODUCT_CATEGORY: Record<string, { label: string; color: string; bg: string; border: string; dot: string; icon: string }> = {
   sales_cloud:              { label: "CRM",       color: "text-blue-700",    bg: "bg-blue-50",    border: "border-blue-200",  dot: "bg-blue-500",    icon: "📊" },
   service_cloud:            { label: "CRM",       color: "text-blue-700",    bg: "bg-blue-50",    border: "border-blue-200",  dot: "bg-blue-500",    icon: "🎧" },
@@ -73,12 +76,36 @@ const levelColors: Record<string, string> = {
   optional: "bg-amber-50 text-amber-900 border-amber-200",
   not_needed: "bg-slate-50 text-slate-400 border-slate-100",
 };
-
 const levelDot: Record<string, string> = {
   recommended: "bg-green-500",
   optional: "bg-amber-400",
   not_needed: "bg-slate-300",
 };
+
+const PHASE_COLORS = ["bg-blue-600", "bg-indigo-600", "bg-violet-600", "bg-purple-600", "bg-fuchsia-600"];
+const PHASE_BORDER_COLORS = ["border-blue-200", "border-indigo-200", "border-violet-200", "border-purple-200", "border-fuchsia-200"];
+const PHASE_BG_COLORS = ["bg-blue-50", "bg-indigo-50", "bg-violet-50", "bg-purple-50", "bg-fuchsia-50"];
+
+// ─── Simple Dialog ─────────────────────────────────────────────────────────────
+function SimpleDialog({
+  open,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        {children}
+      </div>
+    </div>
+  );
+}
 
 // ─── Editable list ────────────────────────────────────────────────────────────
 function EditableList({ items, onSave }: { items: string[]; onSave: (u: string[]) => void }) {
@@ -121,6 +148,8 @@ function InteractiveCostCalculator({ products, initialUsers = 50 }: { products: 
   const [tierSelections, setTierSelections] = useState<Record<string, number>>(
     Object.fromEntries(activeProducts.map((p) => [p.key, 0]))
   );
+  const [budgetEnabled, setBudgetEnabled] = useState(false);
+  const [budgetTarget, setBudgetTarget] = useState(0);
 
   const lineItems = activeProducts.map((p) => {
     const pricing = PRODUCT_PRICING[p.key];
@@ -139,10 +168,22 @@ function InteractiveCostCalculator({ products, initialUsers = 50 }: { products: 
   });
 
   const licenseTotal = lineItems.reduce((sum, l) => sum + l.annual, 0);
+  const budgetPct = budgetTarget > 0 ? Math.min(150, Math.round((licenseTotal / budgetTarget) * 100)) : 0;
+  const isOverBudget = budgetEnabled && budgetTarget > 0 && licenseTotal > budgetTarget;
+
+  function autoOptimize() {
+    // Downgrade optional products to lowest tier first
+    const next = { ...tierSelections };
+    for (const item of lineItems) {
+      if (item.level === "optional") {
+        next[item.key] = 0; // lowest tier
+      }
+    }
+    setTierSelections(next);
+  }
 
   return (
     <div className="space-y-5">
-      {/* Disclaimer */}
       <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800 leading-relaxed">
         ⚠️ {PRICING_DISCLAIMER}
       </div>
@@ -154,21 +195,63 @@ function InteractiveCostCalculator({ products, initialUsers = 50 }: { products: 
           <span className="text-2xl font-bold text-slate-900 tabular-nums">{userCount.toLocaleString()}</span>
         </div>
         <input
-          type="range"
-          min={10}
-          max={5000}
-          step={10}
-          value={userCount}
+          type="range" min={10} max={5000} step={10} value={userCount}
           onChange={(e) => setUserCount(Number(e.target.value))}
           className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-blue-600 bg-slate-200"
         />
         <div className="flex justify-between text-xs text-slate-400">
-          <span>10</span>
-          <span>500</span>
-          <span>1,000</span>
-          <span>2,500</span>
-          <span>5,000</span>
+          <span>10</span><span>500</span><span>1,000</span><span>2,500</span><span>5,000</span>
         </div>
+      </div>
+
+      {/* Budget optimizer toggle */}
+      <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-slate-700">Budget Target</p>
+          <button
+            onClick={() => setBudgetEnabled((v) => !v)}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${budgetEnabled ? "bg-blue-600" : "bg-slate-300"}`}
+          >
+            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${budgetEnabled ? "translate-x-4.5" : "translate-x-0.5"}`} />
+          </button>
+        </div>
+        {budgetEnabled && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-500">$</span>
+              <input
+                type="number"
+                value={budgetTarget || ""}
+                onChange={(e) => setBudgetTarget(Number(e.target.value))}
+                placeholder="Enter annual budget (e.g. 200000)"
+                className="flex-1 border border-slate-200 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-200"
+              />
+            </div>
+            {budgetTarget > 0 && (
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-xs">
+                  <span className={isOverBudget ? "text-red-600 font-semibold" : "text-green-600 font-semibold"}>
+                    {isOverBudget
+                      ? `Over budget by $${(licenseTotal - budgetTarget).toLocaleString()}`
+                      : `Under budget by $${(budgetTarget - licenseTotal).toLocaleString()}`}
+                  </span>
+                  <span className="text-slate-500">{budgetPct}% of budget</span>
+                </div>
+                <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${budgetPct > 100 ? "bg-red-500" : budgetPct > 80 ? "bg-amber-400" : "bg-green-500"}`}
+                    style={{ width: `${Math.min(100, budgetPct)}%` }}
+                  />
+                </div>
+                {isOverBudget && (
+                  <Button size="sm" variant="outline" onClick={autoOptimize} className="text-xs text-blue-700 border-blue-200 hover:bg-blue-50 mt-1">
+                    ⚡ Auto-optimize (downgrade optional products)
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <Separator />
@@ -193,9 +276,7 @@ function InteractiveCostCalculator({ products, initialUsers = 50 }: { products: 
                 const pricing = PRODUCT_PRICING[item.key];
                 return (
                   <tr key={item.key} className="hover:bg-slate-50/50">
-                    <td className="py-2.5 pr-3 font-medium text-slate-800 text-xs leading-tight">
-                      {item.name}
-                    </td>
+                    <td className="py-2.5 pr-3 font-medium text-slate-800 text-xs leading-tight">{item.name}</td>
                     <td className="py-2.5 pr-3">
                       <span className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border ${levelColors[item.level]}`}>
                         <span className={`h-1.5 w-1.5 rounded-full ${levelDot[item.level]}`} />
@@ -206,17 +287,10 @@ function InteractiveCostCalculator({ products, initialUsers = 50 }: { products: 
                       {pricing && pricing.tiers.length > 1 ? (
                         <select
                           value={tierSelections[item.key] ?? 0}
-                          onChange={(e) =>
-                            setTierSelections((prev) => ({
-                              ...prev,
-                              [item.key]: Number(e.target.value),
-                            }))
-                          }
+                          onChange={(e) => setTierSelections((prev) => ({ ...prev, [item.key]: Number(e.target.value) }))}
                           className="border border-slate-200 dark:border-slate-600 rounded-md px-2 py-1 text-xs bg-white dark:bg-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer"
                         >
-                          {pricing.tiers.map((t, i) => (
-                            <option key={i} value={i}>{t.tier}</option>
-                          ))}
+                          {pricing.tiers.map((t, i) => <option key={i} value={i}>{t.tier}</option>)}
                         </select>
                       ) : (
                         <span className="text-xs text-slate-600">{item.tierLabel}</span>
@@ -226,9 +300,7 @@ function InteractiveCostCalculator({ products, initialUsers = 50 }: { products: 
                       {item.pricingModel === "per_user" ? userCount.toLocaleString() : "—"}
                     </td>
                     <td className="py-2.5 pr-3 text-xs text-right text-slate-600">
-                      {item.perUserPerMonth !== null
-                        ? `$${item.perUserPerMonth.toFixed(2)}`
-                        : "Flat"}
+                      {item.perUserPerMonth !== null ? `$${item.perUserPerMonth.toFixed(2)}` : "Flat"}
                     </td>
                     <td className="py-2.5 text-xs text-right font-semibold text-slate-800">
                       ${item.annual.toLocaleString()}
@@ -239,12 +311,8 @@ function InteractiveCostCalculator({ products, initialUsers = 50 }: { products: 
             </tbody>
             <tfoot>
               <tr className="border-t border-slate-200">
-                <td colSpan={5} className="pt-3 text-xs font-semibold text-slate-600 text-right pr-3">
-                  License subtotal
-                </td>
-                <td className="pt-3 text-sm font-bold text-slate-900 text-right">
-                  ${licenseTotal.toLocaleString()}
-                </td>
+                <td colSpan={5} className="pt-3 text-xs font-semibold text-slate-600 text-right pr-3">License subtotal</td>
+                <td className="pt-3 text-sm font-bold text-slate-900 text-right">${licenseTotal.toLocaleString()}</td>
               </tr>
             </tfoot>
           </table>
@@ -253,7 +321,6 @@ function InteractiveCostCalculator({ products, initialUsers = 50 }: { products: 
 
       <Separator />
 
-      {/* License total summary */}
       <div className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white">
         <p className="text-xs font-medium opacity-80 mb-1">Annual license cost (estimate)</p>
         <p className="text-3xl font-bold tracking-tight">${licenseTotal.toLocaleString()}</p>
@@ -264,13 +331,12 @@ function InteractiveCostCalculator({ products, initialUsers = 50 }: { products: 
 
       <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-xs text-slate-500 leading-relaxed">
         💡 <strong>Implementation costs vary by partner.</strong> Salesforce SI partners typically charge $150–$350/hr.
-        Request quotes from Salesforce directly or certified partners for an accurate implementation estimate.
       </div>
     </div>
   );
 }
 
-// ─── Executive Snapshot Cards ────────────────────────────────────────────────
+// ─── Executive Snapshot Cards ─────────────────────────────────────────────────
 function ExecutiveSnapshotCards({ snapshot }: { snapshot: BlueprintResult["executiveSnapshot"] }) {
   const complexityConfig = {
     Low:    { color: "text-green-700",  bg: "bg-green-50",  border: "border-green-200",  bar: "bg-green-500",  pct: 33  },
@@ -285,54 +351,30 @@ function ExecutiveSnapshotCards({ snapshot }: { snapshot: BlueprintResult["execu
   }[snapshot.userCountBand];
 
   const confidencePct = Math.min(100, Math.max(0, snapshot.confidenceScore));
-  const confidenceColor =
-    confidencePct >= 80 ? "bg-green-500" :
-    confidencePct >= 60 ? "bg-amber-400" :
-    "bg-red-400";
+  const confidenceColor = confidencePct >= 80 ? "bg-green-500" : confidencePct >= 60 ? "bg-amber-400" : "bg-red-400";
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {/* Focus Area */}
       <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 space-y-1.5">
-        <div className="flex items-center gap-1.5">
-          <span className="text-base">🎯</span>
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Primary Focus</p>
-        </div>
+        <div className="flex items-center gap-1.5"><span className="text-base">🎯</span><p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Primary Focus</p></div>
         <p className="text-sm font-bold text-slate-900 leading-snug">{snapshot.primaryFocus || "General CRM"}</p>
       </div>
-
-      {/* User Count */}
       <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 space-y-1.5">
-        <div className="flex items-center gap-1.5">
-          <span className="text-base">👥</span>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Users Detected</p>
-        </div>
+        <div className="flex items-center gap-1.5"><span className="text-base">👥</span><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Users Detected</p></div>
         <div className="flex items-end gap-2">
           <p className="text-2xl font-bold text-slate-900 tabular-nums leading-none">{snapshot.usersDetected}</p>
-          <span className={`text-xs px-1.5 py-0.5 rounded-full border font-medium mb-0.5 ${bandConfig.color}`}>
-            {bandConfig.label}
-          </span>
+          <span className={`text-xs px-1.5 py-0.5 rounded-full border font-medium mb-0.5 ${bandConfig.color}`}>{bandConfig.label}</span>
         </div>
       </div>
-
-      {/* Complexity */}
       <div className={`rounded-xl border ${complexityConfig.border} ${complexityConfig.bg} p-4 space-y-1.5`}>
-        <div className="flex items-center gap-1.5">
-          <span className="text-base">⚡</span>
-          <p className={`text-xs font-semibold uppercase tracking-wide ${complexityConfig.color}`}>Complexity</p>
-        </div>
+        <div className="flex items-center gap-1.5"><span className="text-base">⚡</span><p className={`text-xs font-semibold uppercase tracking-wide ${complexityConfig.color}`}>Complexity</p></div>
         <p className={`text-xl font-bold ${complexityConfig.color}`}>{snapshot.complexityLevel}</p>
         <div className="h-1.5 bg-white/60 rounded-full overflow-hidden">
           <div className={`h-full ${complexityConfig.bar} rounded-full transition-all duration-700`} style={{ width: `${complexityConfig.pct}%` }} />
         </div>
       </div>
-
-      {/* Confidence Score */}
       <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 space-y-1.5">
-        <div className="flex items-center gap-1.5">
-          <span className="text-base">📊</span>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Confidence</p>
-        </div>
+        <div className="flex items-center gap-1.5"><span className="text-base">📊</span><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Confidence</p></div>
         <div className="flex items-end gap-1">
           <p className="text-2xl font-bold text-slate-900 tabular-nums leading-none">{confidencePct}</p>
           <p className="text-sm text-slate-400 mb-0.5">/100</p>
@@ -345,8 +387,8 @@ function ExecutiveSnapshotCards({ snapshot }: { snapshot: BlueprintResult["execu
   );
 }
 
-// ─── Product Card ─────────────────────────────────────────────────────────────
-function ProductCard({ product, muted = false }: { product: ProductDecision; muted?: boolean }) {
+// ─── Product Card (clickable for deep-dive) ───────────────────────────────────
+function ProductCard({ product, muted = false, onDeepDive }: { product: ProductDecision; muted?: boolean; onDeepDive?: () => void }) {
   const cat = PRODUCT_CATEGORY[product.key];
   const [expanded, setExpanded] = useState(false);
 
@@ -362,14 +404,14 @@ function ProductCard({ product, muted = false }: { product: ProductDecision; mut
     );
   }
 
-  const levelBadge =
-    product.level === "recommended"
-      ? "bg-green-100 text-green-800 border-green-200"
-      : "bg-amber-100 text-amber-800 border-amber-200";
+  const levelBadge = product.level === "recommended"
+    ? "bg-green-100 text-green-800 border-green-200"
+    : "bg-amber-100 text-amber-800 border-amber-200";
+
+  const details = PRODUCT_DETAILS[product.key];
 
   return (
     <div className={`rounded-xl border ${cat?.border ?? "border-slate-200"} ${cat?.bg ?? "bg-slate-50"} p-3.5 space-y-2 hover:shadow-sm transition-shadow duration-150`}>
-      {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-2 min-w-0">
           <span className="text-lg leading-none mt-0.5 flex-shrink-0">{cat?.icon ?? "📦"}</span>
@@ -385,34 +427,398 @@ function ProductCard({ product, muted = false }: { product: ProductDecision; mut
         </span>
       </div>
 
-      {/* Reason */}
       <p className="text-xs text-slate-600 leading-relaxed">{product.reasons[0]}</p>
 
-      {/* Triggers — expandable */}
-      {product.triggers && product.triggers.length > 0 && (
-        <div>
+      <div className="flex items-center justify-between">
+        {product.triggers && product.triggers.length > 0 && (
           <button
             onClick={() => setExpanded((v) => !v)}
             className="text-xs text-slate-400 hover:text-slate-600 underline decoration-dotted transition-colors"
           >
             {expanded ? "Hide signals ▲" : "View signals ▼"}
           </button>
-          {expanded && (
-            <div className="mt-1.5 flex flex-wrap gap-1">
-              {product.triggers.map((t, i) => (
-                <span key={i} className="text-xs bg-white/80 border border-slate-200 text-slate-500 px-1.5 py-0.5 rounded-md">
-                  {t}
-                </span>
-              ))}
-            </div>
-          )}
+        )}
+        {details && onDeepDive && (
+          <button
+            onClick={onDeepDive}
+            className="text-xs text-blue-500 hover:text-blue-700 font-medium ml-auto"
+          >
+            Deep-dive →
+          </button>
+        )}
+      </div>
+
+      {expanded && product.triggers && (
+        <div className="flex flex-wrap gap-1">
+          {product.triggers.map((t, i) => (
+            <span key={i} className="text-xs bg-white/80 border border-slate-200 text-slate-500 px-1.5 py-0.5 rounded-md">{t}</span>
+          ))}
         </div>
       )}
     </div>
   );
 }
 
-// ─── Main dashboard ────────────────────────────────────────────────────────────
+// ─── Product Deep-dive Dialog ─────────────────────────────────────────────────
+function ProductDeepDiveDialog({
+  product,
+  open,
+  onClose,
+}: {
+  product: ProductDecision | null;
+  open: boolean;
+  onClose: () => void;
+}) {
+  if (!product) return null;
+  const cat = PRODUCT_CATEGORY[product.key];
+  const details = PRODUCT_DETAILS[product.key];
+  if (!details) return null;
+
+  return (
+    <SimpleDialog open={open} onClose={onClose}>
+      <div className="p-6 space-y-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <span className="text-3xl">{cat?.icon ?? "📦"}</span>
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">{product.name}</h2>
+              <p className="text-sm text-slate-500 mt-0.5">{details.tagline}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-xl leading-none mt-0.5">✕</button>
+        </div>
+
+        <p className="text-sm text-slate-600 leading-relaxed">{details.description}</p>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Key Features</h4>
+            <ul className="space-y-1">
+              {details.keyFeatures.map((f, i) => (
+                <li key={i} className="text-xs text-slate-700 flex gap-2"><span className="text-green-500 flex-shrink-0">✓</span>{f}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Best For</h4>
+            <ul className="space-y-1">
+              {details.bestFor.map((b, i) => (
+                <li key={i} className="text-xs text-slate-700 flex gap-2"><span className="text-blue-400 flex-shrink-0">→</span>{b}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <div className="flex gap-4">
+          <div className="flex-1 rounded-lg bg-blue-50 border border-blue-200 p-3 text-center">
+            <p className="text-xs text-blue-500 font-medium mb-1">Typical Implementation</p>
+            <p className="text-lg font-bold text-blue-900">{details.implementationWeeks.min}–{details.implementationWeeks.max} wks</p>
+          </div>
+          <div className="flex-1 rounded-lg bg-slate-50 border border-slate-200 p-3">
+            <p className="text-xs text-slate-500 font-medium mb-1.5">Key Certifications</p>
+            <div className="flex flex-wrap gap-1">
+              {details.certifications.map((c, i) => (
+                <span key={i} className="text-xs bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded-full">{c}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {details.relatedProducts.length > 0 && (
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Often Paired With</h4>
+            <div className="flex flex-wrap gap-2">
+              {details.relatedProducts.map((key) => {
+                const relCat = PRODUCT_CATEGORY[key];
+                return (
+                  <span key={key} className={`text-xs px-2 py-1 rounded-full border font-medium ${relCat?.bg ?? "bg-slate-50"} ${relCat?.color ?? "text-slate-600"} ${relCat?.border ?? "border-slate-200"}`}>
+                    {relCat?.icon} {key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </SimpleDialog>
+  );
+}
+
+// ─── Visual Roadmap ────────────────────────────────────────────────────────────
+function VisualRoadmap({ roadmap }: { roadmap: BlueprintResult["roadmap"] }) {
+  return (
+    <div className="space-y-0">
+      {roadmap.map((phase, i) => (
+        <div key={i} className="flex gap-4 relative pb-6 last:pb-0">
+          {/* Connector line */}
+          {i < roadmap.length - 1 && (
+            <div className="absolute left-5 top-11 bottom-0 w-0.5 bg-gradient-to-b from-slate-300 to-slate-100" />
+          )}
+
+          {/* Phase circle */}
+          <div className={`flex-shrink-0 w-10 h-10 rounded-full ${PHASE_COLORS[i % PHASE_COLORS.length]} text-white flex items-center justify-center text-sm font-bold shadow-sm z-10`}>
+            {i + 1}
+          </div>
+
+          {/* Phase card */}
+          <div className={`flex-1 rounded-xl border ${PHASE_BORDER_COLORS[i % PHASE_BORDER_COLORS.length]} ${PHASE_BG_COLORS[i % PHASE_BG_COLORS.length]} p-4`}>
+            <p className="font-semibold text-slate-800 text-sm mb-2">{phase.phase}</p>
+            <ul className="space-y-1">
+              {phase.outcomes.map((outcome, j) => (
+                <li key={j} className="flex items-start gap-2 text-xs text-slate-600">
+                  <span className="text-green-500 font-bold flex-shrink-0 mt-0.5">✓</span>
+                  {outcome}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── AppExchange Tab ──────────────────────────────────────────────────────────
+function AppExchangeTab({ products }: { products: ProductDecision[] }) {
+  const activeKeys = products
+    .filter((p) => p.level === "recommended" || p.level === "optional")
+    .map((p) => p.key);
+
+  const sections = activeKeys
+    .map((key) => ({ key, product: products.find((p) => p.key === key)!, apps: APPEXCHANGE_APPS[key] ?? [] }))
+    .filter((s) => s.apps.length > 0);
+
+  if (sections.length === 0) {
+    return (
+      <div className="text-center py-12 text-slate-400">
+        <p className="text-2xl mb-2">📦</p>
+        <p className="text-sm">No AppExchange recommendations for this blueprint&apos;s product set.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      {sections.map(({ key, product, apps }) => {
+        const cat = PRODUCT_CATEGORY[key];
+        return (
+          <div key={key}>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">{cat?.icon ?? "📦"}</span>
+              <h3 className="text-sm font-semibold text-slate-700">{product.name}</h3>
+              <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${cat?.bg} ${cat?.color} ${cat?.border}`}>{apps.length} app{apps.length !== 1 ? "s" : ""}</span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {apps.map((app, i) => (
+                <div key={i} className="rounded-xl border border-slate-200 bg-white p-4 hover:shadow-sm transition-shadow space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">{app.name}</p>
+                      <span className="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md font-medium">{app.category}</span>
+                    </div>
+                    <div className="flex items-center gap-0.5 flex-shrink-0">
+                      {[1,2,3,4,5].map((star) => (
+                        <span key={star} className={`text-xs ${star <= Math.round(app.rating) ? "text-amber-400" : "text-slate-200"}`}>★</span>
+                      ))}
+                      <span className="text-xs text-slate-400 ml-0.5">{app.rating}</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">{app.description}</p>
+                  <div className="flex items-center justify-between pt-1">
+                    <p className="text-xs text-slate-400">{app.publisher}</p>
+                    <p className="text-xs text-slate-500 font-medium">{app.pricingNote}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Implementation Checklist Tab ─────────────────────────────────────────────
+function ChecklistTab({ products }: { products: ProductDecision[] }) {
+  const phases = generateChecklist(products);
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+
+  function toggle(id: string) {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  const totalItems = phases.reduce((sum, p) => sum + p.items.length, 0);
+  const completedCount = checked.size;
+  const pct = totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0;
+
+  const effortColor = {
+    Low: "bg-green-100 text-green-700 border-green-200",
+    Medium: "bg-amber-100 text-amber-700 border-amber-200",
+    High: "bg-red-100 text-red-700 border-red-200",
+  };
+  const categoryColor = {
+    Discovery: "bg-sky-100 text-sky-700",
+    Config: "bg-blue-100 text-blue-700",
+    Integration: "bg-purple-100 text-purple-700",
+    Testing: "bg-orange-100 text-orange-700",
+    Training: "bg-teal-100 text-teal-700",
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Progress */}
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
+        <div className="flex justify-between text-sm">
+          <span className="font-semibold text-slate-700">Overall Progress</span>
+          <span className="text-slate-500 tabular-nums">{completedCount} / {totalItems} tasks ({pct}%)</span>
+        </div>
+        <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+
+      {phases.map((phase) => (
+        <div key={phase.phase}>
+          <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-blue-500" />
+            {phase.phase}
+            <span className="text-xs text-slate-400 font-normal ml-1">({phase.items.length} tasks)</span>
+          </h3>
+          <div className="space-y-2">
+            {phase.items.map((item, idx) => {
+              const id = `${phase.phase}:${idx}`;
+              const done = checked.has(id);
+              return (
+                <div key={id} className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${done ? "bg-slate-50 border-slate-100 opacity-60" : "bg-white border-slate-200"}`}>
+                  <button
+                    onClick={() => toggle(id)}
+                    className={`flex-shrink-0 w-4.5 h-4.5 mt-0.5 rounded border-2 transition-colors flex items-center justify-center ${done ? "bg-green-500 border-green-500" : "border-slate-300 hover:border-blue-400"}`}
+                    style={{ minWidth: 18, minHeight: 18 }}
+                  >
+                    {done && <span className="text-white text-xs leading-none">✓</span>}
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm text-slate-800 leading-snug ${done ? "line-through text-slate-400" : ""}`}>{item.task}</p>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                      <span className="text-xs text-slate-400">{item.product}</span>
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full border font-medium ${effortColor[item.effort]}`}>{item.effort} effort</span>
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${categoryColor[item.category]}`}>{item.category}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── AI Chat Tab ──────────────────────────────────────────────────────────────
+function AIChatTab({ result }: { result: BlueprintResult }) {
+  const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([
+    {
+      role: "assistant",
+      content: `Hi! I'm your Salesforce architect assistant. I've reviewed this blueprint and I'm ready to answer questions.\n\nYou can ask me things like:\n• "Why isn't CPQ recommended?"\n• "What would it cost for 500 users on Enterprise?"\n• "What's the implementation sequence?"\n• "What are the biggest risks with this setup?"`,
+    },
+  ]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
+
+  // Build a token-efficient blueprint summary for the system context
+  const blueprintSummary = `
+Products:
+${result.products.filter((p) => p.level !== "not_needed").map((p) => `- ${p.name}: ${p.level}`).join("\n")}
+
+Users: ${result.executiveSnapshot.usersDetected} (${result.executiveSnapshot.userCountBand})
+Complexity: ${result.executiveSnapshot.complexityLevel}
+Focus: ${result.executiveSnapshot.primaryFocus}
+Cost range: $${result.costEstimate.license.totalLow.toLocaleString()} – $${result.costEstimate.license.totalHigh.toLocaleString()} / year
+Top risks: ${result.risks.slice(0, 3).join("; ")}
+Roadmap phases: ${result.roadmap.map((r) => r.phase).join(" → ")}
+`.trim();
+
+  async function send() {
+    const text = input.trim();
+    if (!text || loading) return;
+
+    const userMsg = { role: "user" as const, content: text };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [...messages, userMsg], blueprintSummary }),
+      });
+      const data = await res.json() as { reply: string };
+      setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
+    } catch {
+      setMessages((prev) => [...prev, { role: "assistant", content: "Sorry, something went wrong. Please try again." }]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col h-[500px]">
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-200 mb-3">
+        {messages.map((msg, i) => (
+          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+            <div className={`max-w-[85%] rounded-xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
+              msg.role === "user"
+                ? "bg-blue-600 text-white rounded-br-none"
+                : "bg-white border border-slate-200 text-slate-800 rounded-bl-none shadow-sm"
+            }`}>
+              {msg.content}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div className="flex justify-start">
+            <div className="bg-white border border-slate-200 rounded-xl rounded-bl-none px-4 py-3 shadow-sm">
+              <div className="flex gap-1 items-center">
+                {[0, 150, 300].map((d) => (
+                  <span key={d} className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: `${d}ms` }} />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input */}
+      <div className="flex gap-2">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
+          placeholder="Ask about this blueprint… (Enter to send)"
+          className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-200"
+        />
+        <Button onClick={send} disabled={loading || !input.trim()} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4">
+          Send
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main dashboard ───────────────────────────────────────────────────────────
 export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered = false, needText: initialNeedText, onReset }: Props) {
   const [result, setResult] = useState<BlueprintResult>(initial);
   const [saving, setSaving] = useState(false);
@@ -423,6 +829,18 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
   const [refineText, setRefineText] = useState(initialNeedText ?? "");
   const [regenerating, setRegenerating] = useState(false);
   const [regenError, setRegenError] = useState<string | null>(null);
+
+  // Deep-dive dialog
+  const [deepDiveProduct, setDeepDiveProduct] = useState<ProductDecision | null>(null);
+  const [deepDiveOpen, setDeepDiveOpen] = useState(false);
+
+  // Email dialog
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailAddr, setEmailAddr] = useState("");
+
+  // Export PDF dialog
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [companyName, setCompanyName] = useState("");
 
   async function persistResult(updated: BlueprintResult) {
     if (!slug || !isOwner) return;
@@ -454,18 +872,59 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
       body: JSON.stringify({ isPublic: true }),
     });
     setIsPublic(true);
-    const url = `${window.location.origin}/blueprint/${slug}`;
+    const url = `${window.location.origin}/blueprint/${slug}/share`;
     await navigator.clipboard.writeText(url);
-    setShareMsg("Link copied!");
+    setShareMsg("Share link copied!");
     setTimeout(() => setShareMsg(null), 3000);
   }
 
-  function exportPDF() {
-    if (slug) {
-      window.open(`/blueprint/${slug}/print`, "_blank");
-    } else {
-      window.print();
-    }
+  function openDeepDive(product: ProductDecision) {
+    setDeepDiveProduct(product);
+    setDeepDiveOpen(true);
+  }
+
+  function sendEmail() {
+    if (!emailAddr.trim()) return;
+    const shareUrl = slug ? `${window.location.origin}/blueprint/${slug}/share` : window.location.href;
+    const title = `Salesforce Blueprint — ${result.executiveSnapshot.primaryFocus}`;
+    const body = [
+      `Hi,`,
+      ``,
+      `I wanted to share a Salesforce implementation blueprint with you.`,
+      ``,
+      `KEY DETAILS:`,
+      `• Focus: ${result.executiveSnapshot.primaryFocus}`,
+      `• Users: ${result.executiveSnapshot.usersDetected}`,
+      `• Complexity: ${result.executiveSnapshot.complexityLevel}`,
+      ``,
+      `RECOMMENDED PRODUCTS:`,
+      result.products.filter((p) => p.level === "recommended").map((p) => `• ${p.name}`).join("\n"),
+      ``,
+      `ESTIMATED INVESTMENT:`,
+      `$${result.costEstimate.license.totalLow.toLocaleString()} – $${result.costEstimate.license.totalHigh.toLocaleString()} / year (license)`,
+      ``,
+      `TOP RISKS:`,
+      result.risks.slice(0, 3).map((r, i) => `${i + 1}. ${r}`).join("\n"),
+      ``,
+      `View full blueprint: ${shareUrl}`,
+      ``,
+      `Note: This is a directional estimate only and not official Salesforce pricing.`,
+      `Generated by OrgBlueprint`,
+    ].join("\n");
+
+    const mailtoUrl = `mailto:${emailAddr}?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailtoUrl;
+    setEmailOpen(false);
+    setEmailAddr("");
+  }
+
+  function openPrintPreview() {
+    const url = slug
+      ? `/blueprint/${slug}/print${companyName ? `?company=${encodeURIComponent(companyName)}` : ""}`
+      : undefined;
+    if (url) window.open(url, "_blank");
+    else window.print();
+    setPdfOpen(false);
   }
 
   async function regenerateBlueprint() {
@@ -479,7 +938,7 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
         body: JSON.stringify({ input: refineText }),
       });
       if (!res.ok) throw new Error("Failed to regenerate");
-      const data = await res.json();
+      const data = await res.json() as { result: BlueprintResult };
       setResult(data.result);
       setRefineOpen(false);
     } catch {
@@ -495,36 +954,92 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
 
   return (
     <div className="max-w-5xl mx-auto space-y-4">
-      {/* Toolbar */}
+      {/* Deep-dive dialog */}
+      <ProductDeepDiveDialog
+        product={deepDiveProduct}
+        open={deepDiveOpen}
+        onClose={() => setDeepDiveOpen(false)}
+      />
+
+      {/* Email dialog */}
+      <SimpleDialog open={emailOpen} onClose={() => setEmailOpen(false)}>
+        <div className="p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-slate-900">📧 Email this Blueprint</h2>
+            <button onClick={() => setEmailOpen(false)} className="text-slate-400 hover:text-slate-700">✕</button>
+          </div>
+          <p className="text-sm text-slate-500">
+            Enter a recipient email address. Your email client will open with a pre-filled summary.
+          </p>
+          <input
+            type="email"
+            value={emailAddr}
+            onChange={(e) => setEmailAddr(e.target.value)}
+            placeholder="colleague@company.com"
+            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-200"
+          />
+          <div className="flex gap-2">
+            <Button onClick={sendEmail} className="bg-blue-600 hover:bg-blue-700 text-white flex-1">Open Email Client</Button>
+            <Button variant="outline" onClick={() => setEmailOpen(false)} className="flex-1">Cancel</Button>
+          </div>
+        </div>
+      </SimpleDialog>
+
+      {/* PDF export dialog */}
+      <SimpleDialog open={pdfOpen} onClose={() => setPdfOpen(false)}>
+        <div className="p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-slate-900">📤 Export as PDF</h2>
+            <button onClick={() => setPdfOpen(false)} className="text-slate-400 hover:text-slate-700">✕</button>
+          </div>
+          <p className="text-sm text-slate-500">
+            Optionally enter the client or company name to include on the cover page.
+          </p>
+          <input
+            type="text"
+            value={companyName}
+            onChange={(e) => setCompanyName(e.target.value)}
+            placeholder="Client / Company name (optional)"
+            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-200"
+          />
+          <div className="flex gap-2">
+            <Button onClick={openPrintPreview} className="bg-blue-600 hover:bg-blue-700 text-white flex-1">Open Print Preview</Button>
+            <Button variant="outline" onClick={() => setPdfOpen(false)} className="flex-1">Cancel</Button>
+          </div>
+        </div>
+      </SimpleDialog>
+
+      {/* ─── Toolbar ─── */}
       <div className="flex items-center justify-between flex-wrap gap-2 print:hidden">
         <div className="flex items-center gap-2 flex-wrap">
           <h1 className="text-xl font-bold text-slate-900">Salesforce Blueprint</h1>
-          {aiPowered && (
-            <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">✦ AI-powered</Badge>
-          )}
+          {aiPowered && <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">✦ AI-powered</Badge>}
         </div>
         <div className="flex gap-2 items-center flex-wrap">
           {saving && <span className="text-xs text-slate-400">Saving…</span>}
           {shareMsg && <span className="text-xs text-green-600 font-medium">{shareMsg}</span>}
           <Button
-            variant="outline"
-            size="sm"
+            variant="outline" size="sm"
             onClick={() => setRefineOpen((v) => !v)}
             className="text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
           >
             ✏️ {refineOpen ? "Close editor" : "Edit & Regenerate"}
           </Button>
-          {slug && isOwner && !isPublic && (
-            <Button variant="outline" size="sm" onClick={shareBlueprint} className="text-xs">
-              Share link
+          <Button variant="outline" size="sm" onClick={() => setEmailOpen(true)} className="text-xs">
+            📧 Email
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setPdfOpen(true)} className="text-xs">
+            📤 Export PDF
+          </Button>
+          {slug && isOwner && (
+            <Button
+              variant="outline" size="sm"
+              onClick={shareBlueprint}
+              className={`text-xs ${isPublic ? "text-green-700 border-green-200" : ""}`}
+            >
+              {isPublic ? "🔗 Public" : "🔗 Share"}
             </Button>
           )}
-          {isPublic && (
-            <Badge className="bg-green-100 text-green-700 border-green-200 text-xs">Public</Badge>
-          )}
-          <Button variant="outline" size="sm" onClick={exportPDF} className="text-xs">
-            Export PDF
-          </Button>
           {onReset && (
             <Button variant="ghost" size="sm" onClick={onReset} className="text-xs">
               ← New blueprint
@@ -549,8 +1064,7 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
           {regenError && <p className="text-xs text-red-600">{regenError}</p>}
           <div className="flex gap-2">
             <Button
-              size="sm"
-              onClick={regenerateBlueprint}
+              size="sm" onClick={regenerateBlueprint}
               disabled={regenerating || !refineText.trim()}
               className="bg-blue-600 hover:bg-blue-700 text-white text-xs"
             >
@@ -586,31 +1100,36 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
-          {/* Recommended */}
           {recommended.length > 0 && (
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-green-700 mb-2.5 flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-green-500" />Recommended
               </p>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {recommended.map((p) => <ProductCard key={p.key} product={p} />)}
+                {recommended.map((p) => (
+                  <ProductCard
+                    key={p.key} product={p}
+                    onDeepDive={PRODUCT_DETAILS[p.key] ? () => openDeepDive(p) : undefined}
+                  />
+                ))}
               </div>
             </div>
           )}
-
-          {/* Optional */}
           {optional.length > 0 && (
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-2.5 flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-amber-400" />Optional
               </p>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {optional.map((p) => <ProductCard key={p.key} product={p} />)}
+                {optional.map((p) => (
+                  <ProductCard
+                    key={p.key} product={p}
+                    onDeepDive={PRODUCT_DETAILS[p.key] ? () => openDeepDive(p) : undefined}
+                  />
+                ))}
               </div>
             </div>
           )}
-
-          {/* Not Needed */}
           {notNeeded.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -630,9 +1149,7 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
                 </div>
               )}
               {!showNotNeeded && (
-                <p className="text-xs text-slate-400 italic">
-                  {notNeeded.length} products not relevant — click show to expand
-                </p>
+                <p className="text-xs text-slate-400 italic">{notNeeded.length} products not relevant — click show to expand</p>
               )}
             </div>
           )}
@@ -658,13 +1175,8 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
                 </thead>
                 <tbody>
                   {result.whyMapping.map((row, i) => {
-                    // Derive product key from product name to look up specific business need
-                    const productEntry = Object.entries(PRODUCT_BUSINESS_NEED).find(
-                      ([, _need]) => result.products.find((p) => p.name === row.product && PRODUCT_BUSINESS_NEED[p.key])
-                    );
                     const matchedProduct = result.products.find((p) => p.name === row.product);
                     const specificNeed = matchedProduct ? (PRODUCT_BUSINESS_NEED[matchedProduct.key] ?? row.need) : row.need;
-                    void productEntry;
                     const cat = matchedProduct ? PRODUCT_CATEGORY[matchedProduct.key] : undefined;
                     return (
                       <tr key={i} className={`border-b border-slate-50 hover:bg-slate-50/70 transition-colors ${i % 2 === 0 ? "bg-white" : "bg-slate-50/40"}`}>
@@ -690,20 +1202,36 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
         </Card>
       )}
 
-      {/* Tabbed sections */}
+      {/* ─── Tabbed sections ─── */}
       <Tabs defaultValue="cost">
         <TabsList className="flex-wrap h-auto print:hidden gap-1">
-          <TabsTrigger value="cost" className="text-xs">💰 Cost Calculator</TabsTrigger>
-          <TabsTrigger value="ootb" className="text-xs">OOTB vs Custom</TabsTrigger>
-          <TabsTrigger value="roadmap" className="text-xs">Roadmap</TabsTrigger>
-          <TabsTrigger value="objects" className="text-xs">Objects & Automations</TabsTrigger>
+          <TabsTrigger value="ai-chat" className="text-xs">🤖 Ask AI</TabsTrigger>
+          <TabsTrigger value="cost" className="text-xs">💰 Cost</TabsTrigger>
+          <TabsTrigger value="ootb" className="text-xs">OOTB</TabsTrigger>
+          <TabsTrigger value="roadmap" className="text-xs">🗺️ Roadmap</TabsTrigger>
+          <TabsTrigger value="checklist" className="text-xs">✅ Checklist</TabsTrigger>
+          <TabsTrigger value="objects" className="text-xs">Objects</TabsTrigger>
           <TabsTrigger value="integrations" className="text-xs">Integrations</TabsTrigger>
+          <TabsTrigger value="appexchange" className="text-xs">📦 AppExchange</TabsTrigger>
           <TabsTrigger value="analytics" className="text-xs">Analytics</TabsTrigger>
-          <TabsTrigger value="docs" className="text-xs">Document Checklist</TabsTrigger>
+          <TabsTrigger value="docs" className="text-xs">Docs</TabsTrigger>
           <TabsTrigger value="risks" className="text-xs">Risks</TabsTrigger>
         </TabsList>
 
-        {/* Cost Calculator tab */}
+        {/* AI Chat */}
+        <TabsContent value="ai-chat">
+          <Card className="border-slate-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Ask the AI Architect</CardTitle>
+              <p className="text-xs text-slate-500 mt-0.5">Ask questions about this specific blueprint — why products were chosen, costs, risks, and more</p>
+            </CardHeader>
+            <CardContent>
+              <AIChatTab result={result} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Cost Calculator */}
         <TabsContent value="cost">
           <Card className="border-slate-200">
             <CardHeader className="pb-2">
@@ -716,7 +1244,7 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
           </Card>
         </TabsContent>
 
-        {/* OOTB vs Custom tab */}
+        {/* OOTB vs Custom */}
         <TabsContent value="ootb">
           <Card className="border-slate-200">
             <CardContent className="pt-4">
@@ -733,30 +1261,15 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
                   </thead>
                   <tbody>
                     {result.ootbVsCustom.map((row, i) => {
-                      const ootbColor =
-                        row.ootbFit === "High" ? "bg-green-100 text-green-700 border-green-200" :
-                        row.ootbFit === "Medium" ? "bg-amber-100 text-amber-700 border-amber-200" :
-                        "bg-red-100 text-red-700 border-red-200";
-                      const custColor =
-                        row.customizationLevel === "Low" ? "bg-green-100 text-green-700 border-green-200" :
-                        row.customizationLevel === "Medium" ? "bg-amber-100 text-amber-700 border-amber-200" :
-                        "bg-red-100 text-red-700 border-red-200";
-                      const riskColor =
-                        row.risk === "Low" ? "bg-green-100 text-green-700 border-green-200" :
-                        row.risk === "Medium" ? "bg-amber-100 text-amber-700 border-amber-200" :
-                        "bg-red-100 text-red-700 border-red-200";
+                      const ootbColor = row.ootbFit === "High" ? "bg-green-100 text-green-700 border-green-200" : row.ootbFit === "Medium" ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-red-100 text-red-700 border-red-200";
+                      const custColor = row.customizationLevel === "Low" ? "bg-green-100 text-green-700 border-green-200" : row.customizationLevel === "Medium" ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-red-100 text-red-700 border-red-200";
+                      const riskColor = row.risk === "Low" ? "bg-green-100 text-green-700 border-green-200" : row.risk === "Medium" ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-red-100 text-red-700 border-red-200";
                       return (
                         <tr key={i} className={`border-b border-slate-50 hover:bg-slate-50/70 transition-colors ${i % 2 === 0 ? "bg-white" : "bg-slate-50/40"}`}>
                           <td className="px-4 py-3 font-semibold text-slate-800 text-xs">{row.area}</td>
-                          <td className="px-4 py-3">
-                            <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${ootbColor}`}>{row.ootbFit}</span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${custColor}`}>{row.customizationLevel}</span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${riskColor}`}>{row.risk}</span>
-                          </td>
+                          <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${ootbColor}`}>{row.ootbFit}</span></td>
+                          <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${custColor}`}>{row.customizationLevel}</span></td>
+                          <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${riskColor}`}>{row.risk}</span></td>
                           <td className="px-4 py-3 text-xs text-slate-600 leading-relaxed">{row.notes}</td>
                         </tr>
                       );
@@ -768,23 +1281,28 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
           </Card>
         </TabsContent>
 
-        {/* Roadmap tab */}
+        {/* Visual Roadmap */}
         <TabsContent value="roadmap">
           <Card className="border-slate-200">
-            <CardContent className="pt-4 space-y-4">
-              {result.roadmap.map((phase, i) => (
-                <div key={i} className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-bold">
-                    {i + 1}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-slate-800 text-sm">{phase.phase}</p>
-                    <ul className="list-disc pl-4 text-xs text-slate-600 mt-1 space-y-0.5">
-                      {phase.outcomes.map((o, j) => <li key={j}>{o}</li>)}
-                    </ul>
-                  </div>
-                </div>
-              ))}
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Implementation Roadmap</CardTitle>
+              <p className="text-xs text-slate-500 mt-0.5">Phased approach to Salesforce delivery</p>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <VisualRoadmap roadmap={result.roadmap} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Implementation Checklist */}
+        <TabsContent value="checklist">
+          <Card className="border-slate-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Implementation Checklist</CardTitle>
+              <p className="text-xs text-slate-500 mt-0.5">Track your implementation tasks — tailored to your product selection</p>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <ChecklistTab products={result.products} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -797,7 +1315,6 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
           </Card>
         </TabsContent>
 
-        {/* Integrations tab */}
         <TabsContent value="integrations">
           <Card className="border-slate-200">
             <CardContent className="pt-4">
@@ -808,14 +1325,11 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
                     Batch: { color: "bg-slate-100 text-slate-700 border-slate-200", icon: "📦" },
                     Event: { color: "bg-green-100 text-green-700 border-green-200", icon: "🔔" },
                   }[item.pattern] ?? { color: "bg-slate-100 text-slate-600 border-slate-200", icon: "🔗" };
-
                   return (
                     <div key={i} className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-2 hover:shadow-sm transition-shadow">
                       <div className="flex items-center justify-between">
                         <p className="text-sm font-semibold text-slate-800">{item.system}</p>
-                        <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${patternConfig.color}`}>
-                          {patternConfig.icon} {item.pattern}
-                        </span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${patternConfig.color}`}>{patternConfig.icon} {item.pattern}</span>
                       </div>
                       <p className="text-xs text-slate-500">
                         {item.pattern === "API" && "Real-time synchronous integration via REST/SOAP API"}
@@ -826,6 +1340,19 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
                   );
                 })}
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* AppExchange */}
+        <TabsContent value="appexchange">
+          <Card className="border-slate-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">AppExchange Recommendations</CardTitle>
+              <p className="text-xs text-slate-500 mt-0.5">Curated partner apps that extend your recommended Salesforce products</p>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <AppExchangeTab products={result.products} />
             </CardContent>
           </Card>
         </TabsContent>
