@@ -21,6 +21,7 @@ export default async function BlueprintPage({ params }: Props) {
   if (!blueprint.isPublic && !isOwner) redirect("/auth/signin");
 
   const result = JSON.parse(blueprint.result) as BlueprintResult;
+  const savedAnswers = JSON.parse(blueprint.answers || "{}") as Record<string, string>;
 
   return (
     <div className="max-w-5xl mx-auto py-8 px-4">
@@ -29,6 +30,7 @@ export default async function BlueprintPage({ params }: Props) {
         slug={blueprint.slug}
         isOwner={isOwner}
         needText={blueprint.needText}
+        savedAnswers={savedAnswers}
       />
     </div>
   );

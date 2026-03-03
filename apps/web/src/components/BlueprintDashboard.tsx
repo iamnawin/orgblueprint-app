@@ -19,6 +19,7 @@ interface Props {
   isOwner: boolean;
   aiPowered?: boolean;
   needText?: string;
+  savedAnswers?: Record<string, string>;
   onReset?: () => void;
 }
 
@@ -818,17 +819,189 @@ Roadmap phases: ${result.roadmap.map((r) => r.phase).join(" → ")}
   );
 }
 
+// ─── Refine Blueprint Panel ───────────────────────────────────────────────────
+function RefineBlueprintPanel({
+  slug,
+  isOwner,
+  initialNeedText,
+  initialAnswers,
+  onRegenerate,
+  onClose,
+}: {
+  slug: string | null;
+  isOwner: boolean;
+  initialNeedText: string;
+  initialAnswers: Record<string, string>;
+  onRegenerate: (result: BlueprintResult) => void;
+  onClose: () => void;
+}) {
+  const [needText, setNeedText] = useState(initialNeedText);
+  const [answers, setAnswers] = useState<Record<string, string>>(initialAnswers);
+  const [additionalContext, setAdditionalContext] = useState("");
+  const [askingMore, setAskingMore] = useState(false);
+  const [newQuestion, setNewQuestion] = useState<string | null>(null);
+  const [newAnswer, setNewAnswer] = useState("");
+  const [regenerating, setRegenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const existingQA = Object.entries(answers);
+  const mergedText = needText.trim() + (additionalContext.trim() ? `\n\nAdditional context: ${additionalContext.trim()}` : "");
+
+  async function askMore() {
+    setAskingMore(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/conversation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ needText: mergedText, answered: answers }),
+      });
+      const data = await res.json() as { question?: string };
+      setNewQuestion(data.question ?? null);
+      if (!data.question) setError("AI has enough information — click Regenerate to update your blueprint.");
+    } catch {
+      setError("Failed to get question. Try regenerating directly.");
+    } finally {
+      setAskingMore(false);
+    }
+  }
+
+  function submitAnswer() {
+    if (!newQuestion || !newAnswer.trim()) return;
+    setAnswers((prev) => ({ ...prev, [newQuestion]: newAnswer.trim() }));
+    setNewAnswer("");
+    setNewQuestion(null);
+  }
+
+  async function regenerate() {
+    setRegenerating(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/blueprint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input: mergedText, answers }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json() as { result: BlueprintResult };
+
+      // Persist updated needText, answers, and result to DB
+      if (slug && isOwner) {
+        await fetch(`/api/blueprint/${slug}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ result: data.result, needText: mergedText, answers }),
+        });
+      }
+
+      onRegenerate(data.result);
+      setAdditionalContext("");
+      onClose();
+    } catch {
+      setError("Regeneration failed. Please try again.");
+    } finally {
+      setRegenerating(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-5 space-y-4 print:hidden">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-blue-900">✏️ Refine Requirements</p>
+        <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-lg leading-none">✕</button>
+      </div>
+
+      {/* Original requirement text */}
+      <div>
+        <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">
+          Original requirement
+        </label>
+        <Textarea
+          value={needText}
+          onChange={(e) => setNeedText(e.target.value)}
+          className="text-sm min-h-24 resize-none bg-white"
+        />
+      </div>
+
+      {/* Previous Q&A history */}
+      {existingQA.length > 0 && (
+        <div>
+          <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2 block">
+            Previous clarifications ({existingQA.length})
+          </label>
+          <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+            {existingQA.map(([q, a]) => (
+              <div key={q} className="bg-white border border-slate-100 rounded-xl px-3 py-2.5 text-sm">
+                <p className="text-xs text-slate-400 font-medium mb-0.5">{q}</p>
+                <p className="text-slate-700">{a}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* New AI question */}
+      {newQuestion && (
+        <div className="bg-white border border-blue-200 rounded-xl p-4 space-y-3">
+          <p className="text-sm text-blue-800 font-medium">🤖 {newQuestion}</p>
+          <div className="flex gap-2">
+            <input
+              value={newAnswer}
+              onChange={(e) => setNewAnswer(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submitAnswer()}
+              placeholder="Your answer…"
+              className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+            <Button size="sm" onClick={submitAnswer} disabled={!newAnswer.trim()}>Add</Button>
+            <Button size="sm" variant="outline" onClick={() => setNewQuestion(null)}>Skip</Button>
+          </div>
+        </div>
+      )}
+
+      {/* Add new context */}
+      <div>
+        <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">
+          Add new requirements or context
+        </label>
+        <Textarea
+          value={additionalContext}
+          onChange={(e) => setAdditionalContext(e.target.value)}
+          placeholder="E.g. We've decided we also need a patient portal. User count is now 500. We want to integrate with Workday."
+          className="text-sm min-h-20 resize-none bg-white"
+        />
+      </div>
+
+      {error && <p className="text-sm text-red-600">{error}</p>}
+
+      <div className="flex gap-2 flex-wrap">
+        <Button
+          onClick={regenerate}
+          disabled={regenerating}
+          className="bg-blue-600 hover:bg-blue-700 text-white flex-1 min-w-36"
+        >
+          {regenerating ? "Regenerating…" : "🔄 Regenerate Blueprint"}
+        </Button>
+        <Button
+          variant="outline"
+          onClick={askMore}
+          disabled={askingMore || !!newQuestion || regenerating}
+          className="text-sm"
+        >
+          {askingMore ? "Thinking…" : "🤖 Ask AI more"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main dashboard ───────────────────────────────────────────────────────────
-export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered = false, needText: initialNeedText, onReset }: Props) {
+export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered = false, needText: initialNeedText, savedAnswers: initialAnswers, onReset }: Props) {
   const [result, setResult] = useState<BlueprintResult>(initial);
   const [saving, setSaving] = useState(false);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   const [isPublic, setIsPublic] = useState(false);
   const [showNotNeeded, setShowNotNeeded] = useState(false);
   const [refineOpen, setRefineOpen] = useState(false);
-  const [refineText, setRefineText] = useState(initialNeedText ?? "");
-  const [regenerating, setRegenerating] = useState(false);
-  const [regenError, setRegenError] = useState<string | null>(null);
 
   // Deep-dive dialog
   const [deepDiveProduct, setDeepDiveProduct] = useState<ProductDecision | null>(null);
@@ -927,26 +1100,6 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
     setPdfOpen(false);
   }
 
-  async function regenerateBlueprint() {
-    if (!refineText.trim()) return;
-    setRegenerating(true);
-    setRegenError(null);
-    try {
-      const res = await fetch("/api/blueprint", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: refineText }),
-      });
-      if (!res.ok) throw new Error("Failed to regenerate");
-      const data = await res.json() as { result: BlueprintResult };
-      setResult(data.result);
-      setRefineOpen(false);
-    } catch {
-      setRegenError("Regeneration failed. Please try again.");
-    } finally {
-      setRegenerating(false);
-    }
-  }
 
   const recommended = result.products.filter((p) => p.level === "recommended");
   const optional = result.products.filter((p) => p.level === "optional");
@@ -1050,31 +1203,14 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
 
       {/* Refine & Regenerate panel */}
       {refineOpen && (
-        <div className="rounded-xl border border-blue-800 bg-blue-950/40 p-4 space-y-3 print:hidden">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-blue-300">Refine your requirements</p>
-            <p className="text-xs text-blue-400">Edit below and regenerate a fresh blueprint</p>
-          </div>
-          <Textarea
-            value={refineText}
-            onChange={(e) => setRefineText(e.target.value)}
-            placeholder="Describe your business needs, team size, integrations, goals…"
-            className="min-h-28 text-sm bg-white dark:bg-slate-800 dark:text-slate-200 border-blue-200 dark:border-blue-800 focus:ring-blue-400 resize-none"
-          />
-          {regenError && <p className="text-xs text-red-600">{regenError}</p>}
-          <div className="flex gap-2">
-            <Button
-              size="sm" onClick={regenerateBlueprint}
-              disabled={regenerating || !refineText.trim()}
-              className="bg-blue-600 hover:bg-blue-700 text-white text-xs"
-            >
-              {regenerating ? "Generating…" : "🔄 Regenerate Blueprint"}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setRefineOpen(false)} className="text-xs text-slate-500">
-              Cancel
-            </Button>
-          </div>
-        </div>
+        <RefineBlueprintPanel
+          slug={slug}
+          isOwner={isOwner}
+          initialNeedText={initialNeedText ?? ""}
+          initialAnswers={initialAnswers ?? {}}
+          onRegenerate={(updated) => { setResult(updated); }}
+          onClose={() => setRefineOpen(false)}
+        />
       )}
 
       {/* Executive Snapshot */}

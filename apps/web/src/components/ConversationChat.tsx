@@ -113,6 +113,7 @@ export function ConversationChat() {
         isOwner={!!blueprintSlug}
         aiPowered={aiPowered}
         needText={needText}
+        savedAnswers={answeredMap}
         onReset={() => {
           setStage("describe");
           setNeedText("");

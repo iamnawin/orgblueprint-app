@@ -54,6 +54,8 @@ export async function PATCH(
       ...(body.result !== undefined && { result: JSON.stringify(body.result) }),
       ...(body.isPublic !== undefined && { isPublic: body.isPublic }),
       ...(body.title !== undefined && { title: body.title }),
+      ...(body.needText !== undefined && { needText: body.needText }),
+      ...(body.answers !== undefined && { answers: JSON.stringify(body.answers) }),
     },
   });
 
