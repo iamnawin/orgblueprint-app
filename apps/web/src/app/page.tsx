@@ -1,5 +1,5 @@
-import { BlueprintWizard } from "@/components/BlueprintWizard";
+import { ConversationChat } from "@/components/ConversationChat";
 
 export default function Page() {
-  return <BlueprintWizard />;
+  return <ConversationChat />;
 }

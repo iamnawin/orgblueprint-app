@@ -1,15 +1,23 @@
 import "./globals.css";
 import { ReactNode } from "react";
+import { Navbar } from "@/components/Navbar";
+import { Toaster } from "@/components/ui/toaster";
 
 export const metadata = {
-  title: "OrgBlueprint MVP",
-  description: "Conversational Salesforce recommender and blueprint generator",
+  title: "OrgBlueprint — Salesforce Blueprint Generator",
+  description: "AI-powered Salesforce product recommender and implementation blueprint generator",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <Navbar />
+        <main className="min-h-screen bg-slate-50 py-8 px-4">
+          {children}
+        </main>
+        <Toaster />
+      </body>
     </html>
   );
 }
