@@ -12,9 +12,10 @@ export const PRODUCT_PRICING: Record<ProductKey, ProductPricing> = {
     pricingModel: "per_user",
     tiers: [
       { tier: "Starter", perUserPerMonth: 25, flatMonthly: null, flatAnnual: null },
-      { tier: "Professional", perUserPerMonth: 75, flatMonthly: null, flatAnnual: null },
-      { tier: "Enterprise", perUserPerMonth: 150, flatMonthly: null, flatAnnual: null },
-      { tier: "Unlimited", perUserPerMonth: 300, flatMonthly: null, flatAnnual: null },
+      { tier: "Pro", perUserPerMonth: 100, flatMonthly: null, flatAnnual: null },
+      { tier: "Enterprise", perUserPerMonth: 175, flatMonthly: null, flatAnnual: null },
+      { tier: "Unlimited", perUserPerMonth: 350, flatMonthly: null, flatAnnual: null },
+      { tier: "Agentforce 1 Sales", perUserPerMonth: 550, flatMonthly: null, flatAnnual: null },
     ],
   },
   service_cloud: {
@@ -23,9 +24,10 @@ export const PRODUCT_PRICING: Record<ProductKey, ProductPricing> = {
     pricingModel: "per_user",
     tiers: [
       { tier: "Starter", perUserPerMonth: 25, flatMonthly: null, flatAnnual: null },
-      { tier: "Professional", perUserPerMonth: 75, flatMonthly: null, flatAnnual: null },
-      { tier: "Enterprise", perUserPerMonth: 150, flatMonthly: null, flatAnnual: null },
-      { tier: "Unlimited", perUserPerMonth: 300, flatMonthly: null, flatAnnual: null },
+      { tier: "Pro", perUserPerMonth: 100, flatMonthly: null, flatAnnual: null },
+      { tier: "Enterprise", perUserPerMonth: 175, flatMonthly: null, flatAnnual: null },
+      { tier: "Unlimited", perUserPerMonth: 350, flatMonthly: null, flatAnnual: null },
+      { tier: "Agentforce 1 Service", perUserPerMonth: 550, flatMonthly: null, flatAnnual: null },
     ],
   },
   experience_cloud: {
@@ -101,7 +103,8 @@ export const PRODUCT_PRICING: Record<ProductKey, ProductPricing> = {
     name: "Agentforce / Einstein",
     pricingModel: "per_user",
     tiers: [
-      { tier: "Einstein Add-on", perUserPerMonth: 50, flatMonthly: null, flatAnnual: null },
+      { tier: "Einstein Add-on", perUserPerMonth: 75, flatMonthly: null, flatAnnual: null },
+      { tier: "Agentforce 1 (bundled)", perUserPerMonth: 550, flatMonthly: null, flatAnnual: null },
     ],
   },
   tableau_analytics: {

@@ -8,14 +8,14 @@ export type CloudPricing = {
 export const PRICING_ASSUMPTIONS: CloudPricing[] = [
   {
     product: "Sales Cloud",
-    assumedEdition: "Enterprise",
-    monthlyPerUserLow: 120,
-    monthlyPerUserHigh: 180,
+    assumedEdition: "Pro–Enterprise",
+    monthlyPerUserLow: 100,
+    monthlyPerUserHigh: 175,
   },
   {
     product: "Service Cloud",
-    assumedEdition: "Enterprise",
-    monthlyPerUserLow: 120,
-    monthlyPerUserHigh: 180,
+    assumedEdition: "Pro–Enterprise",
+    monthlyPerUserLow: 100,
+    monthlyPerUserHigh: 175,
   },
 ];
