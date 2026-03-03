@@ -28,6 +28,7 @@ export default async function BlueprintPage({ params }: Props) {
         result={result}
         slug={blueprint.slug}
         isOwner={isOwner}
+        needText={blueprint.needText}
       />
     </div>
   );

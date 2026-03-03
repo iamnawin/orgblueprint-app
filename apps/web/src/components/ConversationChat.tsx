@@ -112,6 +112,7 @@ export function ConversationChat() {
         slug={blueprintSlug}
         isOwner={!!blueprintSlug}
         aiPowered={aiPowered}
+        needText={needText}
         onReset={() => {
           setStage("describe");
           setNeedText("");

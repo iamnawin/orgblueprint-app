@@ -8,13 +8,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { PRODUCT_PRICING, PRICING_DISCLAIMER, computeAnnualCost, estimateImplementationCost } from "@/lib/pricing";
+import { PRODUCT_PRICING, PRICING_DISCLAIMER, computeAnnualCost } from "@/lib/pricing";
 
 interface Props {
   result: BlueprintResult;
   slug: string | null;
   isOwner: boolean;
   aiPowered?: boolean;
+  needText?: string;
   onReset?: () => void;
 }
 
@@ -114,9 +115,9 @@ function EditableList({ items, onSave }: { items: string[]; onSave: (u: string[]
 }
 
 // ─── Interactive Cost Calculator ──────────────────────────────────────────────
-function InteractiveCostCalculator({ products }: { products: ProductDecision[] }) {
+function InteractiveCostCalculator({ products, initialUsers = 50 }: { products: ProductDecision[]; initialUsers?: number }) {
   const activeProducts = products.filter((p) => p.level !== "not_needed");
-  const [userCount, setUserCount] = useState(50);
+  const [userCount, setUserCount] = useState(Math.max(10, initialUsers));
   const [tierSelections, setTierSelections] = useState<Record<string, number>>(
     Object.fromEntries(activeProducts.map((p) => [p.key, 0]))
   );
@@ -138,9 +139,6 @@ function InteractiveCostCalculator({ products }: { products: ProductDecision[] }
   });
 
   const licenseTotal = lineItems.reduce((sum, l) => sum + l.annual, 0);
-  const implCost = estimateImplementationCost(licenseTotal, activeProducts.length);
-  const grandTotal = licenseTotal + implCost;
-  const maxBar = grandTotal > 0 ? grandTotal : 1;
 
   return (
     <div className="space-y-5">
@@ -214,7 +212,7 @@ function InteractiveCostCalculator({ products }: { products: ProductDecision[] }
                               [item.key]: Number(e.target.value),
                             }))
                           }
-                          className="border border-slate-200 rounded-md px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer"
+                          className="border border-slate-200 dark:border-slate-600 rounded-md px-2 py-1 text-xs bg-white dark:bg-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer"
                         >
                           {pricing.tiers.map((t, i) => (
                             <option key={i} value={i}>{t.tier}</option>
@@ -255,50 +253,18 @@ function InteractiveCostCalculator({ products }: { products: ProductDecision[] }
 
       <Separator />
 
-      {/* Cost summary bars */}
-      <div className="space-y-3">
-        <h4 className="text-sm font-semibold text-slate-700">Year-1 cost breakdown</h4>
-
-        <div className="space-y-2.5">
-          <div>
-            <div className="flex justify-between text-xs text-slate-500 mb-1">
-              <span>License (annual)</span>
-              <span className="font-medium text-slate-700">${licenseTotal.toLocaleString()}</span>
-            </div>
-            <div className="h-5 bg-slate-100 rounded-lg overflow-hidden">
-              <div
-                className="h-full bg-blue-500 rounded-lg transition-all duration-500"
-                style={{ width: `${Math.max(2, (licenseTotal / maxBar) * 100)}%` }}
-              />
-            </div>
-          </div>
-
-          <div>
-            <div className="flex justify-between text-xs text-slate-500 mb-1">
-              <span>Implementation & services (estimate)</span>
-              <span className="font-medium text-slate-700">${implCost.toLocaleString()}</span>
-            </div>
-            <div className="h-5 bg-slate-100 rounded-lg overflow-hidden">
-              <div
-                className="h-full bg-indigo-400 rounded-lg transition-all duration-500"
-                style={{ width: `${Math.max(2, (implCost / maxBar) * 100)}%` }}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white mt-3">
-          <p className="text-xs font-medium opacity-80 mb-1">Estimated year-1 total</p>
-          <p className="text-3xl font-bold tracking-tight">${grandTotal.toLocaleString()}</p>
-          <p className="text-xs opacity-70 mt-1">
-            ≈ ${Math.round(grandTotal / userCount).toLocaleString()} per user · {userCount.toLocaleString()} users
-          </p>
-        </div>
+      {/* License total summary */}
+      <div className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white">
+        <p className="text-xs font-medium opacity-80 mb-1">Annual license cost (estimate)</p>
+        <p className="text-3xl font-bold tracking-tight">${licenseTotal.toLocaleString()}</p>
+        <p className="text-xs opacity-70 mt-1">
+          ≈ ${userCount > 0 ? Math.round(licenseTotal / userCount).toLocaleString() : "—"} per user / year · {userCount.toLocaleString()} users
+        </p>
       </div>
 
-      <div className="flex gap-4 text-xs text-slate-400">
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-500 inline-block" />Licenses</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-indigo-400 inline-block" />Implementation</span>
+      <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-xs text-slate-500 leading-relaxed">
+        💡 <strong>Implementation costs vary by partner.</strong> Salesforce SI partners typically charge $150–$350/hr.
+        Request quotes from Salesforce directly or certified partners for an accurate implementation estimate.
       </div>
     </div>
   );
@@ -447,12 +413,16 @@ function ProductCard({ product, muted = false }: { product: ProductDecision; mut
 }
 
 // ─── Main dashboard ────────────────────────────────────────────────────────────
-export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered = false, onReset }: Props) {
+export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered = false, needText: initialNeedText, onReset }: Props) {
   const [result, setResult] = useState<BlueprintResult>(initial);
   const [saving, setSaving] = useState(false);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   const [isPublic, setIsPublic] = useState(false);
   const [showNotNeeded, setShowNotNeeded] = useState(false);
+  const [refineOpen, setRefineOpen] = useState(false);
+  const [refineText, setRefineText] = useState(initialNeedText ?? "");
+  const [regenerating, setRegenerating] = useState(false);
+  const [regenError, setRegenError] = useState<string | null>(null);
 
   async function persistResult(updated: BlueprintResult) {
     if (!slug || !isOwner) return;
@@ -498,6 +468,27 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
     }
   }
 
+  async function regenerateBlueprint() {
+    if (!refineText.trim()) return;
+    setRegenerating(true);
+    setRegenError(null);
+    try {
+      const res = await fetch("/api/blueprint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input: refineText }),
+      });
+      if (!res.ok) throw new Error("Failed to regenerate");
+      const data = await res.json();
+      setResult(data.result);
+      setRefineOpen(false);
+    } catch {
+      setRegenError("Regeneration failed. Please try again.");
+    } finally {
+      setRegenerating(false);
+    }
+  }
+
   const recommended = result.products.filter((p) => p.level === "recommended");
   const optional = result.products.filter((p) => p.level === "optional");
   const notNeeded = result.products.filter((p) => p.level === "not_needed");
@@ -515,6 +506,14 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
         <div className="flex gap-2 items-center flex-wrap">
           {saving && <span className="text-xs text-slate-400">Saving…</span>}
           {shareMsg && <span className="text-xs text-green-600 font-medium">{shareMsg}</span>}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setRefineOpen((v) => !v)}
+            className="text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
+          >
+            ✏️ {refineOpen ? "Close editor" : "Edit & Regenerate"}
+          </Button>
           {slug && isOwner && !isPublic && (
             <Button variant="outline" size="sm" onClick={shareBlueprint} className="text-xs">
               Share link
@@ -533,6 +532,36 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
           )}
         </div>
       </div>
+
+      {/* Refine & Regenerate panel */}
+      {refineOpen && (
+        <div className="rounded-xl border border-blue-800 bg-blue-950/40 p-4 space-y-3 print:hidden">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-blue-300">Refine your requirements</p>
+            <p className="text-xs text-blue-400">Edit below and regenerate a fresh blueprint</p>
+          </div>
+          <Textarea
+            value={refineText}
+            onChange={(e) => setRefineText(e.target.value)}
+            placeholder="Describe your business needs, team size, integrations, goals…"
+            className="min-h-28 text-sm bg-white dark:bg-slate-800 dark:text-slate-200 border-blue-200 dark:border-blue-800 focus:ring-blue-400 resize-none"
+          />
+          {regenError && <p className="text-xs text-red-600">{regenError}</p>}
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={regenerateBlueprint}
+              disabled={regenerating || !refineText.trim()}
+              className="bg-blue-600 hover:bg-blue-700 text-white text-xs"
+            >
+              {regenerating ? "Generating…" : "🔄 Regenerate Blueprint"}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setRefineOpen(false)} className="text-xs text-slate-500">
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Executive Snapshot */}
       <Card className="border-slate-200">
@@ -682,7 +711,7 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
               <p className="text-xs text-slate-500 mt-0.5">Adjust users and tier to see real-time estimates</p>
             </CardHeader>
             <CardContent>
-              <InteractiveCostCalculator products={result.products} />
+              <InteractiveCostCalculator products={result.products} initialUsers={result.executiveSnapshot.usersDetected} />
             </CardContent>
           </Card>
         </TabsContent>

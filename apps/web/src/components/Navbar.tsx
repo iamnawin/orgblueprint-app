@@ -6,13 +6,13 @@ export async function Navbar() {
   const session = await auth();
 
   return (
-    <nav className="border-b bg-white px-6 py-3 flex items-center justify-between shadow-sm">
+    <nav className="border-b border-slate-800 bg-slate-900 px-6 py-3 flex items-center justify-between shadow-sm">
       <div className="flex items-center gap-6">
-        <Link href="/" className="text-lg font-bold text-blue-700 tracking-tight">
+        <Link href="/" className="text-lg font-bold text-blue-400 tracking-tight">
           OrgBlueprint
         </Link>
         {session && (
-          <Link href="/blueprints" className="text-sm text-slate-600 hover:text-slate-900">
+          <Link href="/blueprints" className="text-sm text-slate-400 hover:text-slate-200 transition-colors">
             My Blueprints
           </Link>
         )}
