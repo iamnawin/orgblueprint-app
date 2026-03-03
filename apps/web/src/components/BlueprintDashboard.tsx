@@ -18,6 +18,55 @@ interface Props {
   onReset?: () => void;
 }
 
+// ─── Category config ────────────────────────────────────────────────────────────
+const PRODUCT_CATEGORY: Record<string, { label: string; color: string; bg: string; border: string; dot: string; icon: string }> = {
+  sales_cloud:              { label: "CRM",       color: "text-blue-700",    bg: "bg-blue-50",    border: "border-blue-200",  dot: "bg-blue-500",    icon: "📊" },
+  service_cloud:            { label: "CRM",       color: "text-blue-700",    bg: "bg-blue-50",    border: "border-blue-200",  dot: "bg-blue-500",    icon: "🎧" },
+  experience_cloud:         { label: "CRM",       color: "text-blue-700",    bg: "bg-blue-50",    border: "border-blue-200",  dot: "bg-blue-500",    icon: "🌐" },
+  field_service:            { label: "CRM",       color: "text-blue-700",    bg: "bg-blue-50",    border: "border-blue-200",  dot: "bg-blue-500",    icon: "🔧" },
+  cpq_revenue:              { label: "CRM",       color: "text-blue-700",    bg: "bg-blue-50",    border: "border-blue-200",  dot: "bg-blue-500",    icon: "💼" },
+  marketing_cloud:          { label: "Marketing", color: "text-purple-700",  bg: "bg-purple-50",  border: "border-purple-200",dot: "bg-purple-500",  icon: "📣" },
+  pardot:                   { label: "Marketing", color: "text-purple-700",  bg: "bg-purple-50",  border: "border-purple-200",dot: "bg-purple-500",  icon: "🎯" },
+  loyalty_management:       { label: "Marketing", color: "text-purple-700",  bg: "bg-purple-50",  border: "border-purple-200",dot: "bg-purple-500",  icon: "⭐" },
+  commerce_cloud:           { label: "Marketing", color: "text-purple-700",  bg: "bg-purple-50",  border: "border-purple-200",dot: "bg-purple-500",  icon: "🛒" },
+  data_cloud:               { label: "Data & AI", color: "text-teal-700",    bg: "bg-teal-50",    border: "border-teal-200",  dot: "bg-teal-500",    icon: "☁️" },
+  agentforce_einstein:      { label: "Data & AI", color: "text-teal-700",    bg: "bg-teal-50",    border: "border-teal-200",  dot: "bg-teal-500",    icon: "🤖" },
+  tableau_analytics:        { label: "Data & AI", color: "text-teal-700",    bg: "bg-teal-50",    border: "border-teal-200",  dot: "bg-teal-500",    icon: "📈" },
+  mulesoft:                 { label: "Platform",  color: "text-slate-700",   bg: "bg-slate-50",   border: "border-slate-200", dot: "bg-slate-500",   icon: "🔗" },
+  slack_collab:             { label: "Platform",  color: "text-slate-700",   bg: "bg-slate-50",   border: "border-slate-200", dot: "bg-slate-500",   icon: "💬" },
+  salesforce_shield:        { label: "Platform",  color: "text-slate-700",   bg: "bg-slate-50",   border: "border-slate-200", dot: "bg-slate-500",   icon: "🔒" },
+  health_cloud:             { label: "Industry",  color: "text-orange-700",  bg: "bg-orange-50",  border: "border-orange-200",dot: "bg-orange-500",  icon: "🏥" },
+  financial_services_cloud: { label: "Industry",  color: "text-orange-700",  bg: "bg-orange-50",  border: "border-orange-200",dot: "bg-orange-500",  icon: "🏦" },
+  nonprofit_cloud:          { label: "Industry",  color: "text-orange-700",  bg: "bg-orange-50",  border: "border-orange-200",dot: "bg-orange-500",  icon: "❤️" },
+  manufacturing_cloud:      { label: "Industry",  color: "text-orange-700",  bg: "bg-orange-50",  border: "border-orange-200",dot: "bg-orange-500",  icon: "🏭" },
+  education_cloud:          { label: "Industry",  color: "text-orange-700",  bg: "bg-orange-50",  border: "border-orange-200",dot: "bg-orange-500",  icon: "🎓" },
+  net_zero_cloud:           { label: "Industry",  color: "text-orange-700",  bg: "bg-orange-50",  border: "border-orange-200",dot: "bg-orange-500",  icon: "🌿" },
+};
+
+const PRODUCT_BUSINESS_NEED: Record<string, string> = {
+  sales_cloud:              "Sales pipeline & opportunity management",
+  service_cloud:            "Customer support & case management",
+  experience_cloud:         "Self-service portal & community access",
+  field_service:            "Field operations & technician dispatch",
+  cpq_revenue:              "Complex pricing & quote configuration",
+  marketing_cloud:          "B2C marketing automation & journeys",
+  pardot:                   "B2B demand generation & lead nurture",
+  loyalty_management:       "Customer loyalty & rewards program",
+  commerce_cloud:           "Digital commerce & storefront",
+  data_cloud:               "Unified customer data platform",
+  agentforce_einstein:      "AI automation & agent assistance",
+  tableau_analytics:        "Advanced analytics & BI dashboards",
+  mulesoft:                 "Enterprise integration & API management",
+  slack_collab:             "Team collaboration & internal comms",
+  salesforce_shield:        "Security, compliance & data governance",
+  health_cloud:             "Healthcare patient & provider management",
+  financial_services_cloud: "Financial services client management",
+  nonprofit_cloud:          "Nonprofit fundraising & constituent management",
+  manufacturing_cloud:      "Manufacturing & dealer channel management",
+  education_cloud:          "Student lifecycle & enrollment management",
+  net_zero_cloud:           "Sustainability & carbon tracking (ESG)",
+};
+
 const levelColors: Record<string, string> = {
   recommended: "bg-green-50 text-green-900 border-green-200",
   optional: "bg-amber-50 text-amber-900 border-amber-200",
@@ -255,6 +304,148 @@ function InteractiveCostCalculator({ products }: { products: ProductDecision[] }
   );
 }
 
+// ─── Executive Snapshot Cards ────────────────────────────────────────────────
+function ExecutiveSnapshotCards({ snapshot }: { snapshot: BlueprintResult["executiveSnapshot"] }) {
+  const complexityConfig = {
+    Low:    { color: "text-green-700",  bg: "bg-green-50",  border: "border-green-200",  bar: "bg-green-500",  pct: 33  },
+    Medium: { color: "text-amber-700",  bg: "bg-amber-50",  border: "border-amber-200",  bar: "bg-amber-400",  pct: 66  },
+    High:   { color: "text-red-700",    bg: "bg-red-50",    border: "border-red-200",    bar: "bg-red-500",    pct: 100 },
+  }[snapshot.complexityLevel];
+
+  const bandConfig = {
+    "1-49":    { label: "1–49 users",   color: "bg-sky-100 text-sky-700 border-sky-200" },
+    "50-199":  { label: "50–199 users", color: "bg-blue-100 text-blue-700 border-blue-200" },
+    "200+":    { label: "200+ users",   color: "bg-indigo-100 text-indigo-700 border-indigo-200" },
+  }[snapshot.userCountBand];
+
+  const confidencePct = Math.min(100, Math.max(0, snapshot.confidenceScore));
+  const confidenceColor =
+    confidencePct >= 80 ? "bg-green-500" :
+    confidencePct >= 60 ? "bg-amber-400" :
+    "bg-red-400";
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* Focus Area */}
+      <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 space-y-1.5">
+        <div className="flex items-center gap-1.5">
+          <span className="text-base">🎯</span>
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Primary Focus</p>
+        </div>
+        <p className="text-sm font-bold text-slate-900 leading-snug">{snapshot.primaryFocus || "General CRM"}</p>
+      </div>
+
+      {/* User Count */}
+      <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 space-y-1.5">
+        <div className="flex items-center gap-1.5">
+          <span className="text-base">👥</span>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Users Detected</p>
+        </div>
+        <div className="flex items-end gap-2">
+          <p className="text-2xl font-bold text-slate-900 tabular-nums leading-none">{snapshot.usersDetected}</p>
+          <span className={`text-xs px-1.5 py-0.5 rounded-full border font-medium mb-0.5 ${bandConfig.color}`}>
+            {bandConfig.label}
+          </span>
+        </div>
+      </div>
+
+      {/* Complexity */}
+      <div className={`rounded-xl border ${complexityConfig.border} ${complexityConfig.bg} p-4 space-y-1.5`}>
+        <div className="flex items-center gap-1.5">
+          <span className="text-base">⚡</span>
+          <p className={`text-xs font-semibold uppercase tracking-wide ${complexityConfig.color}`}>Complexity</p>
+        </div>
+        <p className={`text-xl font-bold ${complexityConfig.color}`}>{snapshot.complexityLevel}</p>
+        <div className="h-1.5 bg-white/60 rounded-full overflow-hidden">
+          <div className={`h-full ${complexityConfig.bar} rounded-full transition-all duration-700`} style={{ width: `${complexityConfig.pct}%` }} />
+        </div>
+      </div>
+
+      {/* Confidence Score */}
+      <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 space-y-1.5">
+        <div className="flex items-center gap-1.5">
+          <span className="text-base">📊</span>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Confidence</p>
+        </div>
+        <div className="flex items-end gap-1">
+          <p className="text-2xl font-bold text-slate-900 tabular-nums leading-none">{confidencePct}</p>
+          <p className="text-sm text-slate-400 mb-0.5">/100</p>
+        </div>
+        <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+          <div className={`h-full ${confidenceColor} rounded-full transition-all duration-700`} style={{ width: `${confidencePct}%` }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Product Card ─────────────────────────────────────────────────────────────
+function ProductCard({ product, muted = false }: { product: ProductDecision; muted?: boolean }) {
+  const cat = PRODUCT_CATEGORY[product.key];
+  const [expanded, setExpanded] = useState(false);
+
+  if (muted) {
+    return (
+      <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5 flex items-start gap-2">
+        <span className="text-base opacity-40 mt-0.5">{cat?.icon ?? "📦"}</span>
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-slate-400 truncate">{product.name}</p>
+          <p className="text-xs text-slate-400 mt-0.5 leading-relaxed opacity-80">{product.reasons[0]}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const levelBadge =
+    product.level === "recommended"
+      ? "bg-green-100 text-green-800 border-green-200"
+      : "bg-amber-100 text-amber-800 border-amber-200";
+
+  return (
+    <div className={`rounded-xl border ${cat?.border ?? "border-slate-200"} ${cat?.bg ?? "bg-slate-50"} p-3.5 space-y-2 hover:shadow-sm transition-shadow duration-150`}>
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start gap-2 min-w-0">
+          <span className="text-lg leading-none mt-0.5 flex-shrink-0">{cat?.icon ?? "📦"}</span>
+          <div className="min-w-0">
+            <p className={`text-sm font-semibold ${cat?.color ?? "text-slate-800"} leading-tight`}>{product.name}</p>
+            <span className={`inline-block text-xs px-1.5 py-0.5 rounded-full border font-medium mt-0.5 ${cat?.color} bg-white/60 ${cat?.border}`}>
+              {cat?.label ?? "Other"}
+            </span>
+          </div>
+        </div>
+        <span className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-full border font-semibold ${levelBadge}`}>
+          {product.level === "recommended" ? "✓ Rec." : "~ Opt."}
+        </span>
+      </div>
+
+      {/* Reason */}
+      <p className="text-xs text-slate-600 leading-relaxed">{product.reasons[0]}</p>
+
+      {/* Triggers — expandable */}
+      {product.triggers && product.triggers.length > 0 && (
+        <div>
+          <button
+            onClick={() => setExpanded((v) => !v)}
+            className="text-xs text-slate-400 hover:text-slate-600 underline decoration-dotted transition-colors"
+          >
+            {expanded ? "Hide signals ▲" : "View signals ▼"}
+          </button>
+          {expanded && (
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {product.triggers.map((t, i) => (
+                <span key={i} className="text-xs bg-white/80 border border-slate-200 text-slate-500 px-1.5 py-0.5 rounded-md">
+                  {t}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main dashboard ────────────────────────────────────────────────────────────
 export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered = false, onReset }: Props) {
   const [result, setResult] = useState<BlueprintResult>(initial);
@@ -262,11 +453,6 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   const [isPublic, setIsPublic] = useState(false);
   const [showNotNeeded, setShowNotNeeded] = useState(false);
-
-  function updateSection<K extends keyof BlueprintResult>(key: K, value: BlueprintResult[K]) {
-    setResult((prev) => ({ ...prev, [key]: value }));
-  }
-  void updateSection; // referenced via editList
 
   async function persistResult(updated: BlueprintResult) {
     if (!slug || !isOwner) return;
@@ -325,9 +511,6 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
           {aiPowered && (
             <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">✦ AI-powered</Badge>
           )}
-          <Badge className="bg-slate-100 text-slate-600 border-slate-200 text-xs">
-            Confidence: {result.confidenceScore}/100
-          </Badge>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
           {saving && <span className="text-xs text-slate-400">Saving…</span>}
@@ -351,20 +534,20 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
         </div>
       </div>
 
-      {/* Executive snapshot */}
+      {/* Executive Snapshot */}
       <Card className="border-slate-200">
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-3">
           <CardTitle className="text-base">Executive Snapshot</CardTitle>
         </CardHeader>
         <CardContent>
-          <EditableList items={result.executiveSnapshot} onSave={editList("executiveSnapshot")} />
+          <ExecutiveSnapshotCards snapshot={result.executiveSnapshot} />
         </CardContent>
       </Card>
 
-      {/* Products — three columns */}
+      {/* Product Recommendations */}
       <Card className="border-slate-200">
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle className="text-base">Product Recommendations</CardTitle>
             <div className="flex gap-3 text-xs text-slate-500">
               <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-500" />{recommended.length} recommended</span>
@@ -373,45 +556,33 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
-            {/* Recommended */}
+        <CardContent className="space-y-5">
+          {/* Recommended */}
+          {recommended.length > 0 && (
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-green-700 mb-2 flex items-center gap-1.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-green-700 mb-2.5 flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-green-500" />Recommended
               </p>
-              <div className="space-y-2">
-                {recommended.map((p) => (
-                  <div key={p.key} className="rounded-lg border px-3 py-2.5 text-sm bg-green-50 border-green-200">
-                    <p className="font-semibold text-green-900">{p.name}</p>
-                    <p className="text-xs mt-0.5 text-green-700 opacity-90 leading-relaxed">{p.reasons[0]}</p>
-                  </div>
-                ))}
-                {recommended.length === 0 && (
-                  <p className="text-xs text-slate-400 italic">None</p>
-                )}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {recommended.map((p) => <ProductCard key={p.key} product={p} />)}
               </div>
             </div>
+          )}
 
-            {/* Optional */}
+          {/* Optional */}
+          {optional.length > 0 && (
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-2 flex items-center gap-1.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-2.5 flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-amber-400" />Optional
               </p>
-              <div className="space-y-2">
-                {optional.map((p) => (
-                  <div key={p.key} className="rounded-lg border px-3 py-2.5 text-sm bg-amber-50 border-amber-200">
-                    <p className="font-semibold text-amber-900">{p.name}</p>
-                    <p className="text-xs mt-0.5 text-amber-700 opacity-90 leading-relaxed">{p.reasons[0]}</p>
-                  </div>
-                ))}
-                {optional.length === 0 && (
-                  <p className="text-xs text-slate-400 italic">None</p>
-                )}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {optional.map((p) => <ProductCard key={p.key} product={p} />)}
               </div>
             </div>
+          )}
 
-            {/* Not Needed */}
+          {/* Not Needed */}
+          {notNeeded.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1.5">
@@ -425,13 +596,8 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
                 </button>
               </div>
               {showNotNeeded && (
-                <div className="space-y-1.5">
-                  {notNeeded.map((p) => (
-                    <div key={p.key} className="rounded-lg border px-3 py-2 text-sm bg-slate-50 border-slate-100">
-                      <p className="font-medium text-slate-400">{p.name}</p>
-                      <p className="text-xs mt-0.5 text-slate-400 leading-relaxed">{p.reasons[0]}</p>
-                    </div>
-                  ))}
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {notNeeded.map((p) => <ProductCard key={p.key} product={p} muted />)}
                 </div>
               )}
               {!showNotNeeded && (
@@ -440,7 +606,7 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
                 </p>
               )}
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 
@@ -449,25 +615,45 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
         <Card className="border-slate-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Why these products?</CardTitle>
+            <p className="text-xs text-slate-500 mt-0.5">How your business needs map to Salesforce products</p>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-lg border border-slate-100">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b text-left">
-                    <th className="pb-2 pr-4 text-xs font-medium text-slate-500">Business Need</th>
-                    <th className="pb-2 pr-4 text-xs font-medium text-slate-500">Product</th>
-                    <th className="pb-2 text-xs font-medium text-slate-500">Rationale</th>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Business Need</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Product</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Rationale</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {result.whyMapping.map((row, i) => (
-                    <tr key={i} className="hover:bg-slate-50/50">
-                      <td className="py-2 pr-4 text-slate-700 text-xs">{row.need}</td>
-                      <td className="py-2 pr-4 font-medium text-slate-800 text-xs whitespace-nowrap">{row.product}</td>
-                      <td className="py-2 text-slate-600 text-xs leading-relaxed">{row.why}</td>
-                    </tr>
-                  ))}
+                <tbody>
+                  {result.whyMapping.map((row, i) => {
+                    // Derive product key from product name to look up specific business need
+                    const productEntry = Object.entries(PRODUCT_BUSINESS_NEED).find(
+                      ([, _need]) => result.products.find((p) => p.name === row.product && PRODUCT_BUSINESS_NEED[p.key])
+                    );
+                    const matchedProduct = result.products.find((p) => p.name === row.product);
+                    const specificNeed = matchedProduct ? (PRODUCT_BUSINESS_NEED[matchedProduct.key] ?? row.need) : row.need;
+                    void productEntry;
+                    const cat = matchedProduct ? PRODUCT_CATEGORY[matchedProduct.key] : undefined;
+                    return (
+                      <tr key={i} className={`border-b border-slate-50 hover:bg-slate-50/70 transition-colors ${i % 2 === 0 ? "bg-white" : "bg-slate-50/40"}`}>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {cat && <span className="text-sm flex-shrink-0">{cat.icon}</span>}
+                            <span className="text-xs font-medium text-slate-700 leading-snug">{specificNeed}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded-full border ${cat ? `${cat.bg} ${cat.color} ${cat.border}` : "bg-slate-50 text-slate-600 border-slate-200"}`}>
+                            {cat?.icon} {row.product}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-slate-600 leading-relaxed max-w-xs">{row.why}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -492,16 +678,8 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
         <TabsContent value="cost">
           <Card className="border-slate-200">
             <CardHeader className="pb-2">
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-base">Interactive Cost Calculator</CardTitle>
-                  <p className="text-xs text-slate-500 mt-0.5">Adjust users and tier to see real-time estimates</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-slate-400">LLM estimate</p>
-                  <p className="text-lg font-bold text-slate-700">{result.costSimulator.range}</p>
-                </div>
-              </div>
+              <CardTitle className="text-base">Interactive Cost Calculator</CardTitle>
+              <p className="text-xs text-slate-500 mt-0.5">Adjust users and tier to see real-time estimates</p>
             </CardHeader>
             <CardContent>
               <InteractiveCostCalculator products={result.products} />
@@ -513,36 +691,47 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
         <TabsContent value="ootb">
           <Card className="border-slate-200">
             <CardContent className="pt-4">
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto rounded-lg border border-slate-100">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b text-left text-slate-500">
-                      <th className="pb-2 pr-4 font-medium text-xs">Capability</th>
-                      <th className="pb-2 pr-4 font-medium text-xs">Approach</th>
-                      <th className="pb-2 font-medium text-xs">Notes</th>
+                    <tr className="bg-slate-50 border-b border-slate-200">
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Area</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">OOTB Fit</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Customization</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Risk</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Notes</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {result.ootbVsCustom.map((row, i) => (
-                      <tr key={i} className="hover:bg-slate-50/50">
-                        <td className="py-2 pr-4 font-medium text-slate-800 text-xs">{row.capability}</td>
-                        <td className="py-2 pr-4">
-                          <Badge
-                            variant="outline"
-                            className={
-                              row.approach === "OOTB"
-                                ? "border-green-300 text-green-700 text-xs"
-                                : row.approach === "Config"
-                                ? "border-blue-300 text-blue-700 text-xs"
-                                : "border-orange-300 text-orange-700 text-xs"
-                            }
-                          >
-                            {row.approach}
-                          </Badge>
-                        </td>
-                        <td className="py-2 text-slate-600 text-xs leading-relaxed">{row.notes}</td>
-                      </tr>
-                    ))}
+                  <tbody>
+                    {result.ootbVsCustom.map((row, i) => {
+                      const ootbColor =
+                        row.ootbFit === "High" ? "bg-green-100 text-green-700 border-green-200" :
+                        row.ootbFit === "Medium" ? "bg-amber-100 text-amber-700 border-amber-200" :
+                        "bg-red-100 text-red-700 border-red-200";
+                      const custColor =
+                        row.customizationLevel === "Low" ? "bg-green-100 text-green-700 border-green-200" :
+                        row.customizationLevel === "Medium" ? "bg-amber-100 text-amber-700 border-amber-200" :
+                        "bg-red-100 text-red-700 border-red-200";
+                      const riskColor =
+                        row.risk === "Low" ? "bg-green-100 text-green-700 border-green-200" :
+                        row.risk === "Medium" ? "bg-amber-100 text-amber-700 border-amber-200" :
+                        "bg-red-100 text-red-700 border-red-200";
+                      return (
+                        <tr key={i} className={`border-b border-slate-50 hover:bg-slate-50/70 transition-colors ${i % 2 === 0 ? "bg-white" : "bg-slate-50/40"}`}>
+                          <td className="px-4 py-3 font-semibold text-slate-800 text-xs">{row.area}</td>
+                          <td className="px-4 py-3">
+                            <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${ootbColor}`}>{row.ootbFit}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${custColor}`}>{row.customizationLevel}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${riskColor}`}>{row.risk}</span>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-slate-600 leading-relaxed">{row.notes}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -579,10 +768,35 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
           </Card>
         </TabsContent>
 
+        {/* Integrations tab */}
         <TabsContent value="integrations">
           <Card className="border-slate-200">
             <CardContent className="pt-4">
-              <EditableList items={result.integrationMap} onSave={editList("integrationMap")} />
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {result.integrationMap.map((item, i) => {
+                  const patternConfig = {
+                    API:   { color: "bg-blue-100 text-blue-700 border-blue-200",   icon: "⚡" },
+                    Batch: { color: "bg-slate-100 text-slate-700 border-slate-200", icon: "📦" },
+                    Event: { color: "bg-green-100 text-green-700 border-green-200", icon: "🔔" },
+                  }[item.pattern] ?? { color: "bg-slate-100 text-slate-600 border-slate-200", icon: "🔗" };
+
+                  return (
+                    <div key={i} className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-2 hover:shadow-sm transition-shadow">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-slate-800">{item.system}</p>
+                        <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${patternConfig.color}`}>
+                          {patternConfig.icon} {item.pattern}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        {item.pattern === "API" && "Real-time synchronous integration via REST/SOAP API"}
+                        {item.pattern === "Batch" && "Scheduled bulk data sync (nightly or periodic)"}
+                        {item.pattern === "Event" && "Event-driven real-time data streaming"}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

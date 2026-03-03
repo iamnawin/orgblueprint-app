@@ -45,20 +45,24 @@ export interface ClarificationAnswers {
 export interface Signals {
   rawText: string;
   users: number;
+  userCountBand: "1-49" | "50-199" | "200+";
   // Core CRM
   wantsSales: boolean;
   wantsService: boolean;
-  wantsPortal: boolean;
+  portalNeed: boolean;
+  explicitNoPortal: boolean;
   wantsFieldService: boolean;
   wantsCPQ: boolean;
   externalSystemsCount: number;
+  systemsDetected: string[];
   needsSingleCustomerView: boolean;
-  needsRealtimeSegmentation: boolean;
+  needsRealtimeCustomerData: boolean;
   crossCloudAnalytics: boolean;
   aiAutomationIntent: boolean;
   highCaseVolume: boolean;
   deflectionIntent: boolean;
   salesCopilotIntent: boolean;
+  complexityLevel: "Low" | "Medium" | "High";
   // Marketing
   wantsMarketing: boolean;
   wantsPardot: boolean;
@@ -85,11 +89,14 @@ export interface ProductDecision {
   name: string;
   level: RecommendationLevel;
   reasons: string[];
+  triggers: string[];
 }
 
 export interface OOTBRow {
-  capability: string;
-  approach: "OOTB" | "Config" | "Custom";
+  area: string;
+  ootbFit: "High" | "Medium" | "Low";
+  customizationLevel: "Low" | "Medium" | "High";
+  risk: "Low" | "Medium" | "High";
   notes: string;
 }
 
@@ -126,14 +133,43 @@ export interface InteractiveCostData {
 }
 
 export interface BlueprintResult {
-  executiveSnapshot: string[];
+  executiveSnapshot: {
+    primaryFocus: string;
+    usersDetected: number;
+    userCountBand: Signals["userCountBand"];
+    complexityLevel: Signals["complexityLevel"];
+    confidenceScore: number;
+  };
   products: ProductDecision[];
   whyMapping: Array<{ need: string; product: string; why: string }>;
   ootbVsCustom: OOTBRow[];
   objectsAndAutomations: string[];
-  integrationMap: string[];
+  integrationMap: Array<{ system: string; pattern: "API" | "Batch" | "Event" }>;
   analyticsPack: string[];
-  costSimulator: { range: string; assumptions: string[]; disclaimer: string };
+  costEstimate: {
+    license: {
+      breakdown: Array<{
+        product: string;
+        users: number;
+        annualLow: number;
+        annualHigh: number;
+        assumedEdition: string;
+      }>;
+      totalLow: number;
+      totalHigh: number;
+    };
+    implementation: {
+      low: number;
+      high: number;
+      rationale: string;
+    };
+    yearOneTotal: {
+      low: number;
+      high: number;
+    };
+    assumptions: string[];
+    disclaimer: string;
+  };
   roadmap: Array<{ phase: string; outcomes: string[] }>;
   documentChecklist: string[];
   risks: string[];

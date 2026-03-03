@@ -49,7 +49,9 @@ export default async function PrintPage({ params }: Props) {
         <p className="confidence">Confidence score: {result.confidenceScore}/100</p>
 
         <h2>Executive Snapshot</h2>
-        <ul>{result.executiveSnapshot.map((s, i) => <li key={i}>{s}</li>)}</ul>
+        <p><strong>Focus:</strong> {result.executiveSnapshot.primaryFocus}</p>
+        <p><strong>Users detected:</strong> {result.executiveSnapshot.usersDetected} ({result.executiveSnapshot.userCountBand})</p>
+        <p><strong>Complexity:</strong> {result.executiveSnapshot.complexityLevel}</p>
 
         <h2>Product Recommendations</h2>
         <table>
@@ -67,10 +69,10 @@ export default async function PrintPage({ params }: Props) {
 
         <h2>OOTB vs Custom</h2>
         <table>
-          <thead><tr><th>Capability</th><th>Approach</th><th>Notes</th></tr></thead>
+          <thead><tr><th>Area</th><th>OOTB Fit</th><th>Customization</th><th>Risk</th><th>Notes</th></tr></thead>
           <tbody>
             {result.ootbVsCustom.map((r, i) => (
-              <tr key={i}><td>{r.capability}</td><td>{r.approach}</td><td>{r.notes}</td></tr>
+              <tr key={i}><td>{r.area}</td><td>{r.ootbFit}</td><td>{r.customizationLevel}</td><td>{r.risk}</td><td>{r.notes}</td></tr>
             ))}
           </tbody>
         </table>
@@ -79,15 +81,17 @@ export default async function PrintPage({ params }: Props) {
         <ul>{result.objectsAndAutomations.map((s, i) => <li key={i}>{s}</li>)}</ul>
 
         <h2>Integration Map</h2>
-        <ul>{result.integrationMap.map((s, i) => <li key={i}>{s}</li>)}</ul>
+        <ul>{result.integrationMap.map((item, i) => <li key={i}>{item.system} — {item.pattern}</li>)}</ul>
 
         <h2>Analytics Pack</h2>
         <ul>{result.analyticsPack.map((s, i) => <li key={i}>{s}</li>)}</ul>
 
         <h2>Cost Estimate</h2>
-        <p><strong>{result.costSimulator.range}</strong> (directional year-1)</p>
-        <ul>{result.costSimulator.assumptions.map((s, i) => <li key={i}>{s}</li>)}</ul>
-        <div className="disclaimer">{result.costSimulator.disclaimer}</div>
+        <p><strong>License:</strong> ${result.costEstimate.license.totalLow.toLocaleString()} – ${result.costEstimate.license.totalHigh.toLocaleString()} / year</p>
+        <p><strong>Implementation:</strong> ${result.costEstimate.implementation.low.toLocaleString()} – ${result.costEstimate.implementation.high.toLocaleString()}</p>
+        <p><strong>Year-1 Total:</strong> ${result.costEstimate.yearOneTotal.low.toLocaleString()} – ${result.costEstimate.yearOneTotal.high.toLocaleString()}</p>
+        <ul>{result.costEstimate.assumptions.map((s, i) => <li key={i}>{s}</li>)}</ul>
+        <div className="disclaimer">{result.costEstimate.disclaimer}</div>
 
         <h2>Roadmap</h2>
         {result.roadmap.map((phase, i) => (
