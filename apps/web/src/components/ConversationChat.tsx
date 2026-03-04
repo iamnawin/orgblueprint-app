@@ -9,7 +9,26 @@ import { Progress } from "@/components/ui/progress";
 import { BlueprintDashboard } from "@/components/BlueprintDashboard";
 import { BlueprintResult } from "@orgblueprint/core";
 import { useSpeechInput } from "@/hooks/useSpeechInput";
-import { Mic, MicOff, Send, Sparkles, ArrowRight } from "lucide-react";
+import { Mic, MicOff, Send, Sparkles, ArrowRight, ShieldCheck, BarChart3, Brain } from "lucide-react";
+
+const EXAMPLE_PROMPTS = [
+  {
+    label: "B2B Sales & Support",
+    text: "B2B company with 50 sales reps and 10 support agents. We track leads in spreadsheets and need to replace that with proper pipeline management, case handling, and forecasting.",
+  },
+  {
+    label: "Customer Portal + Data",
+    text: "Need a customer self-service portal and unified customer data platform. We have 3 external systems (ERP, ecommerce, marketing automation) and need a single customer view.",
+  },
+  {
+    label: "Healthcare Provider",
+    text: "Healthcare provider with 200 staff. We manage patient referrals, need a portal for patients, and want to automate appointment reminders and integrate with our EHR system.",
+  },
+  {
+    label: "Field Service",
+    text: "Utility company with 100 field technicians. We need to dispatch work orders, schedule service appointments, and track SLA compliance for onsite service jobs.",
+  },
+];
 
 type Stage = "describe" | "conversation" | "confirm" | "generating" | "results";
 
@@ -135,9 +154,14 @@ export function ConversationChat() {
           AI-powered Salesforce blueprint generator
         </div>
         <h1 className="text-4xl font-bold text-slate-900 mb-2 tracking-tight">OrgBlueprint</h1>
-        <p className="text-slate-500 text-lg">
+        <p className="text-slate-500 text-lg mb-5">
           Describe your business — we&apos;ll ask the right questions and build your Salesforce blueprint.
         </p>
+        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-400">
+          <span className="flex items-center gap-1.5"><Brain className="h-3.5 w-3.5 text-blue-400" /> Architecture-grade recommendations</span>
+          <span className="flex items-center gap-1.5"><BarChart3 className="h-3.5 w-3.5 text-indigo-400" /> Built on Salesforce best practices</span>
+          <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-green-400" /> Designed for RevOps &amp; Solution Architects</span>
+        </div>
       </div>
 
       {/* Describe stage */}
@@ -146,10 +170,23 @@ export function ConversationChat() {
           <CardHeader className="pb-3">
             <CardTitle className="text-lg">What does your business need?</CardTitle>
             <p className="text-sm text-slate-500">
-              Describe your industry, team, pain points, and goals. The more detail, the better.
+              Describe your industry, team size, pain points, and goals. The more detail, the better.
             </p>
           </CardHeader>
           <CardContent className="space-y-3">
+            {/* Example prompt chips */}
+            <div className="flex flex-wrap gap-2">
+              {EXAMPLE_PROMPTS.map((p, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setNeedText(p.text)}
+                  className="text-xs px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors"
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
             <div className="relative">
               <Textarea
                 placeholder="E.g. We're a 200-person healthcare company. We need to manage patient referrals, track our sales pipeline, integrate with our EHR system, and automate appointment reminders. We also want a patient portal."
@@ -199,6 +236,9 @@ export function ConversationChat() {
               Continue
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
+            <p className="text-center text-xs text-slate-400">
+              ⏱ ~30 seconds · We&apos;ll ask up to 5 smart questions
+            </p>
           </CardContent>
         </Card>
       )}
@@ -348,6 +388,15 @@ export function ConversationChat() {
             </Button>
           </CardContent>
         </Card>
+      )}
+
+      {/* Trust signals footer — shown on describe stage only */}
+      {stage === "describe" && (
+        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-400 pt-2 pb-4">
+          <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> No Salesforce credentials required</span>
+          <span className="flex items-center gap-1.5"><BarChart3 className="h-3.5 w-3.5" /> Directional estimates only</span>
+          <span className="flex items-center gap-1.5"><Brain className="h-3.5 w-3.5" /> Architecture-grade recommendations</span>
+        </div>
       )}
 
       {/* Generating stage */}

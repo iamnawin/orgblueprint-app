@@ -6,13 +6,29 @@ const has = (text: string, needles: string[]) => needles.some((n) => text.includ
 const countMatches = (text: string, needles: string[]) => needles.filter((n) => text.includes(n)).length;
 
 function parseUsers(text: string): number | null {
+  // Try explicit numeric + headcount noun patterns (most specific first)
   const patterns = [
-    /(\d+)\s*\+\s*users?/, /(\d+)\+/, /(\d+)\s*users?/, /more than\s+(\d+)/, /over\s+(\d+)/,
+    /(\d[\d,]*)\s*\+\s*(?:users?|reps?|agents?|employees?|staff|people|team members?)/,
+    /(\d[\d,]*)\+\s*(?:users?|reps?|agents?|employees?|staff|people|team members?)/,
+    /(\d[\d,]*)\s+(?:users?|reps?|agents?|employees?|staff|people|team members?)/,
+    /more than\s+(\d[\d,]*)/,
+    /over\s+(\d[\d,]*)/,
+    /around\s+(\d[\d,]*)/,
+    /about\s+(\d[\d,]*)\s+(?:users?|reps?|agents?|employees?|staff|people)/,
+    // bare "500+" with no noun
+    /(\d[\d,]*)\+/,
   ];
   for (const p of patterns) {
     const m = text.match(p);
-    if (m?.[1]) return Number(m[1]);
+    if (m?.[1]) {
+      const n = Number(m[1].replace(/,/g, ""));
+      if (n > 0 && n < 1_000_000) return n;
+    }
   }
+  // Named size bands
+  if (/\b(?:startup|micro|just (?:me|myself)|solo|founder)\b/.test(text)) return 5;
+  if (/\b(?:small (?:team|company|business|org)|smb|sme)\b/.test(text)) return 15;
+  if (/\b(?:mid-?market|growing (?:team|company))\b/.test(text)) return 75;
   return null;
 }
 
@@ -33,11 +49,25 @@ export function extractSignals(input: string, answers: ClarificationAnswers = {}
 
   const industryVertical = answers.industryVertical?.toLowerCase() ?? "";
 
-  const explicitNoPortal = has(text, ["no portal", "without portal", "do not need portal"]);
+  const explicitNoPortal = has(text, ["no portal", "without portal", "do not need portal", "no external portal"]);
   const portalNeed =
     !explicitNoPortal &&
     (answers.needsSelfServicePortal ??
-      has(text, ["portal", "self-service", "self service", "customer portal", "partner portal", "login", "community"]));
+      has(text, [
+        "portal",
+        "self-service portal",
+        "self service portal",
+        "customer portal",
+        "partner portal",
+        "vendor portal",
+        "dealer portal",
+        "customer login",
+        "partner login",
+        "external users",
+        "community",
+        "experience site",
+        "client access",
+      ]));
 
   const wantsFieldService =
     answers.fieldOps ??
@@ -50,7 +80,8 @@ export function extractSignals(input: string, answers: ClarificationAnswers = {}
   const externalSystemsCount = Math.max(explicitExternalCount, systemsDetected.length);
 
   const wantsSales = has(text, ["lead", "opportunity", "pipeline", "forecast", "sales"]);
-  const wantsService = has(text, ["support", "case", "ticket", "sla", "service"]);
+  // "service" alone is too broad (matches "financial services", "field service" etc.) — require more specific signals
+  const wantsService = has(text, ["support", "case", "ticket", "sla", "customer service", "help desk", "service cloud", "service operations", "contact center"]);
   const wantsCPQ = has(text, ["complex pricing", "quoting", "approvals for pricing", "discount approvals", "cpq"]);
 
   const aiAutomationIntent = answers.aiAutomationIntent ?? has(text, ["ai-driven", "ai automation", "copilot", "agent assist", "generative", "auto-summarize", "deflection"]);
