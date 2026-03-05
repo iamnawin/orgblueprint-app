@@ -2,3 +2,4 @@ node_modules
 .next
 dist
 apps/web/tsconfig.tsbuildinfo
+apps/web/prisma/prisma/
