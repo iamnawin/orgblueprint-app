@@ -1719,130 +1719,142 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
       )}
 
       {/* ─── Tabbed sections ─── */}
-      <Tabs defaultValue="cost">
-        <TabsList className="flex-wrap h-auto print:hidden gap-1.5 bg-slate-100/80 p-1.5 rounded-2xl shadow-inner">
-          <TabsTrigger value="ai-chat" className="text-xs rounded-xl px-3 py-1.5 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">🤖 Ask AI</TabsTrigger>
-          <TabsTrigger value="cost" className="text-xs rounded-xl px-3 py-1.5 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">💰 Cost</TabsTrigger>
-          <TabsTrigger value="ootb" className="text-xs rounded-xl px-3 py-1.5 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">OOTB</TabsTrigger>
-          <TabsTrigger value="roadmap" className="text-xs rounded-xl px-3 py-1.5 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">🗺️ Roadmap</TabsTrigger>
-          <TabsTrigger value="checklist" className="text-xs rounded-xl px-3 py-1.5 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">✅ Checklist</TabsTrigger>
-          <TabsTrigger value="objects" className="text-xs rounded-xl px-3 py-1.5 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">🗃️ Data Model</TabsTrigger>
-          <TabsTrigger value="technical" className="text-xs rounded-xl px-3 py-1.5 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">⚙️ Technical</TabsTrigger>
-          <TabsTrigger value="integrations" className="text-xs rounded-xl px-3 py-1.5 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">🔗 Integrations</TabsTrigger>
-          <TabsTrigger value="appexchange" className="text-xs rounded-xl px-3 py-1.5 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">📦 AppExchange</TabsTrigger>
-          <TabsTrigger value="analytics" className="text-xs rounded-xl px-3 py-1.5 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">📊 Analytics</TabsTrigger>
-          <TabsTrigger value="docs" className="text-xs rounded-xl px-3 py-1.5 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">📄 Docs</TabsTrigger>
+      <Tabs defaultValue="overview">
+        {/* Primary tab strip */}
+        <TabsList className="flex-wrap h-auto print:hidden gap-1 bg-slate-100/80 p-1.5 rounded-2xl shadow-inner">
+          <TabsTrigger value="overview"    className="text-xs rounded-xl px-3.5 py-2 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">Overview</TabsTrigger>
+          <TabsTrigger value="architecture" className="text-xs rounded-xl px-3.5 py-2 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">Architecture</TabsTrigger>
+          <TabsTrigger value="data-model"  className="text-xs rounded-xl px-3.5 py-2 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">Data Model</TabsTrigger>
+          <TabsTrigger value="technical"   className="text-xs rounded-xl px-3.5 py-2 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">Technical</TabsTrigger>
+          <TabsTrigger value="cost"        className="text-xs rounded-xl px-3.5 py-2 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">Cost</TabsTrigger>
+          <TabsTrigger value="roadmap"     className="text-xs rounded-xl px-3.5 py-2 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">Roadmap</TabsTrigger>
+          <TabsTrigger value="ai-chat"     className="text-xs rounded-xl px-3.5 py-2 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold text-slate-400">🤖 Ask AI</TabsTrigger>
         </TabsList>
 
-        {/* AI Chat */}
-        <TabsContent value="ai-chat">
-          <Card className="border-slate-200">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Ask the AI Architect</CardTitle>
-              <p className="text-xs text-slate-500 mt-0.5">Ask questions about this specific blueprint — why products were chosen, costs, risks, and more</p>
-            </CardHeader>
-            <CardContent>
-              <AIChatTab result={result} />
-            </CardContent>
-          </Card>
+        {/* ── Overview: Products + Analytics + Risks ── */}
+        <TabsContent value="overview">
+          <div className="space-y-4">
+            {/* Product grid is rendered above tabs via ProductGrid — show analytics & risks here */}
+            <Card className="border-slate-200">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">📊 Analytics Pack</CardTitle>
+                <p className="text-xs text-slate-500 mt-0.5">Recommended reports and dashboards for your product selection</p>
+              </CardHeader>
+              <CardContent className="pt-2">
+                <EditableList items={result.analyticsPack} onSave={editList("analyticsPack")} />
+              </CardContent>
+            </Card>
+            <RisksSection risks={result.risks} onSave={editList("risks")} />
+            <RecommendationExpansionPanel result={result} />
+          </div>
         </TabsContent>
 
-        {/* Cost Calculator */}
-        <TabsContent value="cost">
-          <Card className="border-slate-200">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Interactive Cost Calculator</CardTitle>
-              <p className="text-xs text-slate-500 mt-0.5">Adjust users and tier to see real-time estimates</p>
-            </CardHeader>
-            <CardContent>
-              <InteractiveCostCalculator products={result.products} initialUsers={result.executiveSnapshot.usersDetected} />
-            </CardContent>
-          </Card>
+        {/* ── Architecture: OOTB vs Custom + Integrations + AppExchange ── */}
+        <TabsContent value="architecture">
+          <div className="space-y-4">
+            <Card className="border-slate-200">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">OOTB vs Custom Analysis</CardTitle>
+                <p className="text-xs text-slate-500 mt-0.5">Out-of-the-box capability fit vs customization required</p>
+              </CardHeader>
+              <CardContent className="pt-2">
+                <div className="overflow-x-auto rounded-lg border border-slate-100">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200">
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Area</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">OOTB Fit</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Customization</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Risk</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {result.ootbVsCustom.map((row, i) => {
+                        const ootbColor = row.ootbFit === "High" ? "bg-green-100 text-green-700 border-green-200" : row.ootbFit === "Medium" ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-red-100 text-red-700 border-red-200";
+                        const custColor = row.customizationLevel === "Low" ? "bg-green-100 text-green-700 border-green-200" : row.customizationLevel === "Medium" ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-red-100 text-red-700 border-red-200";
+                        const riskColor = row.risk === "Low" ? "bg-green-100 text-green-700 border-green-200" : row.risk === "Medium" ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-red-100 text-red-700 border-red-200";
+                        return (
+                          <tr key={i} className={`border-b border-slate-50 hover:bg-slate-50/70 transition-colors ${i % 2 === 0 ? "bg-white" : "bg-slate-50/40"}`}>
+                            <td className="px-4 py-3 font-semibold text-slate-800 text-xs">{row.area}</td>
+                            <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${ootbColor}`}>{row.ootbFit}</span></td>
+                            <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${custColor}`}>{row.customizationLevel}</span></td>
+                            <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${riskColor}`}>{row.risk}</span></td>
+                            <td className="px-4 py-3 text-xs text-slate-600 leading-relaxed">{row.notes}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Integration Map</CardTitle>
+                <p className="text-xs text-slate-500 mt-0.5">External systems and recommended integration patterns</p>
+              </CardHeader>
+              <CardContent className="pt-2">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {result.integrationMap.map((item, i) => {
+                    const patternConfig = {
+                      API:   { color: "bg-blue-100 text-blue-700 border-blue-200",   icon: "⚡" },
+                      Batch: { color: "bg-slate-100 text-slate-700 border-slate-200", icon: "📦" },
+                      Event: { color: "bg-green-100 text-green-700 border-green-200", icon: "🔔" },
+                    }[item.pattern] ?? { color: "bg-slate-100 text-slate-600 border-slate-200", icon: "🔗" };
+                    return (
+                      <div key={i} className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-2 hover:shadow-sm transition-shadow">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-semibold text-slate-800">{item.system}</p>
+                          <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${patternConfig.color}`}>{patternConfig.icon} {item.pattern}</span>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          {item.pattern === "API" && "Real-time synchronous integration via REST/SOAP API"}
+                          {item.pattern === "Batch" && "Scheduled bulk data sync (nightly or periodic)"}
+                          {item.pattern === "Event" && "Event-driven real-time data streaming"}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">📦 AppExchange Recommendations</CardTitle>
+                <p className="text-xs text-slate-500 mt-0.5">Curated partner apps that extend your product selection</p>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <AppExchangeTab products={result.products} />
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
-        {/* OOTB vs Custom */}
-        <TabsContent value="ootb">
-          <Card className="border-slate-200">
-            <CardContent className="pt-4">
-              <div className="overflow-x-auto rounded-lg border border-slate-100">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Area</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">OOTB Fit</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Customization</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Risk</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Notes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {result.ootbVsCustom.map((row, i) => {
-                      const ootbColor = row.ootbFit === "High" ? "bg-green-100 text-green-700 border-green-200" : row.ootbFit === "Medium" ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-red-100 text-red-700 border-red-200";
-                      const custColor = row.customizationLevel === "Low" ? "bg-green-100 text-green-700 border-green-200" : row.customizationLevel === "Medium" ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-red-100 text-red-700 border-red-200";
-                      const riskColor = row.risk === "Low" ? "bg-green-100 text-green-700 border-green-200" : row.risk === "Medium" ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-red-100 text-red-700 border-red-200";
-                      return (
-                        <tr key={i} className={`border-b border-slate-50 hover:bg-slate-50/70 transition-colors ${i % 2 === 0 ? "bg-white" : "bg-slate-50/40"}`}>
-                          <td className="px-4 py-3 font-semibold text-slate-800 text-xs">{row.area}</td>
-                          <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${ootbColor}`}>{row.ootbFit}</span></td>
-                          <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${custColor}`}>{row.customizationLevel}</span></td>
-                          <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${riskColor}`}>{row.risk}</span></td>
-                          <td className="px-4 py-3 text-xs text-slate-600 leading-relaxed">{row.notes}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Visual Roadmap */}
-        <TabsContent value="roadmap">
-          <Card className="border-slate-200">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Implementation Roadmap</CardTitle>
-              <p className="text-xs text-slate-500 mt-0.5">Phased approach to Salesforce delivery</p>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <VisualRoadmap roadmap={result.roadmap} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Implementation Checklist */}
-        <TabsContent value="checklist">
-          <Card className="border-slate-200">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Implementation Checklist</CardTitle>
-              <p className="text-xs text-slate-500 mt-0.5">Track your implementation tasks — tailored to your product selection</p>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <ChecklistTab products={result.products} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="objects">
+        {/* ── Data Model ── */}
+        <TabsContent value="data-model">
           <Card className="border-slate-200">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Data Model</CardTitle>
               <p className="text-xs text-slate-500 mt-0.5">Business entities, Salesforce objects, and their relationships</p>
             </CardHeader>
             <CardContent className="pt-2 space-y-6">
-              {/* Business Entity Cards */}
+              {/* Business Entity Cards — business-friendly names first */}
               <div>
                 <h3 className="text-sm font-semibold text-slate-700 mb-1">Business Entities</h3>
-                <p className="text-xs text-slate-500 mb-3">Your data in plain business language — with the underlying Salesforce object</p>
+                <p className="text-xs text-slate-500 mb-3">Your data in plain business language — mapped to the underlying Salesforce object</p>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {BUSINESS_OBJECT_MAP.map((obj) => (
                     <div key={obj.sfObject} className="rounded-xl border border-slate-200 bg-white p-3.5 hover:shadow-sm transition-shadow space-y-1.5">
                       <div className="flex items-center gap-2">
                         <span className="text-xl">{obj.icon}</span>
                         <div>
+                          {/* Business-friendly name is the primary label */}
                           <p className="text-sm font-bold text-slate-900">{obj.businessName}</p>
                           <span className="text-xs font-mono text-slate-400 bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded-md">
-                            Salesforce Object: {obj.sfObject}
+                            {obj.sfObject}
                           </span>
                         </div>
                       </div>
@@ -1852,54 +1864,25 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
                 </div>
               </div>
 
-              {/* Object Relationship Diagram */}
+              {/* Relationship Diagram */}
               <div>
                 <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
                   Object Relationship Diagram
-                  <span className="text-xs font-normal text-slate-400">— based on your recommended products</span>
+                  <span className="text-xs font-normal text-slate-400">— based on your product selection</span>
                 </h3>
                 <DataModelDiagram products={result.products} />
               </div>
 
-              {/* Full automations list */}
+              {/* Automations detail list */}
               <div>
-                <h3 className="text-sm font-semibold text-slate-700 mb-2">Objects &amp; Automations Detail</h3>
+                <h3 className="text-sm font-semibold text-slate-700 mb-2">Objects &amp; Automations</h3>
                 <EditableList items={result.objectsAndAutomations} onSave={editList("objectsAndAutomations")} />
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="integrations">
-          <Card className="border-slate-200">
-            <CardContent className="pt-4">
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {result.integrationMap.map((item, i) => {
-                  const patternConfig = {
-                    API:   { color: "bg-blue-100 text-blue-700 border-blue-200",   icon: "⚡" },
-                    Batch: { color: "bg-slate-100 text-slate-700 border-slate-200", icon: "📦" },
-                    Event: { color: "bg-green-100 text-green-700 border-green-200", icon: "🔔" },
-                  }[item.pattern] ?? { color: "bg-slate-100 text-slate-600 border-slate-200", icon: "🔗" };
-                  return (
-                    <div key={i} className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-2 hover:shadow-sm transition-shadow">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-slate-800">{item.system}</p>
-                        <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${patternConfig.color}`}>{patternConfig.icon} {item.pattern}</span>
-                      </div>
-                      <p className="text-xs text-slate-500">
-                        {item.pattern === "API" && "Real-time synchronous integration via REST/SOAP API"}
-                        {item.pattern === "Batch" && "Scheduled bulk data sync (nightly or periodic)"}
-                        {item.pattern === "Event" && "Event-driven real-time data streaming"}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Technical Blueprint */}
+        {/* ── Technical Blueprint ── */}
         <TabsContent value="technical">
           <Card className="border-slate-200">
             <CardHeader className="pb-2">
@@ -1912,41 +1895,67 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
           </Card>
         </TabsContent>
 
-        {/* AppExchange */}
-        <TabsContent value="appexchange">
+        {/* ── Cost Calculator ── */}
+        <TabsContent value="cost">
           <Card className="border-slate-200">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">AppExchange Recommendations</CardTitle>
-              <p className="text-xs text-slate-500 mt-0.5">Curated partner apps that extend your recommended Salesforce products</p>
+              <CardTitle className="text-base">Interactive Cost Calculator</CardTitle>
+              <p className="text-xs text-slate-500 mt-0.5">Adjust users and tier to see real-time estimates</p>
             </CardHeader>
-            <CardContent className="pt-4">
-              <AppExchangeTab products={result.products} />
+            <CardContent>
+              <InteractiveCostCalculator products={result.products} initialUsers={result.executiveSnapshot.usersDetected} />
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="analytics">
-          <Card className="border-slate-200">
-            <CardContent className="pt-4">
-              <EditableList items={result.analyticsPack} onSave={editList("analyticsPack")} />
-            </CardContent>
-          </Card>
+        {/* ── Roadmap + Checklist + Docs ── */}
+        <TabsContent value="roadmap">
+          <div className="space-y-4">
+            <Card className="border-slate-200">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Implementation Roadmap</CardTitle>
+                <p className="text-xs text-slate-500 mt-0.5">Phased approach to Salesforce delivery</p>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <VisualRoadmap roadmap={result.roadmap} />
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">✅ Implementation Checklist</CardTitle>
+                <p className="text-xs text-slate-500 mt-0.5">Track tasks by phase — tailored to your product selection</p>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <ChecklistTab products={result.products} />
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">📄 Document Checklist</CardTitle>
+                <p className="text-xs text-slate-500 mt-0.5">Key deliverables and artefacts for your implementation</p>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <EditableList items={result.documentChecklist} onSave={editList("documentChecklist")} />
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
-        <TabsContent value="docs">
+        {/* ── AI Chat ── */}
+        <TabsContent value="ai-chat">
           <Card className="border-slate-200">
-            <CardContent className="pt-4">
-              <EditableList items={result.documentChecklist} onSave={editList("documentChecklist")} />
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Ask the AI Architect</CardTitle>
+              <p className="text-xs text-slate-500 mt-0.5">Ask questions about this specific blueprint — why products were chosen, costs, risks, and more</p>
+            </CardHeader>
+            <CardContent>
+              <AIChatTab result={result} />
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Key Risks — collapsible section below tabs */}
-      <RisksSection risks={result.risks} onSave={editList("risks")} />
-
-      {/* Post-analysis recommendation expansion */}
-      <RecommendationExpansionPanel result={result} />
     </div>
   );
 }
