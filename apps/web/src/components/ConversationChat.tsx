@@ -47,6 +47,8 @@ export function ConversationChat() {
   const [currentAnswer, setCurrentAnswer] = useState("");
   const [loadingQuestion, setLoadingQuestion] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+  const [aiRunsLeft, setAiRunsLeft] = useState<number | null>(null);
   const [result, setResult] = useState<BlueprintResult | null>(null);
   const [blueprintSlug, setBlueprintSlug] = useState<string | null>(null);
   const [aiPowered, setAiPowered] = useState(false);
@@ -113,6 +115,7 @@ export function ConversationChat() {
 
   async function generate() {
     setGenerating(true);
+    setGenerateError(null);
     setStage("generating");
     try {
       const res = await fetch("/api/blueprint", {
@@ -121,11 +124,24 @@ export function ConversationChat() {
         body: JSON.stringify({ input: needText, answers: answeredMap, mode }),
       });
       const data = await res.json();
+
+      if (res.status === 429) {
+        setGenerateError(data.error ?? "Quota exceeded.");
+        setGenerating(false);
+        setStage("confirm");
+        return;
+      }
+
+      if (data.quota?.remainingToday !== undefined) {
+        setAiRunsLeft(data.quota.remainingToday);
+      }
+
       setResult(data.result);
       setBlueprintSlug(data.slug ?? null);
       setAiPowered(data.aiPowered ?? false);
       setStage("results");
     } catch {
+      setGenerateError("Something went wrong. Please try again.");
       setGenerating(false);
       setStage("confirm");
     }
@@ -218,7 +234,12 @@ export function ConversationChat() {
             {mode === "ai" && (
               <p className="text-xs text-amber-600 flex items-start gap-1.5 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
                 <Zap className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                AI Enhanced asks up to 5 smart clarifying questions, then generates a richer narrative blueprint using Claude.
+                <span>
+                  AI Enhanced asks up to 5 smart clarifying questions, then generates a richer narrative blueprint using Claude.
+                  {aiRunsLeft !== null && (
+                    <span className="ml-1 font-semibold">({aiRunsLeft} AI run{aiRunsLeft !== 1 ? "s" : ""} left today)</span>
+                  )}
+                </span>
               </p>
             )}
 
@@ -426,6 +447,28 @@ export function ConversationChat() {
                 ))}
               </div>
             )}
+            {generateError && (
+              <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                {generateError}
+                {mode === "ai" && (
+                  <button
+                    type="button"
+                    className="ml-2 underline font-medium"
+                    onClick={() => { setMode("demo"); setGenerateError(null); }}
+                  >
+                    Switch to Demo mode
+                  </button>
+                )}
+              </div>
+            )}
+
+            {mode === "ai" && aiRunsLeft !== null && (
+              <p className="text-xs text-amber-600 flex items-center gap-1.5">
+                <Zap className="h-3.5 w-3.5 shrink-0" />
+                AI runs left today: {aiRunsLeft}
+              </p>
+            )}
+
             <Button
               className="w-full h-11 text-base font-medium"
               onClick={generate}
