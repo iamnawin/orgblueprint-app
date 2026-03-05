@@ -13,20 +13,20 @@ import { Mic, MicOff, Send, Sparkles, ArrowRight, ShieldCheck, BarChart3, Brain 
 
 const EXAMPLE_PROMPTS = [
   {
-    label: "B2B Sales & Support",
-    text: "B2B company with 50 sales reps and 10 support agents. We track leads in spreadsheets and need to replace that with proper pipeline management, case handling, and forecasting.",
+    label: "B2B Sales Team",
+    text: "B2B company with 50 sales reps. We manage leads in spreadsheets and need proper pipeline management, opportunity tracking, and sales forecasting.",
   },
   {
-    label: "Customer Portal + Data",
-    text: "Need a customer self-service portal and unified customer data platform. We have 3 external systems (ERP, ecommerce, marketing automation) and need a single customer view.",
+    label: "Customer Portal & Support",
+    text: "Need a customer self-service portal and support automation. We handle 500 cases per month and want to reduce manual routing and automate follow-ups.",
   },
   {
-    label: "Healthcare Provider",
-    text: "Healthcare provider with 200 staff. We manage patient referrals, need a portal for patients, and want to automate appointment reminders and integrate with our EHR system.",
+    label: "Complex Pricing Approvals",
+    text: "We have complex pricing with discounts requiring multi-level approvals. We need CPQ to configure quotes, manage approval workflows, and generate contracts automatically.",
   },
   {
-    label: "Field Service",
-    text: "Utility company with 100 field technicians. We need to dispatch work orders, schedule service appointments, and track SLA compliance for onsite service jobs.",
+    label: "ERP Integration",
+    text: "We need to integrate Salesforce with our ERP system to sync accounts, orders, and invoices in real time. We have 200 users across sales and operations.",
   },
 ];
 

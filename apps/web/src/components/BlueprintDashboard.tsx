@@ -12,6 +12,7 @@ import { PRODUCT_PRICING, PRICING_DISCLAIMER, computeAnnualCost } from "@/lib/pr
 import { PRODUCT_DETAILS } from "@/lib/productDetails";
 import { APPEXCHANGE_APPS } from "@/lib/appExchange";
 import { generateChecklist } from "@/lib/implementationChecklist";
+import { generateTechnicalBlueprint } from "@/lib/technicalBlueprint";
 
 interface Props {
   result: BlueprintResult;
@@ -208,7 +209,7 @@ function InteractiveCostCalculator({ products, initialUsers = 50 }: { products: 
       {/* Budget optimizer toggle */}
       <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-slate-700">Budget Target</p>
+          <p className="text-sm font-semibold text-slate-700">Estimated Implementation Budget</p>
           <button
             onClick={() => setBudgetEnabled((v) => !v)}
             className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${budgetEnabled ? "bg-blue-600" : "bg-slate-300"}`}
@@ -322,16 +323,31 @@ function InteractiveCostCalculator({ products, initialUsers = 50 }: { products: 
 
       <Separator />
 
-      <div className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white">
-        <p className="text-xs font-medium opacity-80 mb-1">Annual license cost (estimate)</p>
-        <p className="text-3xl font-bold tracking-tight">${licenseTotal.toLocaleString()}</p>
-        <p className="text-xs opacity-70 mt-1">
-          ≈ ${userCount > 0 ? Math.round(licenseTotal / userCount).toLocaleString() : "—"} per user / year · {userCount.toLocaleString()} users
-        </p>
+      {/* Cost summary cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 p-4 text-white">
+          <p className="text-xs font-medium opacity-80 mb-1">License Cost (annual)</p>
+          <p className="text-2xl font-bold tracking-tight">${licenseTotal.toLocaleString()}</p>
+          <p className="text-xs opacity-70 mt-1">
+            ${userCount > 0 ? Math.round(licenseTotal / userCount).toLocaleString() : "—"} / user / year
+          </p>
+        </div>
+        <div className="rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 p-4 text-white">
+          <p className="text-xs font-medium opacity-80 mb-1">Implementation Cost</p>
+          <p className="text-2xl font-bold tracking-tight">$80k – $200k</p>
+          <p className="text-xs opacity-70 mt-1">depends on complexity &amp; scope</p>
+        </div>
+        <div className="rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 p-4 text-white">
+          <p className="text-xs font-medium opacity-80 mb-1">Estimated Year-1 Budget</p>
+          <p className="text-2xl font-bold tracking-tight">
+            ${(licenseTotal + 80000).toLocaleString()} – ${(licenseTotal + 200000).toLocaleString()}
+          </p>
+          <p className="text-xs opacity-70 mt-1">license + implementation</p>
+        </div>
       </div>
 
-      <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-xs text-slate-500 leading-relaxed">
-        💡 <strong>Implementation costs vary by partner.</strong> Salesforce SI partners typically charge $150–$350/hr.
+      <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800 leading-relaxed">
+        ⚠️ <strong>Directional estimate only.</strong> This is not official Salesforce pricing or a quote. Salesforce SI partners typically charge $150–$350/hr. Engage a certified partner for a detailed scope and commercial quote.
       </div>
     </div>
   );
@@ -375,7 +391,22 @@ function ExecutiveSnapshotCards({ snapshot }: { snapshot: BlueprintResult["execu
         </div>
       </div>
       <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 space-y-1.5">
-        <div className="flex items-center gap-1.5"><span className="text-base">📊</span><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Confidence</p></div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-base">📊</span>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Confidence</p>
+          <div className="relative group ml-auto">
+            <button className="flex items-center justify-center w-4 h-4 rounded-full bg-slate-200 text-slate-500 hover:bg-slate-300 text-xs font-bold leading-none">?</button>
+            <div className="absolute bottom-full right-0 mb-2 w-56 bg-slate-800 text-white text-xs rounded-xl p-3 leading-relaxed hidden group-hover:block z-20 shadow-xl">
+              <p className="font-semibold mb-1.5">How confidence is calculated</p>
+              <ul className="space-y-1 text-slate-300">
+                <li>• Clarity of your input description</li>
+                <li>• Number of signals detected in your text</li>
+                <li>• Completeness of your Q&amp;A answers</li>
+              </ul>
+              <p className="mt-2 text-slate-400">Higher scores mean the blueprint is more tailored to your specific needs.</p>
+            </div>
+          </div>
+        </div>
         <div className="flex items-end gap-1">
           <p className="text-2xl font-bold text-slate-900 tabular-nums leading-none">{confidencePct}</p>
           <p className="text-sm text-slate-400 mb-0.5">/100</p>
@@ -994,6 +1025,320 @@ function RefineBlueprintPanel({
   );
 }
 
+// ─── Business Object Map ──────────────────────────────────────────────────────
+const BUSINESS_OBJECT_MAP = [
+  { businessName: "Customers",           sfObject: "Account",          icon: "🏢", description: "Stores company or organization information — your B2B accounts or consumer households." },
+  { businessName: "Customer Contacts",   sfObject: "Contact",          icon: "👤", description: "People who work at the customer company — your primary points of contact." },
+  { businessName: "Sales Deals",         sfObject: "Opportunity",      icon: "💰", description: "Tracks potential revenue and deal stages from initial interest to close." },
+  { businessName: "Support Tickets",     sfObject: "Case",             icon: "🎫", description: "Tracks customer service issues from first contact through resolution." },
+  { businessName: "Sales Prospects",     sfObject: "Lead",             icon: "🌱", description: "Unqualified prospects before they become contacts and opportunities." },
+  { businessName: "Marketing Campaigns", sfObject: "Campaign",         icon: "📣", description: "Tracks marketing initiatives, their budget, and measurable ROI." },
+  { businessName: "Customer Contracts",  sfObject: "Contract",         icon: "📋", description: "Legal agreements and terms with your customers, linked to accounts." },
+  { businessName: "Customer Orders",     sfObject: "Order",            icon: "📦", description: "Tracks purchases and their fulfilment status post-sale." },
+  { businessName: "Product Catalog",     sfObject: "Product (Product2)", icon: "🏷️", description: "Items or services available for sale, with descriptions and codes." },
+  { businessName: "Pricing Lists",       sfObject: "Price Book (Pricebook2)", icon: "💲", description: "Collections of products with associated prices for different markets or segments." },
+  { businessName: "Activity Tasks",      sfObject: "Task",             icon: "✅", description: "To-do items and follow-up activities linked to any record." },
+  { businessName: "Calendar Events",     sfObject: "Event",            icon: "📅", description: "Meetings, calls, and appointments tied to accounts and contacts." },
+];
+
+// ─── Data Model Diagram ───────────────────────────────────────────────────────
+function DataModelDiagram({ products }: { products: ProductDecision[] }) {
+  const keys = new Set(products.filter((p) => p.level !== "not_needed").map((p) => p.key));
+
+  const accountChildren: Array<{ name: string; icon: string; desc: string }> = [
+    { name: "Contact", icon: "👤", desc: "People at the company" },
+  ];
+  if (keys.has("sales_cloud"))   accountChildren.push({ name: "Opportunity", icon: "💰", desc: "Sales deals in progress" });
+  if (keys.has("service_cloud")) accountChildren.push({ name: "Case",        icon: "🎫", desc: "Support tickets" });
+  if (keys.has("cpq_revenue"))   accountChildren.push({ name: "Quote",       icon: "📋", desc: "Configured price quotes" });
+  if (keys.has("commerce_cloud")) accountChildren.push({ name: "Order",      icon: "📦", desc: "Customer orders" });
+  if (keys.has("field_service")) accountChildren.push({ name: "Work Order",  icon: "🔧", desc: "Field service requests" });
+
+  const roots = [{ name: "Account", icon: "🏢", children: accountChildren }];
+
+  if (keys.has("sales_cloud") || keys.has("pardot")) {
+    roots.push({
+      name: "Lead",
+      icon: "🌱",
+      children: [
+        { name: "Contact (converted)",     icon: "👤", desc: "On conversion" },
+        { name: "Opportunity (converted)", icon: "💰", desc: "On conversion" },
+        { name: "Account (converted)",     icon: "🏢", desc: "On conversion" },
+      ],
+    });
+  }
+
+  const mermaid = [
+    "graph TD",
+    "  Account --> Contact",
+    keys.has("sales_cloud")    ? "  Account --> Opportunity" : "",
+    keys.has("service_cloud")  ? "  Account --> Case" : "",
+    keys.has("cpq_revenue")    ? "  Opportunity --> Quote" : "",
+    keys.has("field_service")  ? "  Case --> WorkOrder[Work Order]" : "",
+    keys.has("commerce_cloud") ? "  Quote --> Order" : "",
+    keys.has("sales_cloud") || keys.has("pardot") ? "  Lead -->|converted| Contact\n  Lead -->|converted| Opportunity\n  Lead -->|converted| Account" : "",
+  ].filter(Boolean).join("\n");
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-lg bg-blue-50 border border-blue-100 p-3 text-xs text-blue-700 leading-relaxed">
+        💡 Core Salesforce object relationships based on your recommended products. Account is always the central record.
+      </div>
+
+      {/* Visual tree */}
+      {roots.map((root, ri) => (
+        <div key={ri} className="space-y-2">
+          <div className="inline-flex items-center gap-2 bg-slate-800 text-white rounded-xl px-3.5 py-2 text-sm font-bold shadow-sm">
+            <span className="text-base">{root.icon}</span>
+            <span>{root.name}</span>
+            <span className="text-xs text-slate-400 font-normal ml-1">root object</span>
+          </div>
+          <div className="ml-5 pl-5 border-l-2 border-slate-200 space-y-2">
+            {root.children.map((child, ci) => (
+              <div key={ci} className="flex items-center gap-2">
+                <div className="flex-shrink-0 w-4 h-px bg-slate-300" />
+                <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 flex items-center gap-2 hover:shadow-sm transition-shadow">
+                  <span className="text-sm">{child.icon}</span>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-800">{child.name}</p>
+                    <p className="text-xs text-slate-400">{child.desc}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {/* Mermaid-style text diagram */}
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Relationship Reference</p>
+        <pre className="text-xs text-slate-600 leading-loose font-mono overflow-x-auto whitespace-pre-wrap">{mermaid}</pre>
+      </div>
+    </div>
+  );
+}
+
+// ─── Technical Blueprint Tab ──────────────────────────────────────────────────
+function TechnicalBlueprintTab({ products }: { products: ProductDecision[] }) {
+  const blueprint = generateTechnicalBlueprint(products);
+  const [expanded, setExpanded] = useState<string | null>("automations");
+
+  const sections = [
+    { id: "automations",       label: "Automation Strategy",   icon: "⚡", count: blueprint.automations.length },
+    { id: "integrations",      label: "Integration Strategy",  icon: "🔗", count: blueprint.integrations.length },
+    { id: "architecture",      label: "Architecture Notes",    icon: "🏗️", count: blueprint.architectureNotes.length },
+    ...(blueprint.codeExample ? [{ id: "code", label: "Code Example", icon: "💻", count: 1 }] : []),
+  ];
+
+  const directionColors: Record<string, string> = {
+    inbound:       "bg-green-100 text-green-700 border-green-200",
+    outbound:      "bg-blue-100  text-blue-700  border-blue-200",
+    bidirectional: "bg-purple-100 text-purple-700 border-purple-200",
+  };
+  const directionLabel: Record<string, string> = {
+    inbound: "→ Inbound", outbound: "← Outbound", bidirectional: "↔ Bi-directional",
+  };
+
+  return (
+    <div className="space-y-3">
+      {sections.map((section) => (
+        <div key={section.id} className="rounded-xl border border-slate-200 overflow-hidden">
+          <button
+            onClick={() => setExpanded((v) => (v === section.id ? null : section.id))}
+            className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-base">{section.icon}</span>
+              <span className="text-sm font-semibold text-slate-800">{section.label}</span>
+              <span className="text-xs text-slate-400 bg-slate-200 px-1.5 py-0.5 rounded-full">{section.count}</span>
+            </div>
+            <span className="text-slate-400 text-sm">{expanded === section.id ? "▲" : "▼"}</span>
+          </button>
+
+          {expanded === section.id && (
+            <div className="p-4 space-y-3 bg-white">
+              {section.id === "automations" && blueprint.automations.map((auto, i) => (
+                <div key={i} className="rounded-lg border border-slate-100 bg-slate-50 p-3.5 space-y-1.5">
+                  <div className="flex items-start justify-between gap-2 flex-wrap">
+                    <p className="text-sm font-semibold text-slate-800">{auto.name}</p>
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      <span className="text-xs bg-blue-100 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-medium">{auto.technology}</span>
+                      <span className="text-xs bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded-full">Trigger: {auto.trigger}</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">{auto.description}</p>
+                </div>
+              ))}
+
+              {section.id === "integrations" && blueprint.integrations.map((intg, i) => (
+                <div key={i} className="rounded-lg border border-slate-100 bg-slate-50 p-3.5 space-y-1.5">
+                  <div className="flex items-start justify-between gap-2 flex-wrap">
+                    <p className="text-sm font-semibold text-slate-800">{intg.name}</p>
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      <span className="text-xs bg-indigo-100 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full font-medium">{intg.method}</span>
+                      <span className={`text-xs border px-2 py-0.5 rounded-full font-medium ${directionColors[intg.direction]}`}>{directionLabel[intg.direction]}</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">{intg.description}</p>
+                </div>
+              ))}
+
+              {section.id === "architecture" && (
+                <ul className="space-y-2">
+                  {blueprint.architectureNotes.map((note, i) => (
+                    <li key={i} className="flex items-start gap-2.5 text-sm text-slate-700 leading-relaxed">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-slate-800 text-white text-xs flex items-center justify-center font-bold mt-0.5">{i + 1}</span>
+                      {note}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {section.id === "code" && blueprint.codeExample && (
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-slate-700">{blueprint.codeExample.title}</p>
+                  <div className="rounded-xl bg-slate-900 p-4 overflow-x-auto">
+                    <pre className="text-xs text-green-300 font-mono leading-relaxed whitespace-pre">{blueprint.codeExample.code}</pre>
+                  </div>
+                  <p className="text-xs text-slate-400">This is a reference implementation pattern. Adapt to your specific requirements.</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Risks Section (collapsible, below tabs) ──────────────────────────────────
+function RisksSection({ risks, onSave }: { risks: string[]; onSave: (u: string[]) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-xl border border-amber-200 bg-amber-50 print:hidden">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-base">⚠️</span>
+          <span className="text-sm font-semibold text-amber-900">Key Risks &amp; Mitigations</span>
+          <span className="text-xs text-amber-600 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded-full">{risks.length}</span>
+        </div>
+        <span className="text-amber-600 text-sm">{open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4">
+          <EditableList items={risks} onSave={onSave} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Recommendation Expansion Panel ──────────────────────────────────────────
+function RecommendationExpansionPanel({ result }: { result: BlueprintResult }) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const [expansion, setExpansion] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+
+  const options = [
+    { id: "architecture",  label: "🏗️ Improve Architecture",   desc: "Deeper architectural guidance" },
+    { id: "ai",            label: "🤖 AI Automation Ideas",     desc: "Einstein & Agentforce use cases" },
+    { id: "integrations",  label: "🔗 Integration Suggestions", desc: "API patterns and strategies" },
+    { id: "reporting",     label: "📊 Reporting Strategy",      desc: "Dashboards, KPIs, analytics" },
+  ];
+
+  async function expand(optionId: string) {
+    setSelected(optionId);
+    setLoading(true);
+    setExpansion(null);
+
+    const blueprintSummary = `Products: ${result.products
+      .filter((p) => p.level !== "not_needed")
+      .map((p) => `${p.name} (${p.level})`)
+      .join(", ")}
+Focus: ${result.executiveSnapshot.primaryFocus}
+Complexity: ${result.executiveSnapshot.complexityLevel}
+Users: ${result.executiveSnapshot.usersDetected}`.trim();
+
+    try {
+      const res = await fetch("/api/recommend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ option: optionId, blueprintSummary }),
+      });
+      const data = (await res.json()) as { content: string };
+      setExpansion(data.content);
+    } catch {
+      setExpansion("Failed to load recommendations. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (dismissed) return null;
+
+  return (
+    <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-white print:hidden">
+      <CardContent className="pt-4 space-y-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-sm font-semibold text-blue-900">Would you like additional recommendations?</p>
+            <p className="text-xs text-slate-500 mt-0.5">Select an area to expand with AI-powered guidance</p>
+          </div>
+          <button
+            onClick={() => setDismissed(true)}
+            className="text-slate-300 hover:text-slate-500 text-xl leading-none mt-0.5"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {options.map((opt) => (
+            <button
+              key={opt.id}
+              onClick={() => expand(opt.id)}
+              disabled={loading}
+              className={`rounded-xl border px-3 py-3 text-left transition-all duration-150 ${
+                selected === opt.id
+                  ? "border-blue-500 bg-blue-600 text-white shadow-md scale-[0.98]"
+                  : "border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50 hover:shadow-sm text-slate-700"
+              }`}
+            >
+              <div className="text-sm font-semibold mb-1">{opt.label}</div>
+              <div className={`text-xs ${selected === opt.id ? "text-blue-100" : "text-slate-400"}`}>
+                {opt.desc}
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {loading && (
+          <div className="rounded-xl bg-white border border-slate-200 p-4 flex items-center gap-3">
+            <div className="flex gap-1">
+              {[0, 150, 300].map((d) => (
+                <span key={d} className="h-2 w-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: `${d}ms` }} />
+              ))}
+            </div>
+            <span className="text-sm text-slate-500">Generating recommendations…</span>
+          </div>
+        )}
+
+        {expansion && !loading && (
+          <div className="rounded-xl bg-white border border-blue-200 p-4 space-y-2">
+            <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">AI Recommendations</p>
+            <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{expansion}</div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Main dashboard ───────────────────────────────────────────────────────────
 export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered = false, needText: initialNeedText, savedAnswers: initialAnswers, onReset }: Props) {
   const [result, setResult] = useState<BlueprintResult>(initial);
@@ -1194,8 +1539,13 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
             </Button>
           )}
           {onReset && (
-            <Button variant="ghost" size="sm" onClick={onReset} className="text-xs">
-              ← New blueprint
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onReset}
+              className="text-xs border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+            >
+              🔄 Run Another Scenario
             </Button>
           )}
         </div>
@@ -1340,18 +1690,18 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
 
       {/* ─── Tabbed sections ─── */}
       <Tabs defaultValue="cost">
-        <TabsList className="flex-wrap h-auto print:hidden gap-1">
-          <TabsTrigger value="ai-chat" className="text-xs">🤖 Ask AI</TabsTrigger>
-          <TabsTrigger value="cost" className="text-xs">💰 Cost</TabsTrigger>
-          <TabsTrigger value="ootb" className="text-xs">OOTB</TabsTrigger>
-          <TabsTrigger value="roadmap" className="text-xs">🗺️ Roadmap</TabsTrigger>
-          <TabsTrigger value="checklist" className="text-xs">✅ Checklist</TabsTrigger>
-          <TabsTrigger value="objects" className="text-xs">Objects</TabsTrigger>
-          <TabsTrigger value="integrations" className="text-xs">Integrations</TabsTrigger>
-          <TabsTrigger value="appexchange" className="text-xs">📦 AppExchange</TabsTrigger>
-          <TabsTrigger value="analytics" className="text-xs">Analytics</TabsTrigger>
-          <TabsTrigger value="docs" className="text-xs">Docs</TabsTrigger>
-          <TabsTrigger value="risks" className="text-xs">Risks</TabsTrigger>
+        <TabsList className="flex-wrap h-auto print:hidden gap-1.5 bg-slate-100/80 p-1.5 rounded-2xl shadow-inner">
+          <TabsTrigger value="ai-chat" className="text-xs rounded-xl px-3 py-1.5 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">🤖 Ask AI</TabsTrigger>
+          <TabsTrigger value="cost" className="text-xs rounded-xl px-3 py-1.5 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">💰 Cost</TabsTrigger>
+          <TabsTrigger value="ootb" className="text-xs rounded-xl px-3 py-1.5 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">OOTB</TabsTrigger>
+          <TabsTrigger value="roadmap" className="text-xs rounded-xl px-3 py-1.5 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">🗺️ Roadmap</TabsTrigger>
+          <TabsTrigger value="checklist" className="text-xs rounded-xl px-3 py-1.5 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">✅ Checklist</TabsTrigger>
+          <TabsTrigger value="objects" className="text-xs rounded-xl px-3 py-1.5 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">🗃️ Data Model</TabsTrigger>
+          <TabsTrigger value="technical" className="text-xs rounded-xl px-3 py-1.5 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">⚙️ Technical</TabsTrigger>
+          <TabsTrigger value="integrations" className="text-xs rounded-xl px-3 py-1.5 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">🔗 Integrations</TabsTrigger>
+          <TabsTrigger value="appexchange" className="text-xs rounded-xl px-3 py-1.5 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">📦 AppExchange</TabsTrigger>
+          <TabsTrigger value="analytics" className="text-xs rounded-xl px-3 py-1.5 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">📊 Analytics</TabsTrigger>
+          <TabsTrigger value="docs" className="text-xs rounded-xl px-3 py-1.5 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">📄 Docs</TabsTrigger>
         </TabsList>
 
         {/* AI Chat */}
@@ -1445,8 +1795,47 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
 
         <TabsContent value="objects">
           <Card className="border-slate-200">
-            <CardContent className="pt-4">
-              <EditableList items={result.objectsAndAutomations} onSave={editList("objectsAndAutomations")} />
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Data Model</CardTitle>
+              <p className="text-xs text-slate-500 mt-0.5">Business entities, Salesforce objects, and their relationships</p>
+            </CardHeader>
+            <CardContent className="pt-2 space-y-6">
+              {/* Business Entity Cards */}
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 mb-1">Business Entities</h3>
+                <p className="text-xs text-slate-500 mb-3">Your data in plain business language — with the underlying Salesforce object</p>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {BUSINESS_OBJECT_MAP.map((obj) => (
+                    <div key={obj.sfObject} className="rounded-xl border border-slate-200 bg-white p-3.5 hover:shadow-sm transition-shadow space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">{obj.icon}</span>
+                        <div>
+                          <p className="text-sm font-bold text-slate-900">{obj.businessName}</p>
+                          <span className="text-xs font-mono text-slate-400 bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded-md">
+                            Salesforce Object: {obj.sfObject}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">{obj.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Object Relationship Diagram */}
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                  Object Relationship Diagram
+                  <span className="text-xs font-normal text-slate-400">— based on your recommended products</span>
+                </h3>
+                <DataModelDiagram products={result.products} />
+              </div>
+
+              {/* Full automations list */}
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 mb-2">Objects &amp; Automations Detail</h3>
+                <EditableList items={result.objectsAndAutomations} onSave={editList("objectsAndAutomations")} />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1480,6 +1869,19 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
           </Card>
         </TabsContent>
 
+        {/* Technical Blueprint */}
+        <TabsContent value="technical">
+          <Card className="border-slate-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Technical Blueprint</CardTitle>
+              <p className="text-xs text-slate-500 mt-0.5">Architecture guidance for admins, developers, and solution architects</p>
+            </CardHeader>
+            <CardContent className="pt-2">
+              <TechnicalBlueprintTab products={result.products} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* AppExchange */}
         <TabsContent value="appexchange">
           <Card className="border-slate-200">
@@ -1508,15 +1910,13 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
             </CardContent>
           </Card>
         </TabsContent>
-
-        <TabsContent value="risks">
-          <Card className="border-slate-200">
-            <CardContent className="pt-4">
-              <EditableList items={result.risks} onSave={editList("risks")} />
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
+
+      {/* Key Risks — collapsible section below tabs */}
+      <RisksSection risks={result.risks} onSave={editList("risks")} />
+
+      {/* Post-analysis recommendation expansion */}
+      <RecommendationExpansionPanel result={result} />
     </div>
   );
 }
