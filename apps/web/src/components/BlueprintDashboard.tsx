@@ -13,6 +13,7 @@ import { PRODUCT_DETAILS } from "@/lib/productDetails";
 import { APPEXCHANGE_APPS } from "@/lib/appExchange";
 import { generateChecklist } from "@/lib/implementationChecklist";
 import { generateTechnicalBlueprint } from "@/lib/technicalBlueprint";
+import { downloadBlueprintPdf } from "@/lib/exportPdf";
 
 interface Props {
   result: BlueprintResult;
@@ -1445,6 +1446,22 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
     setPdfOpen(false);
   }
 
+  const [pdfDownloading, setPdfDownloading] = useState(false);
+
+  async function handleDownloadPdf() {
+    setPdfDownloading(true);
+    try {
+      await downloadBlueprintPdf(
+        result,
+        result.executiveSnapshot.primaryFocus || "Salesforce Blueprint",
+        companyName || undefined
+      );
+    } finally {
+      setPdfDownloading(false);
+      setPdfOpen(false);
+    }
+  }
+
 
   const recommended = result.products.filter((p) => p.level === "recommended");
   const optional = result.products.filter((p) => p.level === "optional");
@@ -1500,9 +1517,22 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
             placeholder="Client / Company name (optional)"
             className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-200"
           />
-          <div className="flex gap-2">
-            <Button onClick={openPrintPreview} className="bg-blue-600 hover:bg-blue-700 text-white flex-1">Open Print Preview</Button>
-            <Button variant="outline" onClick={() => setPdfOpen(false)} className="flex-1">Cancel</Button>
+          <div className="flex flex-col gap-2">
+            <Button
+              onClick={handleDownloadPdf}
+              disabled={pdfDownloading}
+              className="bg-blue-600 hover:bg-blue-700 text-white w-full"
+            >
+              {pdfDownloading ? "Generating PDF…" : "⬇ Download PDF"}
+            </Button>
+            {slug && (
+              <Button variant="outline" onClick={openPrintPreview} className="w-full text-sm">
+                🖨 Open Print Preview (browser PDF)
+              </Button>
+            )}
+            <Button variant="ghost" onClick={() => setPdfOpen(false)} className="w-full text-sm text-slate-500">
+              Cancel
+            </Button>
           </div>
         </div>
       </SimpleDialog>
