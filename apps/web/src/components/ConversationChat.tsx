@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { BlueprintDashboard } from "@/components/BlueprintDashboard";
 import { BlueprintResult } from "@orgblueprint/core";
 import { useSpeechInput } from "@/hooks/useSpeechInput";
-import { Mic, MicOff, Send, Sparkles, ArrowRight, ShieldCheck, BarChart3, Brain } from "lucide-react";
+import { Mic, MicOff, Send, Sparkles, ArrowRight, ShieldCheck, BarChart3, Brain, Zap, FlaskConical } from "lucide-react";
 
 const EXAMPLE_PROMPTS = [
   {
@@ -31,6 +31,7 @@ const EXAMPLE_PROMPTS = [
 ];
 
 type Stage = "describe" | "conversation" | "confirm" | "generating" | "results";
+type Mode = "demo" | "ai";
 
 interface ConversationEntry {
   question: string;
@@ -39,6 +40,7 @@ interface ConversationEntry {
 
 export function ConversationChat() {
   const [stage, setStage] = useState<Stage>("describe");
+  const [mode, setMode] = useState<Mode>("demo");
   const [needText, setNeedText] = useState("");
   const [conversation, setConversation] = useState<ConversationEntry[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<string | null>(null);
@@ -88,8 +90,13 @@ export function ConversationChat() {
 
   function handleDescribeContinue() {
     if (!needText.trim()) return;
-    setStage("conversation");
-    fetchNextQuestion();
+    if (mode === "demo") {
+      // Demo mode: skip AI question loop, go straight to confirm
+      setStage("confirm");
+    } else {
+      setStage("conversation");
+      fetchNextQuestion();
+    }
   }
 
   function handleAnswer(skip = false) {
@@ -111,7 +118,7 @@ export function ConversationChat() {
       const res = await fetch("/api/blueprint", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: needText, answers: answeredMap }),
+        body: JSON.stringify({ input: needText, answers: answeredMap, mode }),
       });
       const data = await res.json();
       setResult(data.result);
@@ -174,6 +181,47 @@ export function ConversationChat() {
             </p>
           </CardHeader>
           <CardContent className="space-y-3">
+            {/* Mode toggle */}
+            <div className="flex items-stretch gap-2 p-1 rounded-xl bg-slate-100 border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setMode("demo")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-medium transition-all duration-150 ${
+                  mode === "demo"
+                    ? "bg-white shadow-sm text-slate-900"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                <FlaskConical className="h-4 w-4 text-blue-500 shrink-0" />
+                <span>Demo</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${mode === "demo" ? "bg-blue-100 text-blue-700" : "bg-slate-200 text-slate-500"}`}>Free</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("ai")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-medium transition-all duration-150 ${
+                  mode === "ai"
+                    ? "bg-white shadow-sm text-slate-900"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                <Zap className="h-4 w-4 text-amber-500 shrink-0" />
+                <span>AI Enhanced</span>
+              </button>
+            </div>
+            {mode === "demo" && (
+              <p className="text-xs text-slate-400 flex items-start gap-1.5">
+                <FlaskConical className="h-3.5 w-3.5 mt-0.5 text-blue-400 shrink-0" />
+                Instant blueprint using our deterministic rules engine — no API key needed, no wait time.
+              </p>
+            )}
+            {mode === "ai" && (
+              <p className="text-xs text-amber-600 flex items-start gap-1.5 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                <Zap className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                AI Enhanced asks up to 5 smart clarifying questions, then generates a richer narrative blueprint using Claude.
+              </p>
+            )}
+
             {/* Example prompt chips */}
             <div className="flex flex-wrap gap-2">
               {EXAMPLE_PROMPTS.map((p, i) => (
@@ -395,7 +443,10 @@ export function ConversationChat() {
         <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-400 pt-2 pb-4">
           <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> No Salesforce credentials required</span>
           <span className="flex items-center gap-1.5"><BarChart3 className="h-3.5 w-3.5" /> Directional estimates only</span>
-          <span className="flex items-center gap-1.5"><Brain className="h-3.5 w-3.5" /> Architecture-grade recommendations</span>
+          {mode === "ai"
+            ? <span className="flex items-center gap-1.5"><Brain className="h-3.5 w-3.5" /> Claude-powered recommendations</span>
+            : <span className="flex items-center gap-1.5"><FlaskConical className="h-3.5 w-3.5" /> Instant — no AI quota used</span>
+          }
         </div>
       )}
 
@@ -410,10 +461,12 @@ export function ConversationChat() {
             </div>
             <div>
               <p className="text-slate-700 text-lg font-medium">
-                Analysing your Salesforce blueprint…
+                {mode === "ai" ? "Analysing your Salesforce blueprint…" : "Building your blueprint…"}
               </p>
               <p className="text-slate-400 text-sm mt-1">
-                Evaluating 21 product families across all Salesforce clouds
+                {mode === "ai"
+                  ? "Claude is evaluating 21 product families across all Salesforce clouds"
+                  : "Running rules engine across 21 Salesforce product families"}
               </p>
             </div>
           </CardContent>
