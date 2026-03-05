@@ -30,8 +30,18 @@ const EXAMPLE_PROMPTS = [
   },
 ];
 
-type Stage = "describe" | "conversation" | "confirm" | "generating" | "results";
+type Stage = "describe" | "conversation" | "confirm" | "expand" | "generating" | "results";
 type Mode = "demo" | "ai";
+
+const EXPANSION_OPTIONS = [
+  { key: "architecture", label: "Salesforce architecture & scalability" },
+  { key: "ootb", label: "OOTB vs custom guidance" },
+  { key: "integrations", label: "Integration patterns & API design" },
+  { key: "reporting", label: "Reporting & analytics strategy" },
+  { key: "ai_automation", label: "AI & automation opportunities" },
+] as const;
+
+type ExpansionKey = (typeof EXPANSION_OPTIONS)[number]["key"];
 
 interface ConversationEntry {
   question: string;
@@ -46,6 +56,7 @@ export function ConversationChat() {
   const [currentQuestion, setCurrentQuestion] = useState<string | null>(null);
   const [currentAnswer, setCurrentAnswer] = useState("");
   const [loadingQuestion, setLoadingQuestion] = useState(false);
+  const [selectedExpansions, setSelectedExpansions] = useState<ExpansionKey[]>([]);
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [aiRunsLeft, setAiRunsLeft] = useState<number | null>(null);
@@ -121,14 +132,14 @@ export function ConversationChat() {
       const res = await fetch("/api/blueprint", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: needText, answers: answeredMap, mode }),
+        body: JSON.stringify({ input: needText, answers: answeredMap, mode, expansions: selectedExpansions }),
       });
       const data = await res.json();
 
       if (res.status === 429) {
         setGenerateError(data.error ?? "Quota exceeded.");
         setGenerating(false);
-        setStage("confirm");
+        setStage("expand");
         return;
       }
 
@@ -143,7 +154,7 @@ export function ConversationChat() {
     } catch {
       setGenerateError("Something went wrong. Please try again.");
       setGenerating(false);
-      setStage("confirm");
+      setStage("expand");
     }
   }
 
@@ -163,6 +174,8 @@ export function ConversationChat() {
           setCurrentQuestion(null);
           setResult(null);
           setBlueprintSlug(null);
+          setSelectedExpansions([]);
+          setGenerateError(null);
         }}
       />
     );
@@ -447,6 +460,63 @@ export function ConversationChat() {
                 ))}
               </div>
             )}
+            <Button
+              className="w-full h-11 text-base font-medium"
+              onClick={() => setStage("expand")}
+              disabled={generating}
+            >
+              Continue
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Expand stage — optional additional recommendations */}
+      {stage === "expand" && (
+        <Card className="shadow-sm border-slate-200">
+          <CardHeader>
+            <CardTitle className="text-lg">Anything else to include?</CardTitle>
+            <p className="text-sm text-slate-500">
+              Select optional deep-dives to add to your blueprint. Skip to generate now.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-2">
+              {EXPANSION_OPTIONS.map((opt) => {
+                const selected = selectedExpansions.includes(opt.key);
+                return (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() =>
+                      setSelectedExpansions((prev) =>
+                        selected ? prev.filter((k) => k !== opt.key) : [...prev, opt.key]
+                      )
+                    }
+                    className={`flex items-center gap-3 rounded-lg border px-4 py-3 text-sm text-left transition-all duration-100 ${
+                      selected
+                        ? "border-blue-300 bg-blue-50 text-blue-800 font-medium"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors ${
+                        selected ? "border-blue-500 bg-blue-500" : "border-slate-300"
+                      }`}
+                    >
+                      {selected && (
+                        <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 12 12">
+                          <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </span>
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+
             {generateError && (
               <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
                 {generateError}
@@ -469,14 +539,24 @@ export function ConversationChat() {
               </p>
             )}
 
-            <Button
-              className="w-full h-11 text-base font-medium"
-              onClick={generate}
-              disabled={generating}
-            >
-              {generating ? "Generating…" : "Generate Blueprint"}
-              {!generating && <Sparkles className="ml-2 h-4 w-4" />}
-            </Button>
+            <div className="flex gap-2 pt-1">
+              <Button
+                variant="outline"
+                className="flex-1 h-10"
+                onClick={() => { setSelectedExpansions([]); generate(); }}
+              >
+                Skip — generate now
+              </Button>
+              <Button
+                className="flex-1 h-10 font-medium"
+                onClick={generate}
+              >
+                {selectedExpansions.length > 0
+                  ? `Generate + ${selectedExpansions.length} extra`
+                  : "Generate Blueprint"}
+                <Sparkles className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
