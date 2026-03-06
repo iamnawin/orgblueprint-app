@@ -6,6 +6,15 @@ body {
   @apply bg-slate-950 text-slate-200;
 }
 
+/* Hide scrollbar but keep scrollability */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* ── Dark mode overrides: backgrounds ─────────────────────────────────────── */
 .dark .bg-white          { background-color: rgb(30 41 59) !important; }
 .dark .bg-slate-50       { background-color: rgb(15 23 42) !important; }

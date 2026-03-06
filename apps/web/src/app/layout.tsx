@@ -2,6 +2,7 @@ import "./globals.css";
 import { ReactNode } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Toaster } from "@/components/ui/toaster";
+import { AIAssistantWidget } from "@/components/AIAssistantWidget";
 
 export const metadata = {
   title: "OrgBlueprint — Salesforce Blueprint Generator",
@@ -17,6 +18,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           {children}
         </main>
         <Toaster />
+        <AIAssistantWidget />
       </body>
     </html>
   );
