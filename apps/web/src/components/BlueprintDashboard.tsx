@@ -5,7 +5,6 @@ import { BlueprintResult, ProductDecision } from "@orgblueprint/core";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { PRODUCT_PRICING, PRICING_DISCLAIMER, computeAnnualCost } from "@/lib/pricing";
@@ -757,7 +756,7 @@ function AIChatTab({ result }: { result: BlueprintResult }) {
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([
     {
       role: "assistant",
-      content: `Hi! I'm your Salesforce architect assistant. I've reviewed this blueprint and I'm ready to answer questions.\n\nYou can ask me things like:\n• "Why isn't CPQ recommended?"\n• "What would it cost for 500 users on Enterprise?"\n• "What's the implementation sequence?"\n• "What are the biggest risks with this setup?"`,
+      content: `Hi! I'm **Orb**, your Salesforce architect assistant. I've reviewed this blueprint and I'm here to help.\n\nAsk me anything:\n• "Why isn't CPQ recommended?"\n• "What would it cost for 500 users?"\n• "What's the implementation sequence?"\n• "What are the biggest risks here?"`,
     },
   ]);
   const [input, setInput] = useState("");
@@ -1341,8 +1340,21 @@ Users: ${result.executiveSnapshot.usersDetected}`.trim();
 }
 
 // ─── Main dashboard ───────────────────────────────────────────────────────────
+type TabId = "overview" | "architecture" | "data-model" | "technical" | "cost" | "roadmap" | "ai-chat";
+
+const TABS: { id: TabId; label: string; icon: string }[] = [
+  { id: "overview",      label: "Overview",      icon: "📊" },
+  { id: "architecture",  label: "Architecture",  icon: "🏗️" },
+  { id: "data-model",    label: "Data Model",    icon: "🗄️" },
+  { id: "technical",     label: "Technical",     icon: "⚡" },
+  { id: "cost",          label: "Cost",          icon: "💰" },
+  { id: "roadmap",       label: "Roadmap",       icon: "🗺️" },
+  { id: "ai-chat",       label: "Ask AI",        icon: "✦" },
+];
+
 export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered = false, needText: initialNeedText, savedAnswers: initialAnswers, onReset }: Props) {
   const [result, setResult] = useState<BlueprintResult>(initial);
+  const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [saving, setSaving] = useState(false);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   const [isPublic, setIsPublic] = useState(false);
@@ -1603,74 +1615,97 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
         </CardContent>
       </Card>
 
-      {/* Product Recommendations */}
-      <Card className="border-slate-200">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <CardTitle className="text-base">Product Recommendations</CardTitle>
-            <div className="flex gap-3 text-xs text-slate-500">
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-500" />{recommended.length} recommended</span>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-400" />{optional.length} optional</span>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-slate-300" />{notNeeded.length} not needed</span>
+      {/* Product Recommendations — widget dashboard */}
+      <div className="space-y-3">
+        {/* Summary row */}
+        <div className="flex flex-wrap gap-2">
+          {(["CRM", "Marketing", "Data & AI", "Platform", "Industry"] as const).map((cat) => {
+            const catProducts = result.products.filter(
+              (p) => PRODUCT_CATEGORY[p.key]?.label === cat && p.level !== "not_needed"
+            );
+            if (catProducts.length === 0) return null;
+            const catConfig = {
+              "CRM":       { bg: "bg-blue-600",   text: "text-white", icon: "📊" },
+              "Marketing": { bg: "bg-purple-600",  text: "text-white", icon: "📣" },
+              "Data & AI": { bg: "bg-teal-600",    text: "text-white", icon: "☁️" },
+              "Platform":  { bg: "bg-slate-700",   text: "text-white", icon: "🔗" },
+              "Industry":  { bg: "bg-orange-600",  text: "text-white", icon: "🏭" },
+            }[cat];
+            const recCount = catProducts.filter((p) => p.level === "recommended").length;
+            const optCount = catProducts.filter((p) => p.level === "optional").length;
+            return (
+              <div key={cat} className={`flex items-center gap-2 px-3 py-2 rounded-xl ${catConfig.bg} ${catConfig.text} text-xs font-medium shadow-sm`}>
+                <span className="text-sm">{catConfig.icon}</span>
+                <span className="font-semibold">{cat}</span>
+                {recCount > 0 && <span className="bg-white/25 rounded-full px-1.5 py-0.5 text-xs">{recCount} rec</span>}
+                {optCount > 0 && <span className="bg-white/15 rounded-full px-1.5 py-0.5 text-xs">{optCount} opt</span>}
+              </div>
+            );
+          })}
+          <div className="ml-auto flex items-center gap-3 text-xs text-slate-500 self-center">
+            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-500" />{recommended.length} recommended</span>
+            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-400" />{optional.length} optional</span>
+          </div>
+        </div>
+
+        {/* Recommended products */}
+        {recommended.length > 0 && (
+          <div className="rounded-2xl border border-green-100 bg-gradient-to-br from-green-50 to-white p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+              <p className="text-xs font-bold uppercase tracking-wider text-green-700">Recommended for your needs</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {recommended.map((p) => (
+                <ProductCard
+                  key={p.key} product={p}
+                  onDeepDive={PRODUCT_DETAILS[p.key] ? () => openDeepDive(p) : undefined}
+                />
+              ))}
             </div>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          {recommended.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-green-700 mb-2.5 flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-green-500" />Recommended
+        )}
+
+        {/* Optional products */}
+        {optional.length > 0 && (
+          <div className="rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-white p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
+              <p className="text-xs font-bold uppercase tracking-wider text-amber-700">Optional — consider if needed</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {optional.map((p) => (
+                <ProductCard
+                  key={p.key} product={p}
+                  onDeepDive={PRODUCT_DETAILS[p.key] ? () => openDeepDive(p) : undefined}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Not needed (collapsed) */}
+        {notNeeded.length > 0 && (
+          <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-slate-300" />Not needed for this scenario
               </p>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {recommended.map((p) => (
-                  <ProductCard
-                    key={p.key} product={p}
-                    onDeepDive={PRODUCT_DETAILS[p.key] ? () => openDeepDive(p) : undefined}
-                  />
-                ))}
-              </div>
+              <button
+                onClick={() => setShowNotNeeded((v) => !v)}
+                className="text-xs text-slate-400 hover:text-slate-600 underline print:hidden"
+              >
+                {showNotNeeded ? "hide" : `show ${notNeeded.length} products`}
+              </button>
             </div>
-          )}
-          {optional.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-2.5 flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-amber-400" />Optional
-              </p>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {optional.map((p) => (
-                  <ProductCard
-                    key={p.key} product={p}
-                    onDeepDive={PRODUCT_DETAILS[p.key] ? () => openDeepDive(p) : undefined}
-                  />
-                ))}
+            {showNotNeeded && (
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 mt-3">
+                {notNeeded.map((p) => <ProductCard key={p.key} product={p} muted />)}
               </div>
-            </div>
-          )}
-          {notNeeded.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-slate-300" />Not Needed
-                </p>
-                <button
-                  onClick={() => setShowNotNeeded((v) => !v)}
-                  className="text-xs text-slate-400 hover:text-slate-600 underline print:hidden"
-                >
-                  {showNotNeeded ? "hide" : `show ${notNeeded.length}`}
-                </button>
-              </div>
-              {showNotNeeded && (
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {notNeeded.map((p) => <ProductCard key={p.key} product={p} muted />)}
-                </div>
-              )}
-              {!showNotNeeded && (
-                <p className="text-xs text-slate-400 italic">{notNeeded.length} products not relevant — click show to expand</p>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Why mapping */}
       {result.whyMapping && result.whyMapping.length > 0 && (
@@ -1719,25 +1754,36 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
       )}
 
       {/* ─── Tabbed sections ─── */}
-      <Tabs defaultValue="overview">
-        {/* Primary tab strip */}
-        <TabsList className="flex-wrap h-auto print:hidden gap-1 bg-slate-100/80 p-1.5 rounded-2xl shadow-inner">
-          <TabsTrigger value="overview"    className="text-xs rounded-xl px-3.5 py-2 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">Overview</TabsTrigger>
-          <TabsTrigger value="architecture" className="text-xs rounded-xl px-3.5 py-2 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">Architecture</TabsTrigger>
-          <TabsTrigger value="data-model"  className="text-xs rounded-xl px-3.5 py-2 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">Data Model</TabsTrigger>
-          <TabsTrigger value="technical"   className="text-xs rounded-xl px-3.5 py-2 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">Technical</TabsTrigger>
-          <TabsTrigger value="cost"        className="text-xs rounded-xl px-3.5 py-2 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">Cost</TabsTrigger>
-          <TabsTrigger value="roadmap"     className="text-xs rounded-xl px-3.5 py-2 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold">Roadmap</TabsTrigger>
-          <TabsTrigger value="ai-chat"     className="text-xs rounded-xl px-3.5 py-2 font-medium transition-all duration-150 hover:bg-white hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 data-[state=active]:font-semibold text-slate-400">🤖 Ask AI</TabsTrigger>
-        </TabsList>
+      <div>
+        {/* Custom scrollable tab navigation */}
+        <div className="flex overflow-x-auto gap-1.5 p-1.5 bg-slate-900 rounded-2xl border border-slate-700 print:hidden mb-4 scrollbar-hide">
+          {TABS.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium transition-all duration-150 whitespace-nowrap ${
+                  isActive
+                    ? tab.id === "ai-chat"
+                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25"
+                      : "bg-blue-600 text-white shadow-md shadow-blue-500/20"
+                    : "text-slate-400 hover:text-white hover:bg-slate-700"
+                }`}
+              >
+                <span className={`text-base leading-none ${isActive ? "opacity-100" : "opacity-60"}`}>{tab.icon}</span>
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
 
-        {/* ── Overview: Products + Analytics + Risks ── */}
-        <TabsContent value="overview">
+        {/* ── Overview ── */}
+        {activeTab === "overview" && (
           <div className="space-y-4">
-            {/* Product grid is rendered above tabs via ProductGrid — show analytics & risks here */}
             <Card className="border-slate-200">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">📊 Analytics Pack</CardTitle>
+                <CardTitle className="text-base">Analytics Pack</CardTitle>
                 <p className="text-xs text-slate-500 mt-0.5">Recommended reports and dashboards for your product selection</p>
               </CardHeader>
               <CardContent className="pt-2">
@@ -1747,10 +1793,10 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
             <RisksSection risks={result.risks} onSave={editList("risks")} />
             <RecommendationExpansionPanel result={result} />
           </div>
-        </TabsContent>
+        )}
 
-        {/* ── Architecture: OOTB vs Custom + Integrations + AppExchange ── */}
-        <TabsContent value="architecture">
+        {/* ── Architecture ── */}
+        {activeTab === "architecture" && (
           <div className="space-y-4">
             <Card className="border-slate-200">
               <CardHeader className="pb-2">
@@ -1823,7 +1869,7 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
 
             <Card className="border-slate-200">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">📦 AppExchange Recommendations</CardTitle>
+                <CardTitle className="text-base">AppExchange Recommendations</CardTitle>
                 <p className="text-xs text-slate-500 mt-0.5">Curated partner apps that extend your product selection</p>
               </CardHeader>
               <CardContent className="pt-4">
@@ -1831,10 +1877,10 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
+        )}
 
         {/* ── Data Model ── */}
-        <TabsContent value="data-model">
+        {activeTab === "data-model" && (
           <Card className="border-slate-200">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Data Model</CardTitle>
@@ -1880,10 +1926,10 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        )}
 
         {/* ── Technical Blueprint ── */}
-        <TabsContent value="technical">
+        {activeTab === "technical" && (
           <Card className="border-slate-200">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Technical Blueprint</CardTitle>
@@ -1893,10 +1939,10 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
               <TechnicalBlueprintTab products={result.products} />
             </CardContent>
           </Card>
-        </TabsContent>
+        )}
 
         {/* ── Cost Calculator ── */}
-        <TabsContent value="cost">
+        {activeTab === "cost" && (
           <Card className="border-slate-200">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Interactive Cost Calculator</CardTitle>
@@ -1906,10 +1952,10 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
               <InteractiveCostCalculator products={result.products} initialUsers={result.executiveSnapshot.usersDetected} />
             </CardContent>
           </Card>
-        </TabsContent>
+        )}
 
         {/* ── Roadmap + Checklist + Docs ── */}
-        <TabsContent value="roadmap">
+        {activeTab === "roadmap" && (
           <div className="space-y-4">
             <Card className="border-slate-200">
               <CardHeader className="pb-2">
@@ -1941,21 +1987,26 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
+        )}
 
         {/* ── AI Chat ── */}
-        <TabsContent value="ai-chat">
+        {activeTab === "ai-chat" && (
           <Card className="border-slate-200">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Ask the AI Architect</CardTitle>
-              <p className="text-xs text-slate-500 mt-0.5">Ask questions about this specific blueprint — why products were chosen, costs, risks, and more</p>
+              <div className="flex items-center gap-2">
+                <span className="text-lg">✦</span>
+                <div>
+                  <CardTitle className="text-base">Ask the AI Architect</CardTitle>
+                  <p className="text-xs text-slate-500 mt-0.5">Ask questions about this specific blueprint — why products were chosen, costs, risks, and more</p>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <AIChatTab result={result} />
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+        )}
+      </div>
     </div>
   );
 }

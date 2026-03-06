@@ -8,27 +8,36 @@ const countMatches = (text: string, needles: string[]) => needles.filter((n) => 
 function parseUsers(text: string): number | null {
   // Try explicit numeric + headcount noun patterns (most specific first)
   const patterns = [
-    /(\d[\d,]*)\s*\+\s*(?:users?|reps?|agents?|employees?|staff|people|team members?)/,
-    /(\d[\d,]*)\+\s*(?:users?|reps?|agents?|employees?|staff|people|team members?)/,
-    /(\d[\d,]*)\s+(?:users?|reps?|agents?|employees?|staff|people|team members?)/,
+    /(\d[\d,]*)\s*\+\s*(?:users?|reps?|agents?|employees?|staff|people|seats?|team members?|licenses?)/,
+    /(\d[\d,]*)\+\s*(?:users?|reps?|agents?|employees?|staff|people|seats?|team members?|licenses?)/,
+    /(\d[\d,]*)\s+(?:users?|reps?|agents?|employees?|staff|people|seats?|team members?|licenses?)/,
+    /team of\s+(\d[\d,]*)/,
+    /(\d[\d,]*)-?person\b/,
+    /(\d[\d,]*)-?member\b/,
     /more than\s+(\d[\d,]*)/,
     /over\s+(\d[\d,]*)/,
     /around\s+(\d[\d,]*)/,
     /about\s+(\d[\d,]*)\s+(?:users?|reps?|agents?|employees?|staff|people)/,
+    /for\s+(\d[\d,]*)\s+(?:users?|reps?|agents?|people|employees?)/,
     // bare "500+" with no noun
     /(\d[\d,]*)\+/,
+    // bare small numbers in headcount context (e.g. "company of 15", "team: 15")
+    /(?:company|team|org|organisation?)\s*(?:of|:)?\s*(\d{1,4})\b/,
+    /(\d{1,4})\s*(?:total\s+)?(?:concurrent\s+)?users?\b/,
   ];
   for (const p of patterns) {
     const m = text.match(p);
-    if (m?.[1]) {
-      const n = Number(m[1].replace(/,/g, ""));
+    if (m) {
+      const raw = m[1] ?? m[0].replace(/\D/g, "");
+      const n = Number(raw.replace(/,/g, ""));
       if (n > 0 && n < 1_000_000) return n;
     }
   }
   // Named size bands
-  if (/\b(?:startup|micro|just (?:me|myself)|solo|founder)\b/.test(text)) return 5;
-  if (/\b(?:small (?:team|company|business|org)|smb|sme)\b/.test(text)) return 15;
-  if (/\b(?:mid-?market|growing (?:team|company))\b/.test(text)) return 75;
+  if (/\b(?:startup|micro|just (?:me|myself)|solo|founder|1-person)\b/.test(text)) return 5;
+  if (/\b(?:small (?:team|company|business|org)|smb|sme|boutique)\b/.test(text)) return 15;
+  if (/\b(?:mid-?market|growing (?:team|company)|scale-?up)\b/.test(text)) return 75;
+  if (/\b(?:large (?:enterprise|company|org)|global (?:company|org))\b/.test(text)) return 500;
   return null;
 }
 
@@ -42,7 +51,8 @@ const systemsKeywords = [
 export function extractSignals(input: string, answers: ClarificationAnswers = {}): Signals {
   const text = input.toLowerCase();
   const parsedUsers = parseUsers(text);
-  let users = answers.users ?? parsedUsers ?? (has(text, ["enterprise", "global"]) ? 300 : 50);
+  // Default: use parsed value, then check broad size signals, then fall back to 25 (small team)
+  let users = answers.users ?? parsedUsers ?? (has(text, ["enterprise"]) && has(text, ["500+", "500 +", "more than 500", "over 500"]) ? 500 : has(text, ["enterprise"]) ? 250 : has(text, ["global"]) ? 300 : 25);
   if (has(text, ["enterprise"]) && has(text, ["500+", "500 +", "more than 500", "over 500", "500 users", "500+ users"])) {
     users = Math.max(users, 500);
   }
