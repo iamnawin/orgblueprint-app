@@ -1263,6 +1263,85 @@ function TechnicalBlueprintTab({ products }: { products: ProductDecision[] }) {
   );
 }
 
+// ─── Analytics Pack Cards ─────────────────────────────────────────────────────
+function analyticsIcon(text: string): string {
+  const t = text.toLowerCase();
+  if (t.includes("pipeline") || t.includes("funnel")) return "📊";
+  if (t.includes("win") || t.includes("loss")) return "🏆";
+  if (t.includes("forecast") || t.includes("accuracy")) return "🎯";
+  if (t.includes("velocity") || t.includes("cycle")) return "⚡";
+  if (t.includes("case") || t.includes("resolution") || t.includes("sla")) return "🎧";
+  if (t.includes("agent") || t.includes("csat")) return "👤";
+  if (t.includes("knowledge") || t.includes("deflection") || t.includes("self-service")) return "📚";
+  if (t.includes("backlog") || t.includes("heatmap")) return "🗺️";
+  if (t.includes("quote") || t.includes("cash") || t.includes("approval")) return "📝";
+  if (t.includes("discount") || t.includes("leakage")) return "💸";
+  if (t.includes("revenue") || t.includes("arr") || t.includes("renewal")) return "💰";
+  if (t.includes("report")) return "📋";
+  return "📈";
+}
+
+function analyticsCategory(text: string): { label: string; color: string; bg: string; border: string } {
+  const t = text.toLowerCase();
+  if (t.includes("dashboard")) return { label: "Dashboard", color: "text-blue-700", bg: "bg-blue-50", border: "border-blue-200" };
+  if (t.includes("report")) return { label: "Report", color: "text-purple-700", bg: "bg-purple-50", border: "border-purple-200" };
+  if (t.includes("tracker")) return { label: "Tracker", color: "text-teal-700", bg: "bg-teal-50", border: "border-teal-200" };
+  if (t.includes("board")) return { label: "Board", color: "text-indigo-700", bg: "bg-indigo-50", border: "border-indigo-200" };
+  if (t.includes("heatmap")) return { label: "Heatmap", color: "text-rose-700", bg: "bg-rose-50", border: "border-rose-200" };
+  if (t.includes("funnel")) return { label: "Funnel", color: "text-orange-700", bg: "bg-orange-50", border: "border-orange-200" };
+  return { label: "Analytics", color: "text-slate-700", bg: "bg-slate-50", border: "border-slate-200" };
+}
+
+function AnalyticsPackCards({ items, onSave }: { items: string[]; onSave: (u: string[]) => void }) {
+  const [editMode, setEditMode] = useState(false);
+
+  const parsed = items.map((item) => {
+    const colonIdx = item.indexOf(":");
+    if (colonIdx > 0 && colonIdx < 80) {
+      return { title: item.slice(0, colonIdx).trim(), body: item.slice(colonIdx + 1).trim(), raw: item };
+    }
+    return { title: item, body: "", raw: item };
+  });
+
+  if (editMode) {
+    return (
+      <div className="space-y-2">
+        <EditableList items={items} onSave={(u) => { onSave(u); setEditMode(false); }} />
+        <button onClick={() => setEditMode(false)} className="text-xs text-slate-400 hover:text-slate-600 underline">Cancel</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+        {parsed.map((item, i) => {
+          const cat = analyticsCategory(item.title);
+          return (
+            <div key={i} className={`rounded-xl border ${cat.border} ${cat.bg} p-3.5 space-y-2 hover:shadow-sm transition-shadow duration-150`}>
+              <div className="flex items-start gap-2">
+                <span className="text-base leading-none mt-0.5 flex-shrink-0">{analyticsIcon(item.raw)}</span>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-xs font-semibold ${cat.color} leading-snug`}>{item.title}</p>
+                  <span className={`inline-block text-xs px-1.5 py-0.5 rounded-full border font-medium mt-1 ${cat.color} bg-white/60 ${cat.border}`}>
+                    {cat.label}
+                  </span>
+                </div>
+              </div>
+              {item.body && (
+                <p className="text-xs text-slate-500 leading-relaxed">{item.body}</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <button onClick={() => setEditMode(true)} className="text-xs text-slate-400 hover:text-slate-600 underline decoration-dotted print:hidden">
+        ✏ Edit
+      </button>
+    </div>
+  );
+}
+
 // ─── Risk Icons by keyword ─────────────────────────────────────────────────────
 function riskIcon(text: string): string {
   const t = text.toLowerCase();
@@ -1904,7 +1983,7 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
                 <p className="text-xs text-slate-500 mt-0.5">Recommended reports and dashboards for your product selection</p>
               </CardHeader>
               <CardContent className="pt-2">
-                <EditableList items={result.analyticsPack} onSave={editList("analyticsPack")} />
+                <AnalyticsPackCards items={result.analyticsPack} onSave={editList("analyticsPack")} />
               </CardContent>
             </Card>
             <RisksSection risks={result.risks} onSave={editList("risks")} />
