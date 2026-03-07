@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useBlueprintContext } from "@/components/BlueprintContext";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
-const GREETING = `Hi! I'm **Orb**, your OrgBlueprint AI assistant.
+const GREETING_GENERIC = `Hi! I'm **Orb**, your OrgBlueprint AI assistant.
 
 I can help you with:
 • Salesforce product questions & architecture
@@ -17,11 +18,43 @@ I can help you with:
 
 What would you like to know?`;
 
+const GREETING_BLUEPRINT = `Hi! I'm **Orb** — I've reviewed your blueprint.
+
+Ask me anything about it:
+• "Why was Sales Cloud recommended?"
+• "What would it cost for 500 users?"
+• "What are the biggest risks?"
+• "What's the implementation sequence?"`;
+
+const QUICK_SUGGESTIONS_GENERIC = [
+  "What is Sales Cloud?",
+  "How much does it cost?",
+  "Best for 50 users?",
+  "What's Data Cloud?",
+];
+
+const QUICK_SUGGESTIONS_BLUEPRINT = [
+  "Why these recommendations?",
+  "What are the biggest risks?",
+  "How long to implement?",
+  "Optimize for lower cost",
+];
+
 export function AIAssistantWidget() {
+  const { blueprintSummary } = useBlueprintContext();
+  const hasBlueprint = !!blueprintSummary;
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", content: GREETING },
+    { role: "assistant", content: hasBlueprint ? GREETING_BLUEPRINT : GREETING_GENERIC },
   ]);
+
+  // Reset conversation when blueprint context changes
+  useEffect(() => {
+    setMessages([{
+      role: "assistant",
+      content: blueprintSummary ? GREETING_BLUEPRINT : GREETING_GENERIC,
+    }]);
+  }, [blueprintSummary]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [unread, setUnread] = useState(false);
@@ -49,10 +82,14 @@ export function AIAssistantWidget() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/nvidia-chat", {
+      const endpoint = blueprintSummary ? "/api/chat" : "/api/nvidia-chat";
+      const body = blueprintSummary
+        ? { messages: [...messages, userMsg], blueprintSummary }
+        : { messages: [...messages, userMsg] };
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [...messages, userMsg] }),
+        body: JSON.stringify(body),
       });
       const data = await res.json() as { reply: string };
       setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
@@ -176,12 +213,7 @@ export function AIAssistantWidget() {
           {/* Quick suggestions (only shown when chat is fresh) */}
           {messages.length === 1 && !loading && (
             <div className="px-3 py-2 bg-white border-t border-slate-100 flex flex-wrap gap-1.5 flex-shrink-0">
-              {[
-                "What is Sales Cloud?",
-                "How much does it cost?",
-                "Best for 50 users?",
-                "What's Data Cloud?",
-              ].map((q) => (
+              {(hasBlueprint ? QUICK_SUGGESTIONS_BLUEPRINT : QUICK_SUGGESTIONS_GENERIC).map((q) => (
                 <button
                   key={q}
                   onClick={() => {
@@ -203,7 +235,7 @@ export function AIAssistantWidget() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKey}
-              placeholder="Ask Aria anything…"
+              placeholder={hasBlueprint ? "Ask Orb about your blueprint…" : "Ask Orb anything…"}
               disabled={loading}
               className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-colors placeholder:text-slate-400 disabled:opacity-50"
             />

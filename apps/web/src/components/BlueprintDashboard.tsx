@@ -13,6 +13,7 @@ import { APPEXCHANGE_APPS } from "@/lib/appExchange";
 import { generateChecklist } from "@/lib/implementationChecklist";
 import { generateTechnicalBlueprint } from "@/lib/technicalBlueprint";
 import { downloadBlueprintPdf } from "@/lib/exportPdf";
+import { useBlueprintContext } from "@/components/BlueprintContext";
 
 interface Props {
   result: BlueprintResult;
@@ -146,7 +147,8 @@ function EditableList({ items, onSave }: { items: string[]; onSave: (u: string[]
 // ─── Interactive Cost Calculator ──────────────────────────────────────────────
 function InteractiveCostCalculator({ products, initialUsers = 50 }: { products: ProductDecision[]; initialUsers?: number }) {
   const activeProducts = products.filter((p) => p.level !== "not_needed");
-  const [userCount, setUserCount] = useState(Math.max(10, initialUsers));
+  const detectedUsers = Math.max(10, initialUsers);
+  const [userCount, setUserCount] = useState(detectedUsers);
   const [tierSelections, setTierSelections] = useState<Record<string, number>>(
     Object.fromEntries(activeProducts.map((p) => [p.key, 0]))
   );
@@ -193,7 +195,20 @@ function InteractiveCostCalculator({ products, initialUsers = 50 }: { products: 
       {/* User count slider */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-semibold text-slate-700">Number of users</label>
+          <div>
+            <label className="text-sm font-semibold text-slate-700">Number of users</label>
+            {detectedUsers !== userCount && (
+              <button
+                onClick={() => setUserCount(detectedUsers)}
+                className="ml-2 text-xs text-blue-500 hover:text-blue-700 underline decoration-dotted"
+              >
+                Reset to detected ({detectedUsers.toLocaleString()})
+              </button>
+            )}
+            {detectedUsers === userCount && initialUsers > 10 && (
+              <span className="ml-2 text-xs text-slate-400">Detected: {detectedUsers.toLocaleString()}</span>
+            )}
+          </div>
           <span className="text-2xl font-bold text-slate-900 tabular-nums">{userCount.toLocaleString()}</span>
         </div>
         <input
@@ -441,9 +456,20 @@ function ProductCard({ product, muted = false, onDeepDive }: { product: ProductD
     : "bg-amber-100 text-amber-800 border-amber-200";
 
   const details = PRODUCT_DETAILS[product.key];
+  const pricing = PRODUCT_PRICING[product.key];
+  const baseTier = pricing?.tiers[0];
+  const costLabel = baseTier?.perUserPerMonth != null
+    ? `$${baseTier.perUserPerMonth}/user/mo`
+    : baseTier?.flatAnnual != null
+    ? `$${(baseTier.flatAnnual / 1000).toFixed(0)}k/yr flat`
+    : null;
+  const implWeeks = details?.implementationWeeks;
+  const complexityLabel = implWeeks
+    ? implWeeks.max <= 10 ? "Low complexity" : implWeeks.max <= 20 ? "Medium" : "High complexity"
+    : null;
 
   return (
-    <div className={`rounded-xl border ${cat?.border ?? "border-slate-200"} ${cat?.bg ?? "bg-slate-50"} p-3.5 space-y-2 hover:shadow-sm transition-shadow duration-150`}>
+    <div className={`rounded-xl border ${cat?.border ?? "border-slate-200"} ${cat?.bg ?? "bg-slate-50"} p-3.5 space-y-2.5 hover:shadow-md transition-shadow duration-150`}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-2 min-w-0">
           <span className="text-lg leading-none mt-0.5 flex-shrink-0">{cat?.icon ?? "📦"}</span>
@@ -461,6 +487,31 @@ function ProductCard({ product, muted = false, onDeepDive }: { product: ProductD
 
       <p className="text-xs text-slate-600 leading-relaxed">{product.reasons[0]}</p>
 
+      {/* Cost + complexity meta row */}
+      {(costLabel || complexityLabel) && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {costLabel && (
+            <span className="text-xs bg-white/80 border border-slate-200 text-slate-600 px-2 py-0.5 rounded-md font-medium">
+              from {costLabel}
+            </span>
+          )}
+          {complexityLabel && (
+            <span className={`text-xs px-2 py-0.5 rounded-md font-medium border ${
+              complexityLabel === "Low complexity"
+                ? "bg-green-50 border-green-200 text-green-700"
+                : complexityLabel === "Medium"
+                ? "bg-amber-50 border-amber-200 text-amber-700"
+                : "bg-red-50 border-red-200 text-red-700"
+            }`}>
+              {complexityLabel}
+            </span>
+          )}
+          {implWeeks && (
+            <span className="text-xs text-slate-400">{implWeeks.min}–{implWeeks.max} wks</span>
+          )}
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         {product.triggers && product.triggers.length > 0 && (
           <button
@@ -473,9 +524,9 @@ function ProductCard({ product, muted = false, onDeepDive }: { product: ProductD
         {details && onDeepDive && (
           <button
             onClick={onDeepDive}
-            className="text-xs text-blue-500 hover:text-blue-700 font-medium ml-auto"
+            className="text-xs text-blue-500 hover:text-blue-700 font-medium ml-auto flex items-center gap-0.5"
           >
-            Deep-dive →
+            Deep Dive →
           </button>
         )}
       </div>
@@ -1212,11 +1263,39 @@ function TechnicalBlueprintTab({ products }: { products: ProductDecision[] }) {
   );
 }
 
-// ─── Risks Section (collapsible, below tabs) ──────────────────────────────────
+// ─── Risk Icons by keyword ─────────────────────────────────────────────────────
+function riskIcon(text: string): string {
+  const t = text.toLowerCase();
+  if (t.includes("data") || t.includes("migration")) return "🗄️";
+  if (t.includes("integration") || t.includes("external")) return "🔗";
+  if (t.includes("change") || t.includes("adoption") || t.includes("training")) return "👥";
+  if (t.includes("scope") || t.includes("creep")) return "📋";
+  if (t.includes("cpq") || t.includes("catalogue") || t.includes("catalog")) return "💼";
+  if (t.includes("portal") || t.includes("community")) return "🌐";
+  if (t.includes("marketing") || t.includes("sync")) return "📣";
+  if (t.includes("governor") || t.includes("apex") || t.includes("flow")) return "⚡";
+  if (t.includes("enterprise") || t.includes("rollout")) return "🏢";
+  return "⚠️";
+}
+
+// ─── Risks Section — card grid ────────────────────────────────────────────────
 function RisksSection({ risks, onSave }: { risks: string[]; onSave: (u: string[]) => void }) {
   const [open, setOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+
+  // Parse "Title: description" format
+  const parsed = risks.map((r) => {
+    const colonIdx = r.indexOf(":");
+    if (colonIdx > 0 && colonIdx < 60) {
+      return { title: r.slice(0, colonIdx).trim(), body: r.slice(colonIdx + 1).trim(), raw: r };
+    }
+    // Fallback: first 6 words as title
+    const words = r.split(" ");
+    return { title: words.slice(0, 6).join(" "), body: words.slice(6).join(" "), raw: r };
+  });
+
   return (
-    <div className="rounded-xl border border-amber-200 bg-amber-50 print:hidden">
+    <div className="rounded-xl border border-amber-200 bg-amber-50/60 print:hidden">
       <button
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center justify-between px-4 py-3 text-left"
@@ -1229,8 +1308,30 @@ function RisksSection({ risks, onSave }: { risks: string[]; onSave: (u: string[]
         <span className="text-amber-600 text-sm">{open ? "▲" : "▼"}</span>
       </button>
       {open && (
-        <div className="px-4 pb-4">
-          <EditableList items={risks} onSave={onSave} />
+        <div className="px-4 pb-4 space-y-3">
+          {editMode ? (
+            <div className="space-y-2">
+              <EditableList items={risks} onSave={(u) => { onSave(u); setEditMode(false); }} />
+              <button onClick={() => setEditMode(false)} className="text-xs text-slate-400 hover:text-slate-600 underline">Cancel</button>
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {parsed.map((risk, i) => (
+                  <div key={i} className="bg-white rounded-lg border border-amber-100 p-3 space-y-1.5 hover:border-amber-300 transition-colors">
+                    <div className="flex items-start gap-2">
+                      <span className="text-base leading-none mt-0.5 flex-shrink-0">{riskIcon(risk.raw)}</span>
+                      <p className="text-xs font-semibold text-amber-900 leading-tight capitalize">{risk.title}</p>
+                    </div>
+                    {risk.body && (
+                      <p className="text-xs text-slate-600 leading-relaxed pl-6">{risk.body}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => setEditMode(true)} className="text-xs text-slate-400 hover:text-slate-600 underline decoration-dotted">✏ Edit risks</button>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -1354,6 +1455,7 @@ const TABS: { id: TabId; label: string; icon: string }[] = [
 
 export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered = false, needText: initialNeedText, savedAnswers: initialAnswers, onReset }: Props) {
   const [result, setResult] = useState<BlueprintResult>(initial);
+  const { setBlueprintSummary } = useBlueprintContext();
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [saving, setSaving] = useState(false);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
@@ -1372,6 +1474,21 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
   // Export PDF dialog
   const [pdfOpen, setPdfOpen] = useState(false);
   const [companyName, setCompanyName] = useState("");
+
+  // Push blueprint summary to global context so AIAssistantWidget becomes blueprint-aware
+  useEffect(() => {
+    const summary = [
+      `Products: ${result.products.filter((p) => p.level !== "not_needed").map((p) => `${p.name} (${p.level})`).join(", ")}`,
+      `Users: ${result.executiveSnapshot.usersDetected} (${result.executiveSnapshot.userCountBand})`,
+      `Complexity: ${result.executiveSnapshot.complexityLevel}`,
+      `Focus: ${result.executiveSnapshot.primaryFocus}`,
+      `Cost range: $${result.costEstimate.license.totalLow.toLocaleString()} – $${result.costEstimate.license.totalHigh.toLocaleString()} / year`,
+      `Top risks: ${result.risks.slice(0, 3).join("; ")}`,
+      `Roadmap: ${result.roadmap.map((r) => r.phase).join(" → ")}`,
+    ].join("\n");
+    setBlueprintSummary(summary);
+    return () => setBlueprintSummary(null);
+  }, [result, setBlueprintSummary]);
 
   async function persistResult(updated: BlueprintResult) {
     if (!slug || !isOwner) return;
