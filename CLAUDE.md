@@ -14,11 +14,20 @@ npm run dev
 # Build everything (core first, then web)
 npm run build
 
+# Build core package only
+npm run build -w @orgblueprint/core
+
 # Lint (web only)
 npm run lint
 
 # Type-check both packages
 npm run typecheck
+
+# Run regression tests for rules engine (no test runner needed)
+npm run test:core
+
+# Check environment and config health
+npm run doctor
 
 # Prisma: push schema to SQLite dev DB
 cd apps/web && npx prisma db push
@@ -30,7 +39,7 @@ cd apps/web && npx prisma generate
 cd apps/web && npx prisma studio
 ```
 
-`@orgblueprint/core` must be built before `@orgblueprint/web` because the web app imports from `dist/`.
+`@orgblueprint/core` must be built before `@orgblueprint/web` because the web app imports from `dist/`. On Windows, `npx prisma generate` may fail due to file locks — run `npx next build` directly to test instead.
 
 ## Environment
 
@@ -39,61 +48,115 @@ cd apps/web && npx prisma studio
 DATABASE_URL="file:./dev.db"
 NEXTAUTH_SECRET="<any random string>"
 NEXTAUTH_URL="http://localhost:3000"
-ANTHROPIC_API_KEY="sk-ant-..."   # optional — app falls back to rules engine if missing
+ANTHROPIC_API_KEY="sk-ant-..."        # optional — enables AI mode
+NVIDIA_API_KEY="nvapi-..."            # optional — fallback chat model (MiniMax M2.5 via NVIDIA NIM)
+UPSTASH_REDIS_REST_URL="..."          # optional — persistent AI quota tracking
+UPSTASH_REDIS_REST_TOKEN="..."        # optional — persistent AI quota tracking
 ```
+
+Without `UPSTASH_REDIS_*`, quota tracking falls back to an in-memory Map (resets on server restart).
 
 ## Architecture
 
-npm workspaces monorepo with two packages:
+npm workspaces monorepo:
 
 **`packages/core`** — Pure TypeScript, zero dependencies. Compiled to `dist/` via `tsc`.
 - `types.ts` — All shared interfaces: `Signals`, `ClarificationAnswers`, `BlueprintResult`, `ProductKey`, etc.
 - `rules.ts` — Deterministic rules engine: `extractSignals()` → `decideProducts()` → `generateBlueprint()`. Keyword-heuristic only, no LLM.
+- `templates.ts` — `enrichWithTemplates(result, signals)`: overlays polished narrative strings onto rules-engine output for demo mode. Covers: primaryFocus, whyMapping, objectsAndAutomations, analyticsPack, roadmap, documentChecklist, risks.
+- `estimateLicenses.ts` / `estimateImplementation.ts` / `pricingAssumptions.ts` — cost estimation helpers.
 
 **`apps/web`** — Next.js 14 App Router, React 18, Tailwind CSS, shadcn/ui, Prisma (SQLite), NextAuth v5.
 
-## Data flow — two modes
+## Three Operating Modes
 
-**AI mode** (when `ANTHROPIC_API_KEY` is set):
-1. Home page renders `<ConversationChat />` which calls `POST /api/conversation` in a loop.
-2. `/api/conversation` calls `getNextQuestion()` (Claude Sonnet) — returns the next most-important clarifying question, or `null` when enough info is gathered (max 5 questions).
-3. When conversation ends, `ConversationChat` calls `POST /api/blueprint` with the need text + collected Q&A answers.
-4. `/api/blueprint` calls `generateBlueprintFromLLM()` (Claude Sonnet, 4096 tokens), parses the returned JSON into `BlueprintResult`.
+**Demo mode** (default, no API key required):
+- Rules engine (`generateBlueprint()`) + `enrichWithTemplates()` — instant, no external calls.
+- Triggered when `mode: "demo"` in the `/api/blueprint` POST body.
 
-**Rules mode** (fallback / no API key):
-- `/api/blueprint` calls `generateBlueprint()` from `@orgblueprint/core` directly.
+**AI Enhanced mode** (requires `ANTHROPIC_API_KEY`):
+- `/api/conversation` runs a Claude Sonnet conversation loop (max 5 clarifying questions).
+- `/api/blueprint` calls `generateBlueprintFromLLM()` (Claude Sonnet, 4096 tokens).
+- Per-IP quota enforced: 3 AI runs/day, 30s cooldown (`apps/web/src/lib/quota.ts`).
+- Falls back to demo mode if LLM call fails.
 
-After blueprint generation, if the user is authenticated, `/api/blueprint` saves the result to the DB via Prisma (`Blueprint` model with a nanoid `slug`) and returns the slug.
+**Chat / Ask AI** (floating widget on all pages):
+- `/api/chat` tries Anthropic (claude-haiku-4-5) first, falls back to NVIDIA NIM (MiniMax M2.5).
+- Receives `blueprintSummary` context string to ground answers in the current blueprint.
 
-## Pages and routes
+## Wizard Stages (ConversationChat.tsx)
+
+The 6-stage wizard manages state via a `stage` discriminated union:
+1. **describe** — user types need text, selects Demo or AI Enhanced mode
+2. **conversation** — (AI mode only) up to 5 Claude clarifying questions
+3. **confirm** — review input + answers before generating
+4. **expand** — optional deep-dives: 5 checkboxes (architecture, OOTB vs custom, integrations, reporting, AI automation)
+5. **generating** — spinner while `/api/blueprint` runs
+6. **results** — renders `<BlueprintDashboard />` inline
+
+## Dashboard Tabs (BlueprintDashboard.tsx)
+
+7 tabs implemented as a custom dark scrollable nav (`bg-slate-900`), **not** shadcn TabsList. State via `useState<TabId>` + conditional rendering.
+
+`Overview | Architecture | Data Model | Technical | Cost | Roadmap | Ask AI`
+
+- **Overview**: analytics KPIs + collapsible risks + expansion panel
+- **Architecture**: OOTB vs Custom + integrations + AppExchange recommendations
+- **Data Model**: business-friendly entity cards + relationship diagram + automations
+- **Technical**: generated from `technicalBlueprint.ts`
+- **Cost**: 3 KPI cards + line-item estimate (disclaimer hardcoded)
+- **Roadmap**: visual phases + implementation checklist + document checklist
+- **Ask AI**: chat interface using `/api/chat`
+
+## Pages and Routes
 
 | Route | Description |
 |---|---|
 | `/` | Home — `<ConversationChat />` drives the full wizard |
 | `/blueprints` | User's saved blueprints list (requires auth) |
 | `/blueprint/[slug]` | View saved blueprint — `<BlueprintDashboard />` |
+| `/blueprint/[slug]/share` | Public share page for a blueprint |
 | `/blueprint/[slug]/print` | Print-friendly view |
+| `/compare?a=[slug]&b=[slug]` | Side-by-side blueprint comparison (requires auth) |
 | `/auth/signin` | Credentials sign-in form |
-| `/auth/signup` | Registration form (hashes password with bcrypt) |
+| `/auth/signup` | Registration form |
 | `/api/blueprint` POST | Generate blueprint; saves to DB if authenticated |
-| `/api/blueprint/[slug]` GET | Fetch a saved blueprint by slug |
+| `/api/blueprint/[slug]` GET | Fetch saved blueprint by slug |
+| `/api/blueprints` GET | List current user's blueprints |
 | `/api/conversation` POST | Get next AI clarification question |
+| `/api/recommend` POST | AI expansion endpoint for deep-dive topics |
+| `/api/chat` POST | Blueprint Q&A chat (Anthropic → NVIDIA fallback) |
+| `/api/nvidia-chat` POST | Direct NVIDIA NIM chat endpoint |
 | `/api/auth/[...nextauth]` | NextAuth handler |
 | `/api/auth/register` POST | User registration endpoint |
 
+## Key Files
+
+| File | Purpose |
+|---|---|
+| `packages/core/src/rules.ts` | Signal extraction + product decision engine |
+| `packages/core/src/templates.ts` | Demo-mode narrative enrichment |
+| `apps/web/src/lib/anthropic.ts` | `generateBlueprintFromLLM()` + `getNextQuestion()` |
+| `apps/web/src/lib/quota.ts` | Per-IP AI rate limiting (Upstash or in-memory) |
+| `apps/web/src/lib/exportPdf.ts` | Client-side PDF export via jsPDF (dynamic import) |
+| `apps/web/src/lib/technicalBlueprint.ts` | TechnicalBlueprint derived from product keys |
+| `apps/web/src/lib/pricing.ts` / `productDetails.ts` | License cost data |
+| `apps/web/src/lib/appExchange.ts` | AppExchange product recommendations |
+| `apps/web/src/lib/implementationChecklist.ts` | Checklist items per product |
+| `apps/web/src/components/ConversationChat.tsx` | Full 6-stage wizard |
+| `apps/web/src/components/BlueprintDashboard.tsx` | 7-tab blueprint viewer |
+| `apps/web/src/components/AIAssistantWidget.tsx` | Floating chat widget (rendered in layout.tsx) |
+| `apps/web/src/hooks/useSpeechInput.ts` | Web Speech API hook for voice input |
+
 ## Auth
 
-NextAuth v5 with `PrismaAdapter` and `CredentialsProvider`. Session strategy is JWT. The JWT callback stores `user.id` into the token so API routes can call `auth()` and read `session.user.id`.
+NextAuth v5 with `PrismaAdapter` and `CredentialsProvider`. Session strategy is JWT. The JWT callback stores `user.id` so API routes can call `auth()` and read `session.user.id`. Passwords hashed with bcrypt (cost 10).
 
-## Key components
+## Database Schema (SQLite via Prisma)
 
-- `ConversationChat.tsx` — Full wizard: collects need text, runs conversation loop to gather clarifications, submits to `/api/blueprint`, renders `<BlueprintDashboard />` inline.
-- `BlueprintDashboard.tsx` — 11-section tabbed dashboard rendering all `BlueprintResult` fields.
-- `Navbar.tsx` — Shows user session, links to `/blueprints`, sign-in/out.
+`User` → `Blueprint[]`. `Blueprint` stores `needText`, `answers` (JSON string), `result` (JSON string), `slug` (nanoid(8)), `isPublic` flag. NextAuth adapter tables also present.
 
-## Database schema (SQLite via Prisma)
-
-`User` → `Blueprint[]`. `Blueprint` stores `needText`, `answers` (JSON string), `result` (JSON string), `slug`, `isPublic` flag. NextAuth adapter tables (`Account`, `Session`, `VerificationToken`) are also present.
+`result` and `answers` are stored as raw JSON strings and parsed at read time. **SQLite is ephemeral on Vercel** — swap to Neon Postgres for production persistence.
 
 ## Guardrails (enforced in both rules.ts and the LLM system prompt)
 

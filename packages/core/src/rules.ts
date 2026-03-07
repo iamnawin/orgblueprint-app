@@ -7,20 +7,22 @@ const countMatches = (text: string, needles: string[]) => needles.filter((n) => 
 
 function parseUsers(text: string): number | null {
   // Try explicit numeric + headcount noun patterns (most specific first)
+  const headcountNoun = "(?:users?|reps?|agents?|employees?|staff|people|seats?|team members?|licenses?)";
   const patterns = [
-    /(\d[\d,]*)\s*\+\s*(?:users?|reps?|agents?|employees?|staff|people|seats?|team members?|licenses?)/,
-    /(\d[\d,]*)\+\s*(?:users?|reps?|agents?|employees?|staff|people|seats?|team members?|licenses?)/,
-    /(\d[\d,]*)\s+(?:users?|reps?|agents?|employees?|staff|people|seats?|team members?|licenses?)/,
+    new RegExp(`(\\d[\\d,]*)\\s*\\+\\s*${headcountNoun}`),
+    new RegExp(`(\\d[\\d,]*)\\+\\s*${headcountNoun}`),
+    new RegExp(`(\\d[\\d,]*)\\s+${headcountNoun}`),
     /team of\s+(\d[\d,]*)/,
     /(\d[\d,]*)-?person\b/,
     /(\d[\d,]*)-?member\b/,
-    /more than\s+(\d[\d,]*)/,
-    /over\s+(\d[\d,]*)/,
-    /around\s+(\d[\d,]*)/,
-    /about\s+(\d[\d,]*)\s+(?:users?|reps?|agents?|employees?|staff|people)/,
-    /for\s+(\d[\d,]*)\s+(?:users?|reps?|agents?|people|employees?)/,
-    // bare "500+" with no noun
-    /(\d[\d,]*)\+/,
+    // Require headcount noun after quantity qualifiers to avoid matching revenue/budget figures
+    new RegExp(`more than\\s+(\\d[\\d,]*)\\s+${headcountNoun}`),
+    new RegExp(`over\\s+(\\d[\\d,]*)\\s+${headcountNoun}`),
+    new RegExp(`around\\s+(\\d[\\d,]*)\\s+${headcountNoun}`),
+    new RegExp(`about\\s+(\\d[\\d,]*)\\s+${headcountNoun}`),
+    new RegExp(`for\\s+(\\d[\\d,]*)\\s+${headcountNoun}`),
+    // bare "500+" only when followed by headcount noun (avoid matching revenue like "$3,620+")
+    new RegExp(`(\\d[\\d,]*)\\+\\s*${headcountNoun}`),
     // bare small numbers in headcount context (e.g. "company of 15", "team: 15")
     /(?:company|team|org|organisation?)\s*(?:of|:)?\s*(\d{1,4})\b/,
     /(\d{1,4})\s*(?:total\s+)?(?:concurrent\s+)?users?\b/,
