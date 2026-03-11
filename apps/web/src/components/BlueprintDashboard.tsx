@@ -188,6 +188,29 @@ function InteractiveCostCalculator({ products, initialUsers = 50 }: { products: 
 
   return (
     <div className="space-y-5">
+      {/* Cost summary cards — top for immediate impact */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 p-4 text-white">
+          <p className="text-xs font-medium opacity-80 mb-1">License Cost (annual)</p>
+          <p className="text-2xl font-bold tracking-tight">${licenseTotal.toLocaleString()}</p>
+          <p className="text-xs opacity-70 mt-1">
+            ${userCount > 0 ? Math.round(licenseTotal / userCount).toLocaleString() : "—"} / user / year
+          </p>
+        </div>
+        <div className="rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 p-4 text-white">
+          <p className="text-xs font-medium opacity-80 mb-1">Implementation Cost</p>
+          <p className="text-2xl font-bold tracking-tight">$80k – $200k</p>
+          <p className="text-xs opacity-70 mt-1">depends on complexity &amp; scope</p>
+        </div>
+        <div className="rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 p-4 text-white">
+          <p className="text-xs font-medium opacity-80 mb-1">Estimated Year-1 Budget</p>
+          <p className="text-2xl font-bold tracking-tight">
+            ${(licenseTotal + 80000).toLocaleString()} – ${(licenseTotal + 200000).toLocaleString()}
+          </p>
+          <p className="text-xs opacity-70 mt-1">license + implementation</p>
+        </div>
+      </div>
+
       <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800 leading-relaxed">
         ⚠️ {PRICING_DISCLAIMER}
       </div>
@@ -337,29 +360,6 @@ function InteractiveCostCalculator({ products, initialUsers = 50 }: { products: 
       </div>
 
       <Separator />
-
-      {/* Cost summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 p-4 text-white">
-          <p className="text-xs font-medium opacity-80 mb-1">License Cost (annual)</p>
-          <p className="text-2xl font-bold tracking-tight">${licenseTotal.toLocaleString()}</p>
-          <p className="text-xs opacity-70 mt-1">
-            ${userCount > 0 ? Math.round(licenseTotal / userCount).toLocaleString() : "—"} / user / year
-          </p>
-        </div>
-        <div className="rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 p-4 text-white">
-          <p className="text-xs font-medium opacity-80 mb-1">Implementation Cost</p>
-          <p className="text-2xl font-bold tracking-tight">$80k – $200k</p>
-          <p className="text-xs opacity-70 mt-1">depends on complexity &amp; scope</p>
-        </div>
-        <div className="rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 p-4 text-white">
-          <p className="text-xs font-medium opacity-80 mb-1">Estimated Year-1 Budget</p>
-          <p className="text-2xl font-bold tracking-tight">
-            ${(licenseTotal + 80000).toLocaleString()} – ${(licenseTotal + 200000).toLocaleString()}
-          </p>
-          <p className="text-xs opacity-70 mt-1">license + implementation</p>
-        </div>
-      </div>
 
       <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800 leading-relaxed">
         ⚠️ <strong>Directional estimate only.</strong> This is not official Salesforce pricing or a quote. Salesforce SI partners typically charge $150–$350/hr. Engage a certified partner for a detailed scope and commercial quote.
@@ -1977,6 +1977,97 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
         {/* ── Overview ── */}
         {activeTab === "overview" && (
           <div className="space-y-4">
+            {/* Cost Snapshot */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-slate-700">Cost Overview</h3>
+                <button
+                  onClick={() => setActiveTab("cost")}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-medium underline decoration-dotted"
+                >
+                  Open full calculator →
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 p-4 text-white">
+                  <p className="text-xs font-medium opacity-80 mb-1">License Cost (annual)</p>
+                  <p className="text-xl font-bold tracking-tight">
+                    ${result.costEstimate.license.totalLow.toLocaleString()} – ${result.costEstimate.license.totalHigh.toLocaleString()}
+                  </p>
+                  <p className="text-xs opacity-70 mt-1">{result.executiveSnapshot.usersDetected} users · {result.executiveSnapshot.complexityLevel} complexity</p>
+                </div>
+                <div className="rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 p-4 text-white">
+                  <p className="text-xs font-medium opacity-80 mb-1">Implementation Cost</p>
+                  <p className="text-xl font-bold tracking-tight">
+                    ${result.costEstimate.implementation.low.toLocaleString()} – ${result.costEstimate.implementation.high.toLocaleString()}
+                  </p>
+                  <p className="text-xs opacity-70 mt-1">depends on complexity &amp; scope</p>
+                </div>
+                <div className="rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 p-4 text-white">
+                  <p className="text-xs font-medium opacity-80 mb-1">Estimated Year-1 Budget</p>
+                  <p className="text-xl font-bold tracking-tight">
+                    ${result.costEstimate.yearOneTotal.low.toLocaleString()} – ${result.costEstimate.yearOneTotal.high.toLocaleString()}
+                  </p>
+                  <p className="text-xs opacity-70 mt-1">license + implementation</p>
+                </div>
+              </div>
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
+                ⚠️ Directional estimate only. Not official Salesforce pricing. Use the full calculator to adjust users and tiers.
+              </p>
+            </div>
+
+            {/* Roadmap Phase Preview */}
+            {result.roadmap && result.roadmap.length > 0 && (
+              <Card className="border-slate-200">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">Implementation Phases</CardTitle>
+                    <button
+                      onClick={() => setActiveTab("roadmap")}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium underline decoration-dotted"
+                    >
+                      Full roadmap →
+                    </button>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    {result.roadmap.map((phase, i) => {
+                      const phaseColors = [
+                        { border: "border-blue-200",  bg: "bg-blue-50",  title: "text-blue-700",  dot: "bg-blue-500" },
+                        { border: "border-amber-200", bg: "bg-amber-50", title: "text-amber-700", dot: "bg-amber-500" },
+                        { border: "border-green-200", bg: "bg-green-50", title: "text-green-700", dot: "bg-green-500" },
+                        { border: "border-purple-200",bg: "bg-purple-50",title: "text-purple-700",dot: "bg-purple-500" },
+                      ];
+                      const pc = phaseColors[i % phaseColors.length];
+                      return (
+                        <div key={i} className="flex-1">
+                          <div className={`rounded-xl border ${pc.border} ${pc.bg} p-3 space-y-1.5 h-full`}>
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center text-white flex-shrink-0 ${pc.dot}`}>{i + 1}</span>
+                              <p className={`text-xs font-bold ${pc.title}`}>{phase.phase}</p>
+                            </div>
+                            <ul className="space-y-0.5 pl-1">
+                              {phase.outcomes.slice(0, 2).map((outcome, j) => (
+                                <li key={j} className="text-xs text-slate-600 flex items-start gap-1">
+                                  <span className="text-slate-300 mt-0.5 flex-shrink-0">•</span>
+                                  <span>{outcome}</span>
+                                </li>
+                              ))}
+                              {phase.outcomes.length > 2 && (
+                                <li className="text-xs text-slate-400 pl-3">+{phase.outcomes.length - 2} more</li>
+                              )}
+                            </ul>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Analytics Pack */}
             <Card className="border-slate-200">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Analytics Pack</CardTitle>

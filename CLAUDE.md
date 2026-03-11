@@ -100,7 +100,7 @@ The 6-stage wizard manages state via a `stage` discriminated union:
 
 `Overview | Architecture | Data Model | Technical | Cost | Roadmap | Ask AI`
 
-- **Overview**: analytics KPIs + collapsible risks + expansion panel
+- **Overview**: analytics KPIs + `AnalyticsPackCards` (categorized card grid) + collapsible risks + expansion panel
 - **Architecture**: OOTB vs Custom + integrations + AppExchange recommendations
 - **Data Model**: business-friendly entity cards + relationship diagram + automations
 - **Technical**: generated from `technicalBlueprint.ts`
@@ -146,6 +146,7 @@ The 6-stage wizard manages state via a `stage` discriminated union:
 | `apps/web/src/components/ConversationChat.tsx` | Full 6-stage wizard |
 | `apps/web/src/components/BlueprintDashboard.tsx` | 7-tab blueprint viewer |
 | `apps/web/src/components/AIAssistantWidget.tsx` | Floating chat widget (rendered in layout.tsx) |
+| `apps/web/src/components/BlueprintContext.tsx` | React context + `useBlueprintContext` hook — shares `blueprintSummary` string from dashboard to floating widget |
 | `apps/web/src/hooks/useSpeechInput.ts` | Web Speech API hook for voice input |
 
 ## Auth
