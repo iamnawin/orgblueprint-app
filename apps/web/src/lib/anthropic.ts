@@ -4,6 +4,8 @@ import Groq from "groq-sdk";
 import { BlueprintResult } from "@orgblueprint/core";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? "" });
+const NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
+const NVIDIA_MODEL = "minimaxai/minimax-m2.5";
 
 // ─── Gemini helpers ───────────────────────────────────────────────────────────
 function geminiClient() {
@@ -39,6 +41,37 @@ async function groqGenerate(prompt: string, systemHint: string, maxTokens = 4096
   return (completion.choices[0]?.message?.content ?? "").trim();
 }
 
+async function nvidiaGenerate(prompt: string, systemHint: string, maxTokens = 4096): Promise<string> {
+  const key = process.env.NVIDIA_API_KEY;
+  if (!key) throw new Error("no_nvidia_key");
+
+  const response = await fetch(NVIDIA_BASE_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: NVIDIA_MODEL,
+      messages: [
+        { role: "system", content: systemHint },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.2,
+      top_p: 0.9,
+      max_tokens: maxTokens,
+      stream: false,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`nvidia_error_${response.status}`);
+  }
+
+  const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
+  return (data.choices?.[0]?.message?.content ?? "").trim();
+}
+
 const ARCHITECT_SYSTEM = `You are a senior Salesforce solution architect with 15+ years of experience.
 Your role is to help businesses understand which Salesforce products they need and how to implement them.
 Always be practical, direct, and honest about what's needed vs what's nice-to-have.
@@ -54,31 +87,46 @@ Guardrails you MUST follow:
 - Never output official Salesforce pricing. Cost estimates are directional only and must always include the disclaimer.
 - Prefer standard objects over custom. Prefer configuration over code. Prefer Flows over Apex.`;
 
-function buildQuestionPrompt(needText: string, answeredCount: number, answeredSummary: string): string {
+function buildQuestionPrompt(
+  needText: string,
+  askedCount: number,
+  answeredSummary: string,
+  askedQuestions: string[]
+): string {
+  const askedSummary = askedQuestions.length
+    ? askedQuestions.map((q, idx) => `${idx + 1}. ${q}`).join("\n")
+    : "";
+
   return `A customer described their business needs as:
 "${needText}"
 
-${answeredCount > 0 ? `We already have these answers:\n${answeredSummary}\n\n` : ""}Based on what you know, what is the SINGLE most important clarifying question you would ask to significantly improve the Salesforce product recommendation?
+${answeredSummary ? `We already have these answers:\n${answeredSummary}\n\n` : ""}${askedSummary ? `Questions already asked (do NOT repeat or paraphrase these):\n${askedSummary}\n\n` : ""}Based on what you know, what is the SINGLE most important clarifying question you would ask to significantly improve the Salesforce product recommendation?
 
 Focus on questions that reveal: industry vertical, team size, existing systems, specific pain points, or whether they need marketing/commerce/collaboration capabilities.
 
-If you already have enough information to produce a solid blueprint (you have ${answeredCount} answers already), respond with exactly: DONE
+Rules:
+- NEVER repeat a question that has already been asked.
+- If the user already answered industry, do not ask industry again.
+- Ask only one short, concrete question.
+
+If you already have enough information to produce a solid blueprint (you have ${askedCount} asked questions already), respond with exactly: DONE
 
 Otherwise respond with just the question text, nothing else.`;
 }
 
 export async function getNextQuestion(
   needText: string,
-  answered: Record<string, string>
+  answered: Record<string, string>,
+  askedQuestions: string[] = []
 ): Promise<string | null> {
-  const answeredCount = Object.keys(answered).length;
-  if (answeredCount >= 5) return null;
+  const askedCount = askedQuestions.length;
+  if (askedCount >= 5) return null;
 
   const answeredSummary = Object.entries(answered)
     .map(([q, a]) => `Q: ${q}\nA: ${a}`)
     .join("\n\n");
 
-  const prompt = buildQuestionPrompt(needText, answeredCount, answeredSummary);
+  const prompt = buildQuestionPrompt(needText, askedCount, answeredSummary, askedQuestions);
 
   // Try Anthropic first
   if (process.env.ANTHROPIC_API_KEY) {
@@ -108,15 +156,32 @@ export async function getNextQuestion(
 
 export async function getNextQuestionGemini(
   needText: string,
-  answered: Record<string, string>
+  answered: Record<string, string>,
+  askedQuestions: string[] = []
 ): Promise<string | null> {
-  const answeredCount = Object.keys(answered).length;
-  if (answeredCount >= 5) return null;
+  const askedCount = askedQuestions.length;
+  if (askedCount >= 5) return null;
   const answeredSummary = Object.entries(answered)
     .map(([q, a]) => `Q: ${q}\nA: ${a}`)
     .join("\n\n");
-  const prompt = buildQuestionPrompt(needText, answeredCount, answeredSummary);
+  const prompt = buildQuestionPrompt(needText, askedCount, answeredSummary, askedQuestions);
   const text = await geminiGenerate(prompt, ARCHITECT_SYSTEM);
+  if (text === "DONE" || text.toUpperCase().startsWith("DONE")) return null;
+  return text;
+}
+
+export async function getNextQuestionNvidia(
+  needText: string,
+  answered: Record<string, string>,
+  askedQuestions: string[] = []
+): Promise<string | null> {
+  const askedCount = askedQuestions.length;
+  if (askedCount >= 5) return null;
+  const answeredSummary = Object.entries(answered)
+    .map(([q, a]) => `Q: ${q}\nA: ${a}`)
+    .join("\n\n");
+  const prompt = buildQuestionPrompt(needText, askedCount, answeredSummary, askedQuestions);
+  const text = await nvidiaGenerate(prompt, ARCHITECT_SYSTEM, 256);
   if (text === "DONE" || text.toUpperCase().startsWith("DONE")) return null;
   return text;
 }
@@ -207,16 +272,28 @@ export async function generateBlueprintFromGemini(
   return parseBlueprintJson(text);
 }
 
+export async function generateBlueprintFromNvidia(
+  needText: string,
+  answers: Record<string, string>
+): Promise<BlueprintResult> {
+  const answeredSummary = Object.entries(answers)
+    .map(([q, a]) => `Q: ${q}\nA: ${a}`)
+    .join("\n\n");
+  const text = await nvidiaGenerate(BLUEPRINT_PROMPT(needText, answeredSummary), ARCHITECT_SYSTEM);
+  return parseBlueprintJson(text);
+}
+
 export async function getNextQuestionGroq(
   needText: string,
-  answered: Record<string, string>
+  answered: Record<string, string>,
+  askedQuestions: string[] = []
 ): Promise<string | null> {
-  const answeredCount = Object.keys(answered).length;
-  if (answeredCount >= 5) return null;
+  const askedCount = askedQuestions.length;
+  if (askedCount >= 5) return null;
   const answeredSummary = Object.entries(answered)
     .map(([q, a]) => `Q: ${q}\nA: ${a}`)
     .join("\n\n");
-  const prompt = buildQuestionPrompt(needText, answeredCount, answeredSummary);
+  const prompt = buildQuestionPrompt(needText, askedCount, answeredSummary, askedQuestions);
   const text = await groqGenerate(prompt, ARCHITECT_SYSTEM, 256);
   if (text === "DONE" || text.toUpperCase().startsWith("DONE")) return null;
   return text;

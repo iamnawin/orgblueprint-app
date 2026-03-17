@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getNextQuestion, getNextQuestionGemini, getNextQuestionGroq } from "@/lib/anthropic";
+import {
+  getNextQuestion,
+  getNextQuestionGemini,
+  getNextQuestionGroq,
+  getNextQuestionNvidia,
+} from "@/lib/anthropic";
 
 function normalizeText(text: string): string {
   return text.toLowerCase().replace(/\s+/g, " ").trim();
@@ -44,10 +49,11 @@ function buildFallbackQuestion(
 
 export async function POST(req: NextRequest) {
   const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
+  const hasNvidia = !!process.env.NVIDIA_API_KEY;
   const hasGemini = !!process.env.GEMINI_API_KEY;
   const hasGroq = !!process.env.GROQ_API_KEY;
 
-  if (!hasAnthropic && !hasGemini && !hasGroq) {
+  if (!hasAnthropic && !hasNvidia && !hasGemini && !hasGroq) {
     return NextResponse.json({ question: null, error: "no_api_key" });
   }
 
@@ -63,13 +69,16 @@ export async function POST(req: NextRequest) {
     let provider: string;
 
     if (hasAnthropic) {
-      question = await getNextQuestion(needText, answeredMap);
+      question = await getNextQuestion(needText, answeredMap, askedQuestions);
       provider = "anthropic";
+    } else if (hasNvidia) {
+      question = await getNextQuestionNvidia(needText, answeredMap, askedQuestions);
+      provider = "nvidia";
     } else if (hasGemini) {
-      question = await getNextQuestionGemini(needText, answeredMap);
+      question = await getNextQuestionGemini(needText, answeredMap, askedQuestions);
       provider = "gemini";
     } else {
-      question = await getNextQuestionGroq(needText, answeredMap);
+      question = await getNextQuestionGroq(needText, answeredMap, askedQuestions);
       provider = "groq";
     }
 

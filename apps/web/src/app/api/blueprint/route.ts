@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateBlueprint, extractSignals, enrichWithTemplates } from "@orgblueprint/core";
-import { generateBlueprintFromLLM, generateBlueprintFromGemini, generateBlueprintFromGroq } from "@/lib/anthropic";
+import {
+  generateBlueprintFromLLM,
+  generateBlueprintFromGemini,
+  generateBlueprintFromGroq,
+  generateBlueprintFromNvidia,
+} from "@/lib/anthropic";
 import { checkAndRecordAiRun } from "@/lib/quota";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
@@ -23,7 +28,12 @@ export async function POST(req: NextRequest) {
   let result;
   let aiPowered = false;
 
-  const hasAiKey = !!(process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY || process.env.GROQ_API_KEY);
+  const hasAiKey = !!(
+    process.env.ANTHROPIC_API_KEY ||
+    process.env.NVIDIA_API_KEY ||
+    process.env.GEMINI_API_KEY ||
+    process.env.GROQ_API_KEY
+  );
 
   if (mode === "ai" && hasAiKey) {
     // Enforce per-IP quota for AI mode
@@ -45,6 +55,8 @@ export async function POST(req: NextRequest) {
     try {
       if (process.env.ANTHROPIC_API_KEY) {
         result = await generateBlueprintFromLLM(input, answers);
+      } else if (process.env.NVIDIA_API_KEY) {
+        result = await generateBlueprintFromNvidia(input, answers);
       } else if (process.env.GEMINI_API_KEY) {
         result = await generateBlueprintFromGemini(input, answers);
       } else {
