@@ -9,7 +9,16 @@ import { Progress } from "@/components/ui/progress";
 import { BlueprintDashboard } from "@/components/BlueprintDashboard";
 import { BlueprintResult } from "@orgblueprint/core";
 import { useSpeechInput } from "@/hooks/useSpeechInput";
-import { Mic, MicOff, Send, Sparkles, ArrowRight, ShieldCheck, BarChart3, Brain, Zap, FlaskConical } from "lucide-react";
+import { Mic, MicOff, Send, Sparkles, ArrowRight, ShieldCheck, BarChart3, Brain, Zap, FlaskConical, AlertCircle, Building2 } from "lucide-react";
+
+const CRM_PLATFORMS = [
+  { key: "salesforce", label: "Salesforce", icon: "☁️", available: true },
+  { key: "hubspot",    label: "HubSpot",    icon: "🟠", available: false },
+  { key: "dynamics",   label: "Dynamics 365", icon: "🔷", available: false },
+  { key: "zoho",       label: "Zoho CRM",   icon: "🟣", available: false },
+] as const;
+
+type CrmPlatform = (typeof CRM_PLATFORMS)[number]["key"];
 
 const EXAMPLE_PROMPTS = [
   {
@@ -60,6 +69,8 @@ export function ConversationChat() {
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [aiRunsLeft, setAiRunsLeft] = useState<number | null>(null);
+  const [aiKeyMissing, setAiKeyMissing] = useState(false);
+  const [crmPlatform, setCrmPlatform] = useState<CrmPlatform>("salesforce");
   const [result, setResult] = useState<BlueprintResult | null>(null);
   const [blueprintSlug, setBlueprintSlug] = useState<string | null>(null);
   const [aiPowered, setAiPowered] = useState(false);
@@ -87,7 +98,12 @@ export function ConversationChat() {
         body: JSON.stringify({ needText, answered: answeredMap }),
       });
       const data = await res.json();
-      if (data.question) {
+      if (data.error === "no_api_key") {
+        setAiKeyMissing(true);
+        setCurrentQuestion(null);
+        setStage("confirm");
+      } else if (data.question) {
+        setAiKeyMissing(false);
         setCurrentQuestion(data.question);
       } else {
         setCurrentQuestion(null);
@@ -187,15 +203,15 @@ export function ConversationChat() {
       <div className="text-center py-8">
         <div className="inline-flex items-center gap-2 mb-3 text-blue-600 text-sm font-medium bg-blue-50 px-3 py-1.5 rounded-full">
           <Sparkles className="h-3.5 w-3.5" />
-          AI-powered Salesforce blueprint generator
+          AI-powered CRM blueprint generator
         </div>
         <h1 className="text-4xl font-bold text-slate-900 mb-2 tracking-tight">OrgBlueprint</h1>
         <p className="text-slate-500 text-lg mb-5">
-          Describe your business — we&apos;ll ask the right questions and build your Salesforce blueprint.
+          Describe your business — we&apos;ll ask the right questions and build your CRM blueprint.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-400">
           <span className="flex items-center gap-1.5"><Brain className="h-3.5 w-3.5 text-blue-400" /> Architecture-grade recommendations</span>
-          <span className="flex items-center gap-1.5"><BarChart3 className="h-3.5 w-3.5 text-indigo-400" /> Built on Salesforce best practices</span>
+          <span className="flex items-center gap-1.5"><BarChart3 className="h-3.5 w-3.5 text-indigo-400" /> Built on CRM best practices</span>
           <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-green-400" /> Designed for RevOps &amp; Solution Architects</span>
         </div>
       </div>
@@ -210,6 +226,34 @@ export function ConversationChat() {
             </p>
           </CardHeader>
           <CardContent className="space-y-3">
+            {/* CRM Platform selector */}
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-slate-500 flex items-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5" /> CRM Platform
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {CRM_PLATFORMS.map((p) => (
+                  <button
+                    key={p.key}
+                    type="button"
+                    disabled={!p.available}
+                    onClick={() => p.available && setCrmPlatform(p.key)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all duration-150 ${
+                      p.key === crmPlatform
+                        ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                        : p.available
+                        ? "bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:text-blue-600"
+                        : "bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed"
+                    }`}
+                    title={!p.available ? "Coming soon" : undefined}
+                  >
+                    <span>{p.icon}</span>
+                    <span>{p.label}</span>
+                    {!p.available && <span className="text-[9px] opacity-60 font-normal">soon</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
             {/* Mode toggle */}
             <div className="flex items-stretch gap-2 p-1 rounded-xl bg-slate-100 border border-slate-200">
               <button
@@ -329,21 +373,38 @@ export function ConversationChat() {
       {stage === "conversation" && (
         <Card className="shadow-sm border-slate-200">
           <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Let&apos;s refine your blueprint</CardTitle>
-              <span className="text-sm text-slate-400 font-normal">
-                {conversation.length} / 5
-              </span>
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
+                <Sparkles className="h-3.5 w-3.5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Aria — Solution Architect</CardTitle>
+                  <span className="text-xs text-slate-400 font-normal">{conversation.length} / 5</span>
+                </div>
+                <Progress value={(conversation.length / 5) * 100} className="h-1 mt-1" />
+              </div>
             </div>
-            <Progress value={(conversation.length / 5) * 100} className="h-1.5 mt-1" />
           </CardHeader>
           <CardContent className="space-y-3">
             {/* Chat history */}
-            <div className="space-y-3 max-h-80 overflow-y-auto pr-1 pb-1">
+            <div className="space-y-3 max-h-96 overflow-y-auto pr-1 pb-1">
+              {/* Greeting bubble always shown first */}
+              <div className="flex justify-start gap-2">
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Sparkles className="h-3 w-3 text-white" />
+                </div>
+                <div className="max-w-[82%] rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-2.5 text-sm text-slate-800 leading-relaxed">
+                  Hi! I&apos;m Aria, your CRM solution architect. I read your description — let me ask a few quick questions to fine-tune your blueprint. This usually takes under 2 minutes.
+                </div>
+              </div>
               {conversation.map((c, i) => (
                 <div key={i} className="space-y-2">
                   {/* AI question bubble */}
-                  <div className="flex justify-start">
+                  <div className="flex justify-start gap-2">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Sparkles className="h-3 w-3 text-white" />
+                    </div>
                     <div className="max-w-[82%] rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-2.5 text-sm text-slate-800 leading-relaxed">
                       {c.question}
                     </div>
@@ -359,26 +420,23 @@ export function ConversationChat() {
 
               {/* Typing indicator or current question */}
               {loadingQuestion ? (
-                <div className="flex justify-start">
+                <div className="flex justify-start gap-2">
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Sparkles className="h-3 w-3 text-white" />
+                  </div>
                   <div className="rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-3">
                     <div className="flex items-center gap-1">
-                      <span
-                        className="h-2 w-2 rounded-full bg-slate-400 animate-bounce"
-                        style={{ animationDelay: "0ms" }}
-                      />
-                      <span
-                        className="h-2 w-2 rounded-full bg-slate-400 animate-bounce"
-                        style={{ animationDelay: "150ms" }}
-                      />
-                      <span
-                        className="h-2 w-2 rounded-full bg-slate-400 animate-bounce"
-                        style={{ animationDelay: "300ms" }}
-                      />
+                      <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "300ms" }} />
                     </div>
                   </div>
                 </div>
               ) : currentQuestion ? (
-                <div className="flex justify-start">
+                <div className="flex justify-start gap-2">
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Sparkles className="h-3 w-3 text-white" />
+                  </div>
                   <div className="max-w-[82%] rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-2.5 text-sm text-slate-800 leading-relaxed">
                     {currentQuestion}
                   </div>
@@ -443,6 +501,14 @@ export function ConversationChat() {
             <CardTitle className="text-lg">Ready to generate your blueprint</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {aiKeyMissing && (
+              <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-amber-500" />
+                <span>
+                  <span className="font-semibold">AI mode unavailable</span> — no API key configured on this server. Switched to Demo mode. Your blueprint will still be generated using the rules engine.
+                </span>
+              </div>
+            )}
             <div className="rounded-lg bg-slate-50 border border-slate-100 p-4 text-sm text-slate-700">
               <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Business need</p>
               <p className="leading-relaxed">{needText}</p>

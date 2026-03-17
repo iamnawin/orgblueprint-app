@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "OrgBlueprint Web (Next.js)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js", "run", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "Core Package (watch build)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "build", "-w", "@orgblueprint/core"],
+      "port": null
+    },
+    {
+      "name": "Prisma Studio (DB browser)",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["--prefix", "apps/web", "prisma", "studio"],
+      "port": 5555
+    }
+  ]
+}
