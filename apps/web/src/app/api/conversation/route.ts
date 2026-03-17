@@ -26,7 +26,7 @@ function buildFallbackQuestion(
     ].join(" ")
   );
 
-  if (!/(health|healthcare|finance|financial|bank|insurance|manufacturing|education|nonprofit|retail|saas|software)/.test(corpus)) {
+  if (!/(health|healthcare|medical|clinic|hospital|pharma|finance|financial|bank|insurance|manufacturing|education|nonprofit|retail|saas|software)/.test(corpus)) {
     return "What industry are you in, and are there any compliance or regulatory requirements we should account for?";
   }
 

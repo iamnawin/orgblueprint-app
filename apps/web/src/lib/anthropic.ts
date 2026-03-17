@@ -88,7 +88,7 @@ Guardrails you MUST follow:
 - Prefer standard objects over custom. Prefer configuration over code. Prefer Flows over Apex.`;
 
 function sanitizeQuestionText(raw: string): string | null {
-  const withoutThink = raw.replace(/<think>[\s\S]*?<\/think>/gi, " ");
+  const withoutThink = raw.replace(/<think>[\s\S]*?(<\/think>|$)/gi, " ");
   const normalized = withoutThink
     .replace(/^```(?:text|markdown)?/i, "")
     .replace(/```$/i, "")
@@ -108,7 +108,7 @@ function sanitizeQuestionText(raw: string): string | null {
     return questionLine;
   }
 
-  return lines[0] ?? null;
+  return null;
 }
 
 function buildQuestionPrompt(
