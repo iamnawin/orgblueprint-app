@@ -51,11 +51,69 @@ const EXPANSION_OPTIONS = [
 ] as const;
 
 type ExpansionKey = (typeof EXPANSION_OPTIONS)[number]["key"];
-const CONVERSATION_TIMEOUT_MS = 15000;
 
 interface ConversationEntry {
   question: string;
   answer: string;
+}
+
+function normalizeText(text: string): string {
+  return text.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function buildCorpus(needText: string, answered: Record<string, string>): string {
+  return normalizeText(
+    [
+      needText,
+      ...Object.entries(answered).flatMap(([question, answer]) => [question, answer]),
+    ].join(" ")
+  );
+}
+
+function nextOrbQuestion(
+  needText: string,
+  answered: Record<string, string>,
+  asked: string[]
+): string | null {
+  if (asked.length >= 5) return null;
+
+  const corpus = buildCorpus(needText, answered);
+  const askedSet = new Set(asked.map(normalizeText));
+
+  const candidates = [
+    {
+      when: !/(health|healthcare|medical|clinic|hospital|pharma|finance|financial|bank|insurance|manufacturing|education|school|nonprofit|retail|saas|software|real estate|logistics|construction|consulting)/.test(corpus),
+      question: "What industry vertical does your company operate in?",
+    },
+    {
+      when: !/(user|users|rep|reps|agent|agents|team|teams|seat|seats|employee|employees|people|headcount)/.test(corpus),
+      question: "Roughly how many users need access, and which teams will use the CRM first?",
+    },
+    {
+      when: !/(integrat|erp|ehr|emr|sap|netsuite|workday|api|sync|database|data warehouse|billing system|website|portal)/.test(corpus),
+      question: "Do you have existing systems that need to integrate with the CRM?",
+    },
+    {
+      when: !/(manual|spreadsheet|excel|slow|bottleneck|pain|problem|issue|duplicate|visibility|forecast|report|reporting|approval|routing|handoff|follow-up)/.test(corpus),
+      question: "What is the biggest manual process or reporting bottleneck you want Orb to eliminate first?",
+    },
+    {
+      when: !/(month|months|quarter|q[1-4]|timeline|go live|golive|deadline|target|outcome|goal|improve|reduce|increase|kpi|metric|budget|cost|price|pricing)/.test(corpus),
+      question: "What is the main business outcome you want this CRM project to improve first?",
+    },
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeText(candidate.question);
+    if (candidate.when && !askedSet.has(normalized)) {
+      return candidate.question;
+    }
+  }
+
+  const fallbackQuestion =
+    "Is there anything business-critical we have not covered yet, such as approvals, portal access, quoting, service SLAs, or analytics?";
+
+  return askedSet.has(normalizeText(fallbackQuestion)) ? null : fallbackQuestion;
 }
 
 export function ConversationChat() {
@@ -91,43 +149,26 @@ export function ConversationChat() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conversation, currentQuestion, loadingQuestion]);
 
-  async function fetchNextQuestion(
+  function fetchNextQuestion(
     answeredOverride?: Record<string, string>,
     askedOverride?: string[]
   ) {
     setLoadingQuestion(true);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), CONVERSATION_TIMEOUT_MS);
-    try {
-      const res = await fetch("/api/conversation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
-        body: JSON.stringify({
-          needText,
-          answered: answeredOverride ?? answeredMap,
-          asked: askedOverride ?? askedQuestions,
-        }),
-      });
-      const data = await res.json();
-      if (data.error === "no_api_key") {
-        setAiKeyMissing(true);
-        setCurrentQuestion(null);
-        setStage("confirm");
-      } else if (data.question) {
+    const nextQuestion = nextOrbQuestion(
+      needText,
+      answeredOverride ?? answeredMap,
+      askedOverride ?? askedQuestions
+    );
+    window.setTimeout(() => {
+      if (nextQuestion) {
         setAiKeyMissing(false);
-        setCurrentQuestion(data.question);
+        setCurrentQuestion(nextQuestion);
       } else {
         setCurrentQuestion(null);
         setStage("confirm");
       }
-    } catch {
-      setCurrentQuestion(null);
-      setStage("confirm");
-    } finally {
-      clearTimeout(timeout);
       setLoadingQuestion(false);
-    }
+    }, 250);
   }
 
   function handleDescribeContinue() {
