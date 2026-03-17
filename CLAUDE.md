@@ -45,7 +45,7 @@ cd apps/web && npx prisma studio
 
 `apps/web/.env.local` must exist with:
 ```
-DATABASE_URL="file:./dev.db"
+DATABASE_URL="file:./prisma/dev.db"        # local SQLite. Set to Neon Postgres URL on Vercel.
 NEXTAUTH_SECRET="<any random string>"
 NEXTAUTH_URL="http://localhost:3000"
 ANTHROPIC_API_KEY="sk-ant-..."        # optional — enables AI mode (Claude Sonnet)
