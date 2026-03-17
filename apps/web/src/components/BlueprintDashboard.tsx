@@ -86,8 +86,8 @@ const levelDot: Record<string, string> = {
 };
 
 const PHASE_COLORS = ["bg-blue-600", "bg-indigo-600", "bg-violet-600", "bg-purple-600", "bg-fuchsia-600"];
-const PHASE_BORDER_COLORS = ["border-blue-200", "border-indigo-200", "border-violet-200", "border-purple-200", "border-fuchsia-200"];
-const PHASE_BG_COLORS = ["bg-blue-50", "bg-indigo-50", "bg-violet-50", "bg-purple-50", "bg-fuchsia-50"];
+const PHASE_BORDER_COLORS = ["border-blue-300/70", "border-indigo-300/70", "border-violet-300/70", "border-purple-300/70", "border-fuchsia-300/70"];
+const PHASE_BG_COLORS = ["bg-slate-50", "bg-slate-50", "bg-slate-50", "bg-slate-50", "bg-slate-50"];
 
 // ─── Simple Dialog ─────────────────────────────────────────────────────────────
 function SimpleDialog({
@@ -644,12 +644,12 @@ function VisualRoadmap({ roadmap }: { roadmap: BlueprintResult["roadmap"] }) {
           </div>
 
           {/* Phase card */}
-          <div className={`flex-1 rounded-xl border ${PHASE_BORDER_COLORS[i % PHASE_BORDER_COLORS.length]} ${PHASE_BG_COLORS[i % PHASE_BG_COLORS.length]} p-4`}>
-            <p className="font-semibold text-slate-800 text-sm mb-2">{phase.phase}</p>
+          <div className={`flex-1 rounded-xl border ${PHASE_BORDER_COLORS[i % PHASE_BORDER_COLORS.length]} ${PHASE_BG_COLORS[i % PHASE_BG_COLORS.length]} p-4 shadow-sm dark:bg-slate-900/85`}>
+            <p className="mb-2 text-sm font-semibold text-slate-950 dark:text-slate-50">{phase.phase}</p>
             <ul className="space-y-1">
               {phase.outcomes.map((outcome, j) => (
-                <li key={j} className="flex items-start gap-2 text-xs text-slate-600">
-                  <span className="text-green-500 font-bold flex-shrink-0 mt-0.5">✓</span>
+                <li key={j} className="flex items-start gap-2 text-xs leading-relaxed text-slate-700 dark:text-slate-200">
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold flex-shrink-0 mt-0.5">✓</span>
                   {outcome}
                 </li>
               ))}
@@ -1407,32 +1407,32 @@ function AnalyticsPackCards({ items, onSave }: { items: string[]; onSave: (u: st
           const cfg = resolveWidgetConfig(item.raw);
           const metrics = item.body ? item.body.split(",").map(s => s.trim()).filter(Boolean) : cfg.kpis;
           return (
-            <div key={i} className={`rounded-xl border ${cfg.border} ${cfg.bg} p-3.5 space-y-2.5 hover:shadow-md transition-shadow duration-150`}>
+            <div key={i} className={`rounded-xl border ${cfg.border} ${cfg.bg} p-3.5 space-y-2.5 shadow-sm hover:shadow-md transition-shadow duration-150`}>
               {/* Header */}
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span className="text-sm leading-none flex-shrink-0">{cfg.icon}</span>
-                  <p className={`text-xs font-semibold ${cfg.color} leading-snug truncate`}>{item.title}</p>
+                  <p className="text-xs font-semibold text-slate-900 dark:text-slate-50 leading-snug truncate">{item.title}</p>
                 </div>
-                <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full border font-semibold ${cfg.color} bg-white/70 ${cfg.border}`}>
+                <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full border font-semibold ${cfg.color} bg-white/95 dark:bg-slate-950/70 ${cfg.border}`}>
                   {cfg.label}
                 </span>
               </div>
               {/* Mini chart */}
-              <div className={`rounded-lg bg-white/50 border ${cfg.border} px-2 pt-2 pb-1`}>
+              <div className={`rounded-lg border ${cfg.border} bg-white/90 dark:bg-slate-950/45 px-2 pt-2 pb-1`}>
                 {cfg.chartType === "bar"      && <MiniBarChart fillClass={cfg.fillClass} />}
                 {cfg.chartType === "sparkline" && <MiniSparkline strokeClass={cfg.strokeClass} />}
                 {cfg.chartType === "funnel"   && <MiniFunnel fillClass={cfg.fillClass} />}
                 {cfg.chartType === "heatmap"  && <MiniHeatGrid fillClass={cfg.fillClass} />}
                 {cfg.chartType === "winloss"  && <MiniWinLoss fillClass={cfg.fillClass} />}
                 {cfg.chartType === "area"     && <MiniAreaChart fillClass={cfg.fillClass} strokeClass={cfg.strokeClass} />}
-                <p className={`text-[9px] font-medium ${cfg.color} opacity-60 mt-0.5 text-right uppercase tracking-wide`}>preview</p>
+                <p className="mt-0.5 text-right text-[9px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-200">preview</p>
               </div>
               {/* Metric pills */}
               {metrics.length > 0 && (
                 <div className="flex flex-wrap gap-1">
                   {metrics.slice(0, 4).map((m, j) => (
-                    <span key={j} className={`text-[10px] px-1.5 py-0.5 rounded-full bg-white/70 border ${cfg.border} ${cfg.color} font-medium leading-none`}>
+                    <span key={j} className={`text-[10px] px-1.5 py-0.5 rounded-full border ${cfg.border} bg-white/95 dark:bg-slate-950/70 text-slate-800 dark:text-slate-100 font-medium leading-none`}>
                       {m}
                     </span>
                   ))}
