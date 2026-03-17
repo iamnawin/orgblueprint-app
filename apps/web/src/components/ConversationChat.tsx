@@ -89,13 +89,13 @@ export function ConversationChat() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conversation, currentQuestion, loadingQuestion]);
 
-  async function fetchNextQuestion() {
+  async function fetchNextQuestion(answeredOverride?: Record<string, string>) {
     setLoadingQuestion(true);
     try {
       const res = await fetch("/api/conversation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ needText, answered: answeredMap }),
+        body: JSON.stringify({ needText, answered: answeredOverride ?? answeredMap }),
       });
       const data = await res.json();
       if (data.error === "no_api_key") {
@@ -130,14 +130,16 @@ export function ConversationChat() {
 
   function handleAnswer(skip = false) {
     if (!currentQuestion) return;
+    const nextAnswered = { ...answeredMap };
     if (!skip && currentAnswer.trim()) {
+      nextAnswered[currentQuestion] = currentAnswer.trim();
       setConversation((prev) => [
         ...prev,
         { question: currentQuestion, answer: currentAnswer.trim() },
       ]);
     }
     setCurrentAnswer("");
-    fetchNextQuestion();
+    fetchNextQuestion(nextAnswered);
   }
 
   async function generate() {
@@ -292,7 +294,7 @@ export function ConversationChat() {
               <p className="text-xs text-amber-600 flex items-start gap-1.5 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
                 <Zap className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 <span>
-                  AI Enhanced asks up to 5 smart clarifying questions, then generates a richer narrative blueprint using Claude.
+                  AI Enhanced asks up to 5 smart clarifying questions, then generates a richer narrative blueprint with Orb.
                   {aiRunsLeft !== null && (
                     <span className="ml-1 font-semibold">({aiRunsLeft} AI run{aiRunsLeft !== 1 ? "s" : ""} left today)</span>
                   )}
@@ -379,7 +381,7 @@ export function ConversationChat() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">Aria — Solution Architect</CardTitle>
+                  <CardTitle className="text-base">Orb — Solution Architect</CardTitle>
                   <span className="text-xs text-slate-400 font-normal">{conversation.length} / 5</span>
                 </div>
                 <Progress value={(conversation.length / 5) * 100} className="h-1 mt-1" />
@@ -395,7 +397,7 @@ export function ConversationChat() {
                   <Sparkles className="h-3 w-3 text-white" />
                 </div>
                 <div className="max-w-[82%] rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-2.5 text-sm text-slate-800 leading-relaxed">
-                  Hi! I&apos;m Aria, your CRM solution architect. I read your description — let me ask a few quick questions to fine-tune your blueprint. This usually takes under 2 minutes.
+                  Hi! I&apos;m Orb, your CRM solution architect. I read your description — let me ask a few quick questions to fine-tune your blueprint. This usually takes under 2 minutes.
                 </div>
               </div>
               {conversation.map((c, i) => (
@@ -633,7 +635,7 @@ export function ConversationChat() {
           <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> No Salesforce credentials required</span>
           <span className="flex items-center gap-1.5"><BarChart3 className="h-3.5 w-3.5" /> Directional estimates only</span>
           {mode === "ai"
-            ? <span className="flex items-center gap-1.5"><Brain className="h-3.5 w-3.5" /> Claude-powered recommendations</span>
+            ? <span className="flex items-center gap-1.5"><Brain className="h-3.5 w-3.5" /> Orb-powered recommendations</span>
             : <span className="flex items-center gap-1.5"><FlaskConical className="h-3.5 w-3.5" /> Instant — no AI quota used</span>
           }
         </div>
@@ -654,7 +656,7 @@ export function ConversationChat() {
               </p>
               <p className="text-slate-400 text-sm mt-1">
                 {mode === "ai"
-                  ? "Claude is evaluating 21 product families across all Salesforce clouds"
+                  ? "Orb is evaluating 21 product families across all Salesforce clouds"
                   : "Running rules engine across 21 Salesforce product families"}
               </p>
             </div>
@@ -664,3 +666,4 @@ export function ConversationChat() {
     </div>
   );
 }
+
