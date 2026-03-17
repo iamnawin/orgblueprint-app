@@ -12,6 +12,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
     "@auth/prisma-adapter": "^2.11.1",
+    "@google/generative-ai": "^0.24.1",
     "@orgblueprint/core": "0.1.0",
     "@prisma/client": "^5.22.0",
     "@radix-ui/react-dialog": "^1.1.15",

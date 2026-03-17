@@ -1263,33 +1263,121 @@ function TechnicalBlueprintTab({ products }: { products: ProductDecision[] }) {
   );
 }
 
-// ─── Analytics Pack Cards ─────────────────────────────────────────────────────
-function analyticsIcon(text: string): string {
-  const t = text.toLowerCase();
-  if (t.includes("pipeline") || t.includes("funnel")) return "📊";
-  if (t.includes("win") || t.includes("loss")) return "🏆";
-  if (t.includes("forecast") || t.includes("accuracy")) return "🎯";
-  if (t.includes("velocity") || t.includes("cycle")) return "⚡";
-  if (t.includes("case") || t.includes("resolution") || t.includes("sla")) return "🎧";
-  if (t.includes("agent") || t.includes("csat")) return "👤";
-  if (t.includes("knowledge") || t.includes("deflection") || t.includes("self-service")) return "📚";
-  if (t.includes("backlog") || t.includes("heatmap")) return "🗺️";
-  if (t.includes("quote") || t.includes("cash") || t.includes("approval")) return "📝";
-  if (t.includes("discount") || t.includes("leakage")) return "💸";
-  if (t.includes("revenue") || t.includes("arr") || t.includes("renewal")) return "💰";
-  if (t.includes("report")) return "📋";
-  return "📈";
+// ─── Analytics Pack Mini Charts ───────────────────────────────────────────────
+function MiniBarChart({ fillClass = "fill-blue-500" }: { fillClass?: string }) {
+  const bars = [55, 80, 45, 92, 65, 70];
+  const max = Math.max(...bars);
+  return (
+    <svg viewBox="0 0 66 22" className="w-full h-5" aria-hidden>
+      {bars.map((v, i) => {
+        const h = (v / max) * 20;
+        return <rect key={i} x={i * 11} y={22 - h} width={9} height={h} rx={2} className={fillClass} opacity={0.55 + (i / bars.length) * 0.45} />;
+      })}
+    </svg>
+  );
 }
 
-function analyticsCategory(text: string): { label: string; color: string; bg: string; border: string } {
-  const t = text.toLowerCase();
-  if (t.includes("dashboard")) return { label: "Dashboard", color: "text-blue-700", bg: "bg-blue-50", border: "border-blue-200" };
-  if (t.includes("report")) return { label: "Report", color: "text-purple-700", bg: "bg-purple-50", border: "border-purple-200" };
-  if (t.includes("tracker")) return { label: "Tracker", color: "text-teal-700", bg: "bg-teal-50", border: "border-teal-200" };
-  if (t.includes("board")) return { label: "Board", color: "text-indigo-700", bg: "bg-indigo-50", border: "border-indigo-200" };
-  if (t.includes("heatmap")) return { label: "Heatmap", color: "text-rose-700", bg: "bg-rose-50", border: "border-rose-200" };
-  if (t.includes("funnel")) return { label: "Funnel", color: "text-orange-700", bg: "bg-orange-50", border: "border-orange-200" };
-  return { label: "Analytics", color: "text-slate-700", bg: "bg-slate-50", border: "border-slate-200" };
+function MiniSparkline({ strokeClass = "stroke-blue-500" }: { strokeClass?: string }) {
+  const pts = [8, 5, 9, 3, 7, 4, 10, 6, 8, 11];
+  const max = Math.max(...pts); const min = Math.min(...pts); const range = max - min || 1;
+  const step = 60 / (pts.length - 1);
+  const d = pts.map((p, i) => `${i === 0 ? "M" : "L"}${(i * step).toFixed(1)},${(20 - ((p - min) / range) * 18).toFixed(1)}`).join(" ");
+  return (
+    <svg viewBox="0 0 60 22" className="w-full h-5" aria-hidden>
+      <path d={d} fill="none" className={strokeClass} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.7" />
+    </svg>
+  );
+}
+
+function MiniFunnel({ fillClass = "fill-orange-500" }: { fillClass?: string }) {
+  return (
+    <svg viewBox="0 0 60 22" className="w-full h-5" aria-hidden>
+      <rect x="1" y="1" width="58" height="5" rx="2" className={fillClass} opacity="0.85" />
+      <rect x="7" y="8.5" width="46" height="4" rx="2" className={fillClass} opacity="0.65" />
+      <rect x="16" y="15" width="28" height="4" rx="2" className={fillClass} opacity="0.45" />
+    </svg>
+  );
+}
+
+function MiniHeatGrid({ fillClass = "fill-rose-500" }: { fillClass?: string }) {
+  const vals = [0.9, 0.4, 0.7, 0.3, 0.8, 0.5, 0.6, 0.9, 0.2, 0.7, 0.4, 0.8, 0.3, 0.6, 0.5, 0.9, 0.7, 0.4, 0.8, 0.6];
+  return (
+    <svg viewBox="0 0 60 22" className="w-full h-5" aria-hidden>
+      {vals.map((v, i) => (
+        <rect key={i} x={(i % 5) * 12} y={Math.floor(i / 5) * 5.5} width={10} height={4.5} rx={1} className={fillClass} opacity={0.15 + v * 0.8} />
+      ))}
+    </svg>
+  );
+}
+
+function MiniWinLoss({ fillClass = "fill-purple-500" }: { fillClass?: string }) {
+  const won  = [62, 75, 58, 80, 65];
+  const lost = [38, 25, 42, 20, 35];
+  return (
+    <svg viewBox="0 0 60 22" className="w-full h-5" aria-hidden>
+      {won.map((v, i) => {
+        const h = (v / 100) * 18;
+        return <rect key={i} x={i * 12} y={20 - h} width={5} height={h} rx={1.5} className={fillClass} opacity="0.75" />;
+      })}
+      {lost.map((v, i) => {
+        const h = (v / 100) * 18;
+        return <rect key={i} x={i * 12 + 6} y={20 - h} width={5} height={h} rx={1.5} className="fill-slate-300" opacity="0.8" />;
+      })}
+    </svg>
+  );
+}
+
+function MiniAreaChart({ fillClass = "fill-teal-500", strokeClass = "stroke-teal-600" }: { fillClass?: string; strokeClass?: string }) {
+  const pts = [4, 6, 5, 9, 7, 8, 11, 9, 12, 10];
+  const max = Math.max(...pts); const min = Math.min(...pts); const range = max - min || 1;
+  const step = 60 / (pts.length - 1);
+  const lineD = pts.map((p, i) => `${i === 0 ? "M" : "L"}${(i * step).toFixed(1)},${(20 - ((p - min) / range) * 16).toFixed(1)}`).join(" ");
+  const areaD = lineD + ` L60,20 L0,20 Z`;
+  return (
+    <svg viewBox="0 0 60 22" className="w-full h-5" aria-hidden>
+      <path d={areaD} className={fillClass} opacity="0.2" />
+      <path d={lineD} fill="none" className={strokeClass} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity="0.75" />
+    </svg>
+  );
+}
+
+type AnalyticsWidgetConfig = {
+  label: string;
+  icon: string;
+  color: string;
+  bg: string;
+  border: string;
+  fillClass: string;
+  strokeClass: string;
+  chartType: "bar" | "sparkline" | "funnel" | "heatmap" | "winloss" | "area";
+  kpis: string[];
+};
+
+function resolveWidgetConfig(raw: string): AnalyticsWidgetConfig {
+  const t = raw.toLowerCase();
+  if (t.includes("pipeline") || t.includes("stage"))
+    return { label: "Dashboard", icon: "📊", color: "text-blue-700", bg: "bg-blue-50", border: "border-blue-200", fillClass: "fill-blue-500", strokeClass: "stroke-blue-500", chartType: "bar", kpis: ["Open Value", "Avg Close Rate", "Deal Age"] };
+  if (t.includes("win") || t.includes("loss"))
+    return { label: "Report", icon: "🏆", color: "text-purple-700", bg: "bg-purple-50", border: "border-purple-200", fillClass: "fill-purple-500", strokeClass: "stroke-purple-500", chartType: "winloss", kpis: ["Win Rate", "Lost Reason", "Deal Size"] };
+  if (t.includes("forecast") || t.includes("accuracy"))
+    return { label: "Tracker", icon: "🎯", color: "text-indigo-700", bg: "bg-indigo-50", border: "border-indigo-200", fillClass: "fill-indigo-500", strokeClass: "stroke-indigo-500", chartType: "sparkline", kpis: ["Predicted vs Actual", "90-day Trend"] };
+  if (t.includes("velocity") || t.includes("cycle"))
+    return { label: "Board", icon: "⚡", color: "text-amber-700", bg: "bg-amber-50", border: "border-amber-200", fillClass: "fill-amber-500", strokeClass: "stroke-amber-500", chartType: "bar", kpis: ["Avg Deal Cycle", "Lead→Won Conv."] };
+  if (t.includes("case resolution") || t.includes("sla") || t.includes("mttr"))
+    return { label: "Dashboard", icon: "🎧", color: "text-teal-700", bg: "bg-teal-50", border: "border-teal-200", fillClass: "fill-teal-500", strokeClass: "stroke-teal-500", chartType: "bar", kpis: ["MTTR", "FCR %", "SLA Compliance"] };
+  if (t.includes("agent") || t.includes("csat") || t.includes("handle time"))
+    return { label: "Report", icon: "👤", color: "text-green-700", bg: "bg-green-50", border: "border-green-200", fillClass: "fill-green-500", strokeClass: "stroke-green-500", chartType: "bar", kpis: ["Handle Time", "CSAT", "Cases/Day"] };
+  if (t.includes("knowledge") || t.includes("deflection") || t.includes("self-service"))
+    return { label: "Report", icon: "📚", color: "text-cyan-700", bg: "bg-cyan-50", border: "border-cyan-200", fillClass: "fill-cyan-500", strokeClass: "stroke-cyan-500", chartType: "area", kpis: ["Article Views", "Deflection Rate"] };
+  if (t.includes("backlog") || t.includes("heatmap") || t.includes("channel"))
+    return { label: "Heatmap", icon: "🗺️", color: "text-rose-700", bg: "bg-rose-50", border: "border-rose-200", fillClass: "fill-rose-500", strokeClass: "stroke-rose-500", chartType: "heatmap", kpis: ["By Channel", "By Priority", "By Area"] };
+  if (t.includes("quote") || t.includes("cash") || t.includes("approval") || t.includes("funnel"))
+    return { label: "Funnel", icon: "📝", color: "text-orange-700", bg: "bg-orange-50", border: "border-orange-200", fillClass: "fill-orange-500", strokeClass: "stroke-orange-500", chartType: "funnel", kpis: ["Conv %", "Avg Approval Time"] };
+  if (t.includes("discount") || t.includes("leakage"))
+    return { label: "Report", icon: "💸", color: "text-red-700", bg: "bg-red-50", border: "border-red-200", fillClass: "fill-red-500", strokeClass: "stroke-red-500", chartType: "bar", kpis: ["By Product", "By Approver"] };
+  if (t.includes("revenue") || t.includes("arr") || t.includes("renewal") || t.includes("schedule"))
+    return { label: "Tracker", icon: "💰", color: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200", fillClass: "fill-emerald-500", strokeClass: "stroke-emerald-500", chartType: "area", kpis: ["ARR", "Renewal Pipeline"] };
+  return { label: "Analytics", icon: "📈", color: "text-slate-700", bg: "bg-slate-50", border: "border-slate-200", fillClass: "fill-slate-500", strokeClass: "stroke-slate-500", chartType: "sparkline", kpis: [] };
 }
 
 function AnalyticsPackCards({ items, onSave }: { items: string[]; onSave: (u: string[]) => void }) {
@@ -1314,22 +1402,44 @@ function AnalyticsPackCards({ items, onSave }: { items: string[]; onSave: (u: st
 
   return (
     <div className="space-y-3">
-      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {parsed.map((item, i) => {
-          const cat = analyticsCategory(item.title);
+          const cfg = resolveWidgetConfig(item.raw);
+          const metrics = item.body ? item.body.split(",").map(s => s.trim()).filter(Boolean) : cfg.kpis;
           return (
-            <div key={i} className={`rounded-xl border ${cat.border} ${cat.bg} p-3.5 space-y-2 hover:shadow-sm transition-shadow duration-150`}>
-              <div className="flex items-start gap-2">
-                <span className="text-base leading-none mt-0.5 flex-shrink-0">{analyticsIcon(item.raw)}</span>
-                <div className="min-w-0 flex-1">
-                  <p className={`text-xs font-semibold ${cat.color} leading-snug`}>{item.title}</p>
-                  <span className={`inline-block text-xs px-1.5 py-0.5 rounded-full border font-medium mt-1 ${cat.color} bg-white/60 ${cat.border}`}>
-                    {cat.label}
-                  </span>
+            <div key={i} className={`rounded-xl border ${cfg.border} ${cfg.bg} p-3.5 space-y-2.5 hover:shadow-md transition-shadow duration-150`}>
+              {/* Header */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-sm leading-none flex-shrink-0">{cfg.icon}</span>
+                  <p className={`text-xs font-semibold ${cfg.color} leading-snug truncate`}>{item.title}</p>
                 </div>
+                <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full border font-semibold ${cfg.color} bg-white/70 ${cfg.border}`}>
+                  {cfg.label}
+                </span>
               </div>
-              {item.body && (
-                <p className="text-xs text-slate-500 leading-relaxed">{item.body}</p>
+              {/* Mini chart */}
+              <div className={`rounded-lg bg-white/50 border ${cfg.border} px-2 pt-2 pb-1`}>
+                {cfg.chartType === "bar"      && <MiniBarChart fillClass={cfg.fillClass} />}
+                {cfg.chartType === "sparkline" && <MiniSparkline strokeClass={cfg.strokeClass} />}
+                {cfg.chartType === "funnel"   && <MiniFunnel fillClass={cfg.fillClass} />}
+                {cfg.chartType === "heatmap"  && <MiniHeatGrid fillClass={cfg.fillClass} />}
+                {cfg.chartType === "winloss"  && <MiniWinLoss fillClass={cfg.fillClass} />}
+                {cfg.chartType === "area"     && <MiniAreaChart fillClass={cfg.fillClass} strokeClass={cfg.strokeClass} />}
+                <p className={`text-[9px] font-medium ${cfg.color} opacity-60 mt-0.5 text-right uppercase tracking-wide`}>preview</p>
+              </div>
+              {/* Metric pills */}
+              {metrics.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {metrics.slice(0, 4).map((m, j) => (
+                    <span key={j} className={`text-[10px] px-1.5 py-0.5 rounded-full bg-white/70 border ${cfg.border} ${cfg.color} font-medium leading-none`}>
+                      {m}
+                    </span>
+                  ))}
+                  {metrics.length > 4 && (
+                    <span className="text-[10px] px-1.5 py-0.5 text-slate-400">+{metrics.length - 4} more</span>
+                  )}
+                </div>
               )}
             </div>
           );
@@ -2070,8 +2180,13 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
             {/* Analytics Pack */}
             <Card className="border-slate-200">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">Analytics Pack</CardTitle>
-                <p className="text-xs text-slate-500 mt-0.5">Recommended reports and dashboards for your product selection</p>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Analytics Pack</CardTitle>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 font-semibold">{result.analyticsPack.length} widgets</span>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">Ready-to-build reports, dashboards, and trackers — each with a live data preview</p>
               </CardHeader>
               <CardContent className="pt-2">
                 <AnalyticsPackCards items={result.analyticsPack} onSave={editList("analyticsPack")} />

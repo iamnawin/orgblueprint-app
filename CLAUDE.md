@@ -48,7 +48,8 @@ cd apps/web && npx prisma studio
 DATABASE_URL="file:./dev.db"
 NEXTAUTH_SECRET="<any random string>"
 NEXTAUTH_URL="http://localhost:3000"
-ANTHROPIC_API_KEY="sk-ant-..."        # optional — enables AI mode
+ANTHROPIC_API_KEY="sk-ant-..."        # optional — enables AI mode (Claude Sonnet)
+GEMINI_API_KEY="AIza..."              # optional — free alternative for AI mode (Gemini 2.0 Flash). Used when ANTHROPIC_API_KEY is empty.
 NVIDIA_API_KEY="nvapi-..."            # optional — fallback chat model (MiniMax M2.5 via NVIDIA NIM)
 UPSTASH_REDIS_REST_URL="..."          # optional — persistent AI quota tracking
 UPSTASH_REDIS_REST_TOKEN="..."        # optional — persistent AI quota tracking
@@ -165,3 +166,35 @@ NextAuth v5 with `PrismaAdapter` and `CredentialsProvider`. Session strategy is 
 - **Agentforce/Einstein** never `recommended`; max `optional`, only for explicit AI automation intent.
 - **Cost simulator** disclaimer is hardcoded: "Directional estimate only. This is not official Salesforce pricing or a quote."
 - Prefer Config over Custom. Prefer standard objects unless "proprietary" or "unique compliance" keywords appear.
+
+## Agent Orchestration Workflow
+
+When building features for this project, follow the stage-based agent pipeline:
+
+1. **Discovery** — Understand requirements, define success metrics
+2. **Architecture** — Design system structure, API shape, DB schema
+3. **Implementation** — Build with frontend + backend agents in parallel
+4. **Testing** — API tests, performance checks, reality check
+5. **Deployment** — CI/CD, Vercel deploy, monitoring
+6. **Optimization** — DB query tuning, LLM cost routing, caching
+
+For each task: identify the stage → delegate to the appropriate agent → validate output → advance.
+
+Priority order: maintainability > scalability > clarity.
+
+## PM2 Services
+
+| Port | Name | Type |
+|------|------|------|
+| 3000 | orgblueprint-3000 | Next.js |
+
+**Terminal Commands:**
+```bash
+pm2 start ecosystem.config.cjs   # First time
+pm2 start all                    # After first time
+pm2 stop all / pm2 restart all
+pm2 start orgblueprint-3000 / pm2 stop orgblueprint-3000
+pm2 logs / pm2 status / pm2 monit
+pm2 save                         # Save process list
+pm2 resurrect                    # Restore saved list
+```

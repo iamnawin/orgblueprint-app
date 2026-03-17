@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateBlueprint, extractSignals, enrichWithTemplates } from "@orgblueprint/core";
-import { generateBlueprintFromLLM } from "@/lib/anthropic";
+import { generateBlueprintFromLLM, generateBlueprintFromGemini } from "@/lib/anthropic";
 import { checkAndRecordAiRun } from "@/lib/quota";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
@@ -23,7 +23,9 @@ export async function POST(req: NextRequest) {
   let result;
   let aiPowered = false;
 
-  if (mode === "ai" && process.env.ANTHROPIC_API_KEY) {
+  const hasAiKey = !!(process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY);
+
+  if (mode === "ai" && hasAiKey) {
     // Enforce per-IP quota for AI mode
     const ip = getClientIp(req);
     const quota = await checkAndRecordAiRun(ip);
@@ -41,7 +43,9 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      result = await generateBlueprintFromLLM(input, answers);
+      result = process.env.ANTHROPIC_API_KEY
+        ? await generateBlueprintFromLLM(input, answers)
+        : await generateBlueprintFromGemini(input, answers);
       aiPowered = true;
       // Return quota info in response so UI can show remaining count
       const session = await auth();
