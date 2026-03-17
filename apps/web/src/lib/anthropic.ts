@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import Groq from "groq-sdk";
 import { BlueprintResult } from "@orgblueprint/core";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? "" });
@@ -20,6 +21,22 @@ async function geminiGenerate(prompt: string, systemHint: string): Promise<strin
   });
   const result = await model.generateContent(prompt);
   return result.response.text().trim();
+}
+
+// ─── Groq helpers ─────────────────────────────────────────────────────────────
+async function groqGenerate(prompt: string, systemHint: string, maxTokens = 4096): Promise<string> {
+  const key = process.env.GROQ_API_KEY;
+  if (!key) throw new Error("no_groq_key");
+  const groq = new Groq({ apiKey: key });
+  const completion = await groq.chat.completions.create({
+    model: "llama-3.3-70b-versatile",
+    max_tokens: maxTokens,
+    messages: [
+      { role: "system", content: systemHint },
+      { role: "user", content: prompt },
+    ],
+  });
+  return (completion.choices[0]?.message?.content ?? "").trim();
 }
 
 const ARCHITECT_SYSTEM = `You are a senior Salesforce solution architect with 15+ years of experience.
@@ -77,7 +94,14 @@ export async function getNextQuestion(
   }
 
   // Fallback to Gemini
-  const text = await geminiGenerate(prompt, ARCHITECT_SYSTEM);
+  if (process.env.GEMINI_API_KEY) {
+    const text = await geminiGenerate(prompt, ARCHITECT_SYSTEM);
+    if (text === "DONE" || text.toUpperCase().startsWith("DONE")) return null;
+    return text;
+  }
+
+  // Fallback to Groq
+  const text = await groqGenerate(prompt, ARCHITECT_SYSTEM, 256);
   if (text === "DONE" || text.toUpperCase().startsWith("DONE")) return null;
   return text;
 }
@@ -180,5 +204,31 @@ export async function generateBlueprintFromGemini(
     .map(([q, a]) => `Q: ${q}\nA: ${a}`)
     .join("\n\n");
   const text = await geminiGenerate(BLUEPRINT_PROMPT(needText, answeredSummary), ARCHITECT_SYSTEM);
+  return parseBlueprintJson(text);
+}
+
+export async function getNextQuestionGroq(
+  needText: string,
+  answered: Record<string, string>
+): Promise<string | null> {
+  const answeredCount = Object.keys(answered).length;
+  if (answeredCount >= 5) return null;
+  const answeredSummary = Object.entries(answered)
+    .map(([q, a]) => `Q: ${q}\nA: ${a}`)
+    .join("\n\n");
+  const prompt = buildQuestionPrompt(needText, answeredCount, answeredSummary);
+  const text = await groqGenerate(prompt, ARCHITECT_SYSTEM, 256);
+  if (text === "DONE" || text.toUpperCase().startsWith("DONE")) return null;
+  return text;
+}
+
+export async function generateBlueprintFromGroq(
+  needText: string,
+  answers: Record<string, string>
+): Promise<BlueprintResult> {
+  const answeredSummary = Object.entries(answers)
+    .map(([q, a]) => `Q: ${q}\nA: ${a}`)
+    .join("\n\n");
+  const text = await groqGenerate(BLUEPRINT_PROMPT(needText, answeredSummary), ARCHITECT_SYSTEM);
   return parseBlueprintJson(text);
 }
