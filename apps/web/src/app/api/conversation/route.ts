@@ -7,12 +7,13 @@ function normalizeText(text: string): string {
 
 function buildFallbackQuestion(
   needText: string,
-  answered: Record<string, string>
+  answered: Record<string, string>,
+  asked: string[]
 ): string | null {
-  const answeredCount = Object.keys(answered).length;
-  if (answeredCount >= 5) return null;
+  const questionCount = asked.length;
+  if (questionCount >= 5) return null;
 
-  const askedQuestions = Object.keys(answered).map(normalizeText);
+  const askedQuestions = asked.map(normalizeText);
   const corpus = normalizeText(
     [
       needText,
@@ -50,9 +51,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ question: null, error: "no_api_key" });
   }
 
-  const body = await req.json().catch(() => ({ needText: "", answered: {} as Record<string, string> }));
+  const body = await req
+    .json()
+    .catch(() => ({ needText: "", answered: {} as Record<string, string>, asked: [] as string[] }));
   const needText = body.needText ?? "";
   const answeredMap = body.answered ?? {};
+  const askedQuestions = body.asked ?? [];
 
   try {
     let question: string | null;
@@ -72,14 +76,14 @@ export async function POST(req: NextRequest) {
     const normalizedQuestion = question ? normalizeText(question) : null;
     const duplicateQuestion =
       normalizedQuestion &&
-      Object.keys(answeredMap).some((asked) => normalizeText(asked) === normalizedQuestion);
+      askedQuestions.some((asked: string) => normalizeText(asked) === normalizedQuestion);
 
     if (duplicateQuestion) {
       question = null;
     }
 
     if (!question) {
-      const fallbackQuestion = buildFallbackQuestion(needText, answeredMap);
+      const fallbackQuestion = buildFallbackQuestion(needText, answeredMap, askedQuestions);
       if (fallbackQuestion) {
         return NextResponse.json({ question: fallbackQuestion, provider: "fallback" });
       }
@@ -88,7 +92,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ question, provider });
   } catch (e) {
     console.error("Conversation error:", e);
-    const fallbackQuestion = buildFallbackQuestion(needText, answeredMap);
+    const fallbackQuestion = buildFallbackQuestion(needText, answeredMap, askedQuestions);
     if (fallbackQuestion) {
       return NextResponse.json({ question: fallbackQuestion, provider: "fallback", error: "llm_error" });
     }

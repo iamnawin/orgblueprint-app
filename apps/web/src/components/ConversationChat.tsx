@@ -62,6 +62,7 @@ export function ConversationChat() {
   const [mode, setMode] = useState<Mode>("demo");
   const [needText, setNeedText] = useState("");
   const [conversation, setConversation] = useState<ConversationEntry[]>([]);
+  const [askedQuestions, setAskedQuestions] = useState<string[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<string | null>(null);
   const [currentAnswer, setCurrentAnswer] = useState("");
   const [loadingQuestion, setLoadingQuestion] = useState(false);
@@ -89,13 +90,20 @@ export function ConversationChat() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conversation, currentQuestion, loadingQuestion]);
 
-  async function fetchNextQuestion(answeredOverride?: Record<string, string>) {
+  async function fetchNextQuestion(
+    answeredOverride?: Record<string, string>,
+    askedOverride?: string[]
+  ) {
     setLoadingQuestion(true);
     try {
       const res = await fetch("/api/conversation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ needText, answered: answeredOverride ?? answeredMap }),
+        body: JSON.stringify({
+          needText,
+          answered: answeredOverride ?? answeredMap,
+          asked: askedOverride ?? askedQuestions,
+        }),
       });
       const data = await res.json();
       if (data.error === "no_api_key") {
@@ -123,14 +131,16 @@ export function ConversationChat() {
       // Demo mode: skip AI question loop, go straight to confirm
       setStage("confirm");
     } else {
+      setAskedQuestions([]);
       setStage("conversation");
-      fetchNextQuestion();
+      fetchNextQuestion({}, []);
     }
   }
 
   function handleAnswer(skip = false) {
     if (!currentQuestion) return;
     const nextAnswered = { ...answeredMap };
+    const nextAsked = [...askedQuestions, currentQuestion];
     if (!skip && currentAnswer.trim()) {
       nextAnswered[currentQuestion] = currentAnswer.trim();
       setConversation((prev) => [
@@ -138,8 +148,9 @@ export function ConversationChat() {
         { question: currentQuestion, answer: currentAnswer.trim() },
       ]);
     }
+    setAskedQuestions(nextAsked);
     setCurrentAnswer("");
-    fetchNextQuestion(nextAnswered);
+    fetchNextQuestion(nextAnswered, nextAsked);
   }
 
   async function generate() {
@@ -189,6 +200,7 @@ export function ConversationChat() {
           setStage("describe");
           setNeedText("");
           setConversation([]);
+          setAskedQuestions([]);
           setCurrentQuestion(null);
           setResult(null);
           setBlueprintSlug(null);
@@ -257,32 +269,44 @@ export function ConversationChat() {
               </div>
             </div>
             {/* Mode toggle */}
-            <div className="flex items-stretch gap-2 p-1 rounded-xl bg-slate-100 border border-slate-200">
+            <div className="space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Generation Mode</p>
+              <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-100 p-1.5">
               <button
                 type="button"
                 onClick={() => setMode("demo")}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-medium transition-all duration-150 ${
+                aria-pressed={mode === "demo"}
+                className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border px-3 py-2.5 text-sm transition-all duration-150 ${
                   mode === "demo"
-                    ? "bg-white shadow-sm text-slate-900"
-                    : "text-slate-500 hover:text-slate-700"
+                    ? "border-blue-300 bg-white text-slate-950 shadow-sm ring-2 ring-blue-200"
+                    : "border-transparent bg-transparent text-slate-500 hover:border-slate-200 hover:bg-white/70 hover:text-slate-700"
                 }`}
               >
-                <FlaskConical className="h-4 w-4 text-blue-500 shrink-0" />
-                <span>Demo</span>
-                <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${mode === "demo" ? "bg-blue-100 text-blue-700" : "bg-slate-200 text-slate-500"}`}>Free</span>
+                <div className="flex items-center gap-2">
+                  <FlaskConical className="h-4 w-4 text-blue-500 shrink-0" />
+                  <span className="font-semibold">Demo</span>
+                </div>
+                <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${mode === "demo" ? "bg-blue-100 text-blue-700" : "bg-slate-200 text-slate-500"}`}>Free</span>
+                <span className="text-[11px] text-slate-500">Instant rules-based blueprint</span>
               </button>
               <button
                 type="button"
                 onClick={() => setMode("ai")}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-medium transition-all duration-150 ${
+                aria-pressed={mode === "ai"}
+                className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border px-3 py-2.5 text-sm transition-all duration-150 ${
                   mode === "ai"
-                    ? "bg-white shadow-sm text-slate-900"
-                    : "text-slate-500 hover:text-slate-700"
+                    ? "border-amber-300 bg-white text-slate-950 shadow-sm ring-2 ring-amber-200"
+                    : "border-transparent bg-transparent text-slate-500 hover:border-slate-200 hover:bg-white/70 hover:text-slate-700"
                 }`}
               >
-                <Zap className="h-4 w-4 text-amber-500 shrink-0" />
-                <span>AI Enhanced</span>
+                <div className="flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-amber-500 shrink-0" />
+                  <span className="font-semibold">AI Enhanced</span>
+                </div>
+                <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${mode === "ai" ? "bg-amber-100 text-amber-700" : "bg-slate-200 text-slate-500"}`}>Orb</span>
+                <span className="text-[11px] text-slate-500">Clarifying questions + richer output</span>
               </button>
+            </div>
             </div>
             {mode === "demo" && (
               <p className="text-xs text-slate-400 flex items-start gap-1.5">
@@ -382,9 +406,9 @@ export function ConversationChat() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">Orb — Solution Architect</CardTitle>
-                  <span className="text-xs text-slate-400 font-normal">{conversation.length} / 5</span>
+                  <span className="text-xs text-slate-400 font-normal">{askedQuestions.length} / 5</span>
                 </div>
-                <Progress value={(conversation.length / 5) * 100} className="h-1 mt-1" />
+                <Progress value={(askedQuestions.length / 5) * 100} className="h-1 mt-1" />
               </div>
             </div>
           </CardHeader>
