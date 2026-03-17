@@ -87,6 +87,30 @@ Guardrails you MUST follow:
 - Never output official Salesforce pricing. Cost estimates are directional only and must always include the disclaimer.
 - Prefer standard objects over custom. Prefer configuration over code. Prefer Flows over Apex.`;
 
+function sanitizeQuestionText(raw: string): string | null {
+  const withoutThink = raw.replace(/<think>[\s\S]*?<\/think>/gi, " ");
+  const normalized = withoutThink
+    .replace(/^```(?:text|markdown)?/i, "")
+    .replace(/```$/i, "")
+    .replace(/\r/g, "")
+    .trim();
+
+  if (!normalized) return null;
+
+  const lines = normalized
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.replace(/^(question|clarifying question)[:\-]\s*/i, ""));
+
+  const questionLine = lines.find((line) => line.includes("?"));
+  if (questionLine) {
+    return questionLine;
+  }
+
+  return lines[0] ?? null;
+}
+
 function buildQuestionPrompt(
   needText: string,
   askedCount: number,
@@ -108,6 +132,9 @@ Rules:
 - NEVER repeat a question that has already been asked.
 - If the user already answered industry, do not ask industry again.
 - Ask only one short, concrete question.
+- DO NOT reveal reasoning, analysis, chain-of-thought, or internal notes.
+- DO NOT use <think> tags.
+- Output only the final user-facing question.
 
 If you already have enough information to produce a solid blueprint (you have ${askedCount} asked questions already), respond with exactly: DONE
 
@@ -136,21 +163,21 @@ export async function getNextQuestion(
       system: ARCHITECT_SYSTEM,
       messages: [{ role: "user", content: prompt }],
     });
-    const text = (response.content[0] as { text: string }).text.trim();
-    if (text === "DONE" || text.toUpperCase().startsWith("DONE")) return null;
+    const text = sanitizeQuestionText((response.content[0] as { text: string }).text.trim());
+    if (!text || text === "DONE" || text.toUpperCase().startsWith("DONE")) return null;
     return text;
   }
 
   // Fallback to Gemini
   if (process.env.GEMINI_API_KEY) {
-    const text = await geminiGenerate(prompt, ARCHITECT_SYSTEM);
-    if (text === "DONE" || text.toUpperCase().startsWith("DONE")) return null;
+    const text = sanitizeQuestionText(await geminiGenerate(prompt, ARCHITECT_SYSTEM));
+    if (!text || text === "DONE" || text.toUpperCase().startsWith("DONE")) return null;
     return text;
   }
 
   // Fallback to Groq
-  const text = await groqGenerate(prompt, ARCHITECT_SYSTEM, 256);
-  if (text === "DONE" || text.toUpperCase().startsWith("DONE")) return null;
+  const text = sanitizeQuestionText(await groqGenerate(prompt, ARCHITECT_SYSTEM, 256));
+  if (!text || text === "DONE" || text.toUpperCase().startsWith("DONE")) return null;
   return text;
 }
 
@@ -165,8 +192,8 @@ export async function getNextQuestionGemini(
     .map(([q, a]) => `Q: ${q}\nA: ${a}`)
     .join("\n\n");
   const prompt = buildQuestionPrompt(needText, askedCount, answeredSummary, askedQuestions);
-  const text = await geminiGenerate(prompt, ARCHITECT_SYSTEM);
-  if (text === "DONE" || text.toUpperCase().startsWith("DONE")) return null;
+  const text = sanitizeQuestionText(await geminiGenerate(prompt, ARCHITECT_SYSTEM));
+  if (!text || text === "DONE" || text.toUpperCase().startsWith("DONE")) return null;
   return text;
 }
 
@@ -181,8 +208,8 @@ export async function getNextQuestionNvidia(
     .map(([q, a]) => `Q: ${q}\nA: ${a}`)
     .join("\n\n");
   const prompt = buildQuestionPrompt(needText, askedCount, answeredSummary, askedQuestions);
-  const text = await nvidiaGenerate(prompt, ARCHITECT_SYSTEM, 256);
-  if (text === "DONE" || text.toUpperCase().startsWith("DONE")) return null;
+  const text = sanitizeQuestionText(await nvidiaGenerate(prompt, ARCHITECT_SYSTEM, 256));
+  if (!text || text === "DONE" || text.toUpperCase().startsWith("DONE")) return null;
   return text;
 }
 
@@ -294,8 +321,8 @@ export async function getNextQuestionGroq(
     .map(([q, a]) => `Q: ${q}\nA: ${a}`)
     .join("\n\n");
   const prompt = buildQuestionPrompt(needText, askedCount, answeredSummary, askedQuestions);
-  const text = await groqGenerate(prompt, ARCHITECT_SYSTEM, 256);
-  if (text === "DONE" || text.toUpperCase().startsWith("DONE")) return null;
+  const text = sanitizeQuestionText(await groqGenerate(prompt, ARCHITECT_SYSTEM, 256));
+  if (!text || text === "DONE" || text.toUpperCase().startsWith("DONE")) return null;
   return text;
 }
 
