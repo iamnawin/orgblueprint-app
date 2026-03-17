@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getNextQuestion, getNextQuestionGemini, getNextQuestionGroq } from "@/lib/anthropic";
 
+function normalizeText(text: string): string {
+  return text.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
 function buildFallbackQuestion(
   needText: string,
   answered: Record<string, string>
@@ -8,21 +12,33 @@ function buildFallbackQuestion(
   const answeredCount = Object.keys(answered).length;
   if (answeredCount >= 5) return null;
 
-  const text = needText.toLowerCase();
+  const askedQuestions = Object.keys(answered).map(normalizeText);
+  const corpus = normalizeText(
+    [
+      needText,
+      ...Object.entries(answered).flatMap(([question, answer]) => [question, answer]),
+    ].join(" ")
+  );
 
-  if (!/(health|finance|bank|insurance|manufacturing|education|nonprofit|retail|saas|software)/.test(text)) {
+  if (!/(health|healthcare|finance|financial|bank|insurance|manufacturing|education|nonprofit|retail|saas|software)/.test(corpus)) {
     return "What industry are you in, and are there any compliance or regulatory requirements we should account for?";
   }
 
-  if (!/(integrat|erp|ehr|sap|netsuite|workday|api|sync)/.test(text)) {
+  if (!/(integrat|erp|ehr|sap|netsuite|workday|api|sync)/.test(corpus)) {
     return "What existing systems need to integrate with your CRM, and how critical is real-time sync versus scheduled updates?";
   }
 
-  if (!/(user|rep|agent|team|seat|employee|people)/.test(text)) {
+  if (!/(user|rep|agent|team|seat|employee|people)/.test(corpus)) {
     return "Roughly how many users will need access, and which teams will use the system first?";
   }
 
-  return "What is the single most important business outcome you want this CRM implementation to improve in the first 6 months?";
+  const outcomeQuestion =
+    "What is the single most important business outcome you want this CRM implementation to improve in the first 6 months?";
+  if (!askedQuestions.includes(normalizeText(outcomeQuestion))) {
+    return outcomeQuestion;
+  }
+
+  return "What is the biggest manual process or reporting bottleneck you want Orb to eliminate first?";
 }
 
 export async function POST(req: NextRequest) {
@@ -51,6 +67,15 @@ export async function POST(req: NextRequest) {
     } else {
       question = await getNextQuestionGroq(needText, answeredMap);
       provider = "groq";
+    }
+
+    const normalizedQuestion = question ? normalizeText(question) : null;
+    const duplicateQuestion =
+      normalizedQuestion &&
+      Object.keys(answeredMap).some((asked) => normalizeText(asked) === normalizedQuestion);
+
+    if (duplicateQuestion) {
+      question = null;
     }
 
     if (!question) {
