@@ -6,8 +6,19 @@ import {
   getNextQuestionNvidia,
 } from "@/lib/anthropic";
 
+const QUESTION_TIMEOUT_MS = 12000;
+
 function normalizeText(text: string): string {
   return text.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return await Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`timeout_${ms}`)), ms)
+    ),
+  ]);
 }
 
 function buildFallbackQuestion(
@@ -69,16 +80,28 @@ export async function POST(req: NextRequest) {
     let provider: string;
 
     if (hasAnthropic) {
-      question = await getNextQuestion(needText, answeredMap, askedQuestions);
+      question = await withTimeout(
+        getNextQuestion(needText, answeredMap, askedQuestions),
+        QUESTION_TIMEOUT_MS
+      );
       provider = "anthropic";
     } else if (hasNvidia) {
-      question = await getNextQuestionNvidia(needText, answeredMap, askedQuestions);
+      question = await withTimeout(
+        getNextQuestionNvidia(needText, answeredMap, askedQuestions),
+        QUESTION_TIMEOUT_MS
+      );
       provider = "nvidia";
     } else if (hasGemini) {
-      question = await getNextQuestionGemini(needText, answeredMap, askedQuestions);
+      question = await withTimeout(
+        getNextQuestionGemini(needText, answeredMap, askedQuestions),
+        QUESTION_TIMEOUT_MS
+      );
       provider = "gemini";
     } else {
-      question = await getNextQuestionGroq(needText, answeredMap, askedQuestions);
+      question = await withTimeout(
+        getNextQuestionGroq(needText, answeredMap, askedQuestions),
+        QUESTION_TIMEOUT_MS
+      );
       provider = "groq";
     }
 

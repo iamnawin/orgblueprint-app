@@ -51,6 +51,7 @@ const EXPANSION_OPTIONS = [
 ] as const;
 
 type ExpansionKey = (typeof EXPANSION_OPTIONS)[number]["key"];
+const CONVERSATION_TIMEOUT_MS = 15000;
 
 interface ConversationEntry {
   question: string;
@@ -95,10 +96,13 @@ export function ConversationChat() {
     askedOverride?: string[]
   ) {
     setLoadingQuestion(true);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), CONVERSATION_TIMEOUT_MS);
     try {
       const res = await fetch("/api/conversation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           needText,
           answered: answeredOverride ?? answeredMap,
@@ -121,6 +125,7 @@ export function ConversationChat() {
       setCurrentQuestion(null);
       setStage("confirm");
     } finally {
+      clearTimeout(timeout);
       setLoadingQuestion(false);
     }
   }
