@@ -10,6 +10,11 @@ import { checkAndRecordAiRun } from "@/lib/quota";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { nanoid } from "nanoid";
+import {
+  buildBlueprintContext,
+  inferClarificationAnswers,
+  normalizeBlueprintResult,
+} from "@/lib/clarifications";
 
 function getClientIp(req: NextRequest): string {
   return (
@@ -24,6 +29,8 @@ export async function POST(req: NextRequest) {
   const input: string = body.input ?? "";
   const answers: Record<string, string> = body.answers ?? {};
   const mode: "demo" | "ai" = body.mode ?? "demo";
+  const contextInput = buildBlueprintContext(input, answers);
+  const structuredAnswers = inferClarificationAnswers(input, answers);
 
   let result;
   let aiPowered = false;
@@ -62,6 +69,7 @@ export async function POST(req: NextRequest) {
       } else {
         result = await generateBlueprintFromGroq(input, answers);
       }
+      result = normalizeBlueprintResult(result, contextInput, structuredAnswers);
       aiPowered = true;
       // Return quota info in response so UI can show remaining count
       const session = await auth();
@@ -84,13 +92,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ result, slug, aiPowered, quota });
     } catch (e) {
       console.error("LLM blueprint failed, falling back to demo mode:", e);
-      const signals = extractSignals(input, {});
-      result = enrichWithTemplates(generateBlueprint(input, {}), signals);
+      const signals = extractSignals(contextInput, structuredAnswers);
+      result = enrichWithTemplates(generateBlueprint(contextInput, structuredAnswers), signals);
     }
   } else {
     // Demo mode: deterministic rules engine + polished template narratives
-    const signals = extractSignals(input, {});
-    result = enrichWithTemplates(generateBlueprint(input, {}), signals);
+    const signals = extractSignals(contextInput, structuredAnswers);
+    result = enrichWithTemplates(generateBlueprint(contextInput, structuredAnswers), signals);
   }
 
   // Save to DB if user is logged in
