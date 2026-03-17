@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { BlueprintResult, ProductDecision } from "@orgblueprint/core";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -1630,7 +1630,44 @@ Users: ${result.executiveSnapshot.usersDetected}`.trim();
 }
 
 // ─── Main dashboard ───────────────────────────────────────────────────────────
-type TabId = "overview" | "architecture" | "data-model" | "technical" | "cost" | "roadmap" | "ai-chat";
+function inferUsersFromText(text: string): number | null {
+  const patterns = [
+    /\b(\d[\d,]*)\s*(?:users?|reps?|agents?|employees?|staff|people|seats?|licenses?)\b/i,
+    /\bteam of\s+(\d[\d,]*)\b/i,
+    /\b(\d[\d,]*)-?person\b/i,
+    /\b(\d[\d,]*)-?member\b/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (!match) continue;
+    const value = Number(match[1].replace(/,/g, ""));
+    if (Number.isFinite(value) && value > 0) return value;
+  }
+
+  return null;
+}
+
+function inferUsersFromContext(
+  needText: string | undefined,
+  savedAnswers: Record<string, string> | undefined,
+  fallback: number
+): number {
+  for (const [question, answer] of Object.entries(savedAnswers ?? {})) {
+    if (/(how many users|which teams|users need access|teams will use)/i.test(question)) {
+      const directNumber = answer.match(/\b(\d[\d,]*)\b/);
+      if (directNumber) {
+        const value = Number(directNumber[1].replace(/,/g, ""));
+        if (Number.isFinite(value) && value > 0) return value;
+      }
+    }
+  }
+
+  const mergedText = [needText ?? "", ...Object.values(savedAnswers ?? {})].join(" ");
+  return inferUsersFromText(mergedText) ?? fallback;
+}
+
+type TabId = "overview" | "architecture" | "data-model" | "technical" | "cost" | "roadmap";
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: "overview",      label: "Overview",      icon: "📊" },
@@ -1639,7 +1676,6 @@ const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: "technical",     label: "Technical",     icon: "⚡" },
   { id: "cost",          label: "Cost",          icon: "💰" },
   { id: "roadmap",       label: "Roadmap",       icon: "🗺️" },
-  { id: "ai-chat",       label: "Ask AI",        icon: "✦" },
 ];
 
 export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered = false, needText: initialNeedText, savedAnswers: initialAnswers, onReset }: Props) {
@@ -1663,21 +1699,49 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
   // Export PDF dialog
   const [pdfOpen, setPdfOpen] = useState(false);
   const [companyName, setCompanyName] = useState("");
+  const resolvedUsersDetected = inferUsersFromContext(
+    initialNeedText,
+    initialAnswers,
+    result.executiveSnapshot.usersDetected
+  );
+  const resolvedUserCountBand: BlueprintResult["executiveSnapshot"]["userCountBand"] =
+    resolvedUsersDetected >= 200 ? "200+" : resolvedUsersDetected >= 50 ? "50-199" : "1-49";
+  const displayResult = useMemo(
+    () =>
+      resolvedUsersDetected === result.executiveSnapshot.usersDetected &&
+      resolvedUserCountBand === result.executiveSnapshot.userCountBand
+        ? result
+        : {
+            ...result,
+            executiveSnapshot: {
+              ...result.executiveSnapshot,
+              usersDetected: resolvedUsersDetected,
+              userCountBand: resolvedUserCountBand,
+            },
+          },
+    [resolvedUserCountBand, resolvedUsersDetected, result]
+  );
 
   // Push blueprint summary to global context so AIAssistantWidget becomes blueprint-aware
   useEffect(() => {
     const summary = [
-      `Products: ${result.products.filter((p) => p.level !== "not_needed").map((p) => `${p.name} (${p.level})`).join(", ")}`,
-      `Users: ${result.executiveSnapshot.usersDetected} (${result.executiveSnapshot.userCountBand})`,
-      `Complexity: ${result.executiveSnapshot.complexityLevel}`,
-      `Focus: ${result.executiveSnapshot.primaryFocus}`,
+      `Products: ${displayResult.products.filter((p) => p.level !== "not_needed").map((p) => `${p.name} (${p.level})`).join(", ")}`,
+      `Users: ${displayResult.executiveSnapshot.usersDetected} (${displayResult.executiveSnapshot.userCountBand})`,
+      `Complexity: ${displayResult.executiveSnapshot.complexityLevel}`,
+      `Focus: ${displayResult.executiveSnapshot.primaryFocus}`,
       `Cost range: $${result.costEstimate.license.totalLow.toLocaleString()} – $${result.costEstimate.license.totalHigh.toLocaleString()} / year`,
-      `Top risks: ${result.risks.slice(0, 3).join("; ")}`,
+      `Top risks: ${displayResult.risks.slice(0, 3).join("; ")}`,
       `Roadmap: ${result.roadmap.map((r) => r.phase).join(" → ")}`,
     ].join("\n");
     setBlueprintSummary(summary);
     return () => setBlueprintSummary(null);
-  }, [result, setBlueprintSummary]);
+  }, [
+    displayResult,
+    result.costEstimate.license.totalHigh,
+    result.costEstimate.license.totalLow,
+    result.roadmap,
+    setBlueprintSummary,
+  ]);
 
   async function persistResult(updated: BlueprintResult) {
     if (!slug || !isOwner) return;
@@ -1731,7 +1795,7 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
       ``,
       `KEY DETAILS:`,
       `• Focus: ${result.executiveSnapshot.primaryFocus}`,
-      `• Users: ${result.executiveSnapshot.usersDetected}`,
+      `• Users: ${displayResult.executiveSnapshot.usersDetected}`,
       `• Complexity: ${result.executiveSnapshot.complexityLevel}`,
       ``,
       `RECOMMENDED PRODUCTS:`,
@@ -1770,8 +1834,8 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
     setPdfDownloading(true);
     try {
       await downloadBlueprintPdf(
-        result,
-        result.executiveSnapshot.primaryFocus || "Salesforce Blueprint",
+        displayResult,
+        displayResult.executiveSnapshot.primaryFocus || "Salesforce Blueprint",
         companyName || undefined
       );
     } finally {
@@ -1917,7 +1981,7 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
           <CardTitle className="text-base">Executive Snapshot</CardTitle>
         </CardHeader>
         <CardContent>
-          <ExecutiveSnapshotCards snapshot={result.executiveSnapshot} />
+          <ExecutiveSnapshotCards snapshot={displayResult.executiveSnapshot} />
         </CardContent>
       </Card>
 
@@ -2071,9 +2135,7 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium transition-all duration-150 whitespace-nowrap ${
                   isActive
-                    ? tab.id === "ai-chat"
-                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25"
-                      : "bg-blue-600 text-white shadow-md shadow-blue-500/20"
+                    ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
                     : "text-slate-400 hover:text-white hover:bg-slate-700"
                 }`}
               >
@@ -2104,7 +2166,7 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
                   <p className="text-xl font-bold tracking-tight">
                     ${result.costEstimate.license.totalLow.toLocaleString()} – ${result.costEstimate.license.totalHigh.toLocaleString()}
                   </p>
-                  <p className="text-xs opacity-70 mt-1">{result.executiveSnapshot.usersDetected} users · {result.executiveSnapshot.complexityLevel} complexity</p>
+                  <p className="text-xs opacity-70 mt-1">{displayResult.executiveSnapshot.usersDetected} users - {displayResult.executiveSnapshot.complexityLevel} complexity</p>
                 </div>
                 <div className="rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 p-4 text-white">
                   <p className="text-xs font-medium opacity-80 mb-1">Implementation Cost</p>
@@ -2351,7 +2413,7 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
               <p className="text-xs text-slate-500 mt-0.5">Adjust users and tier to see real-time estimates</p>
             </CardHeader>
             <CardContent>
-              <InteractiveCostCalculator products={result.products} initialUsers={result.executiveSnapshot.usersDetected} />
+              <InteractiveCostCalculator products={result.products} initialUsers={displayResult.executiveSnapshot.usersDetected} />
             </CardContent>
           </Card>
         )}
@@ -2390,26 +2452,9 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
             </Card>
           </div>
         )}
-
-        {/* ── AI Chat ── */}
-        {activeTab === "ai-chat" && (
-          <Card className="border-slate-200">
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">✦</span>
-                <div>
-                  <CardTitle className="text-base">Ask the AI Architect</CardTitle>
-                  <p className="text-xs text-slate-500 mt-0.5">Ask questions about this specific blueprint — why products were chosen, costs, risks, and more</p>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <AIChatTab result={result} />
-            </CardContent>
-          </Card>
-        )}
       </div>
     </div>
   );
 }
+
 
