@@ -135,6 +135,7 @@ export function ConversationChat() {
   const [blueprintSlug, setBlueprintSlug] = useState<string | null>(null);
   const [aiPowered, setAiPowered] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const questionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const answeredMap = Object.fromEntries(
     conversation.map((c) => [c.question, c.answer])
@@ -153,13 +154,17 @@ export function ConversationChat() {
     answeredOverride?: Record<string, string>,
     askedOverride?: string[]
   ) {
+    // Cancel any pending transition so stale timers can't overwrite current state
+    if (questionTimerRef.current) clearTimeout(questionTimerRef.current);
+
     setLoadingQuestion(true);
     const nextQuestion = nextOrbQuestion(
       needText,
       answeredOverride ?? answeredMap,
       askedOverride ?? askedQuestions
     );
-    window.setTimeout(() => {
+    questionTimerRef.current = window.setTimeout(() => {
+      questionTimerRef.current = null;
       if (nextQuestion) {
         setAiKeyMissing(false);
         setCurrentQuestion(nextQuestion);
@@ -169,6 +174,16 @@ export function ConversationChat() {
       }
       setLoadingQuestion(false);
     }, 250);
+  }
+
+  function skipAllToConfirm() {
+    if (questionTimerRef.current) {
+      clearTimeout(questionTimerRef.current);
+      questionTimerRef.current = null;
+    }
+    setLoadingQuestion(false);
+    setCurrentQuestion(null);
+    setStage("confirm");
   }
 
   function handleDescribeContinue() {
@@ -518,32 +533,35 @@ export function ConversationChat() {
               <div ref={chatEndRef} />
             </div>
 
-            {/* Input row */}
-            {!loadingQuestion && currentQuestion && (
+            {/* Input row — shown when there is a current question (hide during typing indicator only if answer input is shown) */}
+            {(currentQuestion || loadingQuestion) && (
               <>
-                <div className="flex gap-2 pt-1 border-t border-slate-100">
-                  <Input
-                    placeholder="Your answer…"
-                    value={currentAnswer}
-                    onChange={(e) => setCurrentAnswer(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleAnswer(false)}
-                    className="flex-1 h-10"
-                    autoFocus
-                  />
-                  <Button
-                    size="icon"
-                    className="h-10 w-10 shrink-0"
-                    onClick={() => handleAnswer(false)}
-                    disabled={!currentAnswer.trim()}
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
+                {!loadingQuestion && currentQuestion && (
+                  <div className="flex gap-2 pt-1 border-t border-slate-100">
+                    <Input
+                      placeholder="Your answer…"
+                      value={currentAnswer}
+                      onChange={(e) => setCurrentAnswer(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleAnswer(false)}
+                      className="flex-1 h-10"
+                      autoFocus
+                    />
+                    <Button
+                      size="icon"
+                      className="h-10 w-10 shrink-0"
+                      onClick={() => handleAnswer(false)}
+                      disabled={!currentAnswer.trim()}
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     className="text-xs"
+                    disabled={loadingQuestion}
                     onClick={() => handleAnswer(true)}
                   >
                     Skip question
@@ -552,10 +570,7 @@ export function ConversationChat() {
                     variant="ghost"
                     size="sm"
                     className="ml-auto text-xs text-slate-400 hover:text-slate-600"
-                    onClick={() => {
-                      setCurrentQuestion(null);
-                      setStage("confirm");
-                    }}
+                    onClick={skipAllToConfirm}
                   >
                     Skip all → generate now
                   </Button>

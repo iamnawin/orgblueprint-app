@@ -26,6 +26,14 @@ npm run typecheck
 # Run regression tests for rules engine (no test runner needed)
 npm run test:core
 
+# Run user-detection tests
+npx tsx packages/core/test/users.test.ts
+
+# Run E2E tests (Playwright, requires dev server running or it starts one)
+cd apps/web && npm run test:e2e              # headless
+cd apps/web && npm run test:e2e:headed      # watch the browser
+cd apps/web && npm run test:e2e:report      # open HTML report after a run
+
 # Check environment and config health
 npm run doctor
 
@@ -81,9 +89,18 @@ npm workspaces monorepo:
 - Per-IP quota enforced: 3 AI runs/day, 30s cooldown (`apps/web/src/lib/quota.ts`).
 - Falls back to demo mode if LLM call fails.
 
-**Chat / Ask AI** (floating widget on all pages):
-- `/api/chat` tries Anthropic (claude-haiku-4-5) first, falls back to NVIDIA NIM (MiniMax M2.5).
-- Receives `blueprintSummary` context string to ground answers in the current blueprint.
+**Chat / Ask AI** (floating widget on all pages, rendered via `AIAssistantWidget.tsx` in `layout.tsx`):
+- `/api/chat` tries Anthropic (claude-haiku-4-5) → NVIDIA NIM (MiniMax M2.5) fallback.
+- Receives `blueprintSummary` context string via `BlueprintContext` to ground answers in the current blueprint.
+- There is **no Ask AI tab** in the dashboard — the floating widget handles all AI chat globally.
+
+## AI Provider Fallback Chain
+
+Blueprint generation (`/api/blueprint`): Anthropic Claude Sonnet → Gemini 2.0 Flash → Groq → deterministic rules engine.
+
+Conversation questions (`/api/conversation`): Anthropic → Groq → deterministic clarification path (so the UI never hangs).
+
+Chat widget (`/api/chat`): Anthropic claude-haiku-4-5 → NVIDIA NIM (MiniMax M2.5).
 
 ## Wizard Stages (ConversationChat.tsx)
 
@@ -97,17 +114,16 @@ The 6-stage wizard manages state via a `stage` discriminated union:
 
 ## Dashboard Tabs (BlueprintDashboard.tsx)
 
-7 tabs implemented as a custom dark scrollable nav (`bg-slate-900`), **not** shadcn TabsList. State via `useState<TabId>` + conditional rendering.
+6 tabs implemented as a custom dark scrollable nav (`bg-slate-900`), **not** shadcn TabsList. State via `useState<TabId>` + conditional rendering. The `TABS` array and `TabId` type are defined at the bottom of the file, just above the main component.
 
-`Overview | Architecture | Data Model | Technical | Cost | Roadmap | Ask AI`
+`Overview | Architecture | Data Model | Technical | Cost | Roadmap`
 
 - **Overview**: analytics KPIs + `AnalyticsPackCards` (categorized card grid) + collapsible risks + expansion panel
 - **Architecture**: OOTB vs Custom + integrations + AppExchange recommendations
 - **Data Model**: business-friendly entity cards + relationship diagram + automations
 - **Technical**: generated from `technicalBlueprint.ts`
-- **Cost**: 3 KPI cards + line-item estimate (disclaimer hardcoded)
+- **Cost**: 3 KPI cards + interactive cost calculator + line-item estimate (disclaimer hardcoded)
 - **Roadmap**: visual phases + implementation checklist + document checklist
-- **Ask AI**: chat interface using `/api/chat`
 
 ## Pages and Routes
 
@@ -137,7 +153,8 @@ The 6-stage wizard manages state via a `stage` discriminated union:
 |---|---|
 | `packages/core/src/rules.ts` | Signal extraction + product decision engine |
 | `packages/core/src/templates.ts` | Demo-mode narrative enrichment |
-| `apps/web/src/lib/anthropic.ts` | `generateBlueprintFromLLM()` + `getNextQuestion()` |
+| `apps/web/src/lib/anthropic.ts` | `generateBlueprintFromLLM()` + `getNextQuestion()` + multi-provider fallback chain |
+| `apps/web/src/lib/clarifications.ts` | Parses Orb answers into `ClarificationAnswers`; also runs `parseUsersFromText()` for AI-mode user-count extraction |
 | `apps/web/src/lib/quota.ts` | Per-IP AI rate limiting (Upstash or in-memory) |
 | `apps/web/src/lib/exportPdf.ts` | Client-side PDF export via jsPDF (dynamic import) |
 | `apps/web/src/lib/technicalBlueprint.ts` | TechnicalBlueprint derived from product keys |
@@ -160,12 +177,35 @@ NextAuth v5 with `PrismaAdapter` and `CredentialsProvider`. Session strategy is 
 
 `result` and `answers` are stored as raw JSON strings and parsed at read time. **SQLite is ephemeral on Vercel** — swap to Neon Postgres for production persistence.
 
+## User Count Detection (`parseUsers` in rules.ts, `parseUsersFromText` in clarifications.ts)
+
+Both functions use `matchAll` on an explicit "N [role] noun" pattern and **sum all distinct role-group mentions** — so "50 sales reps, 200 account executives, 80 inside reps" correctly yields 330. A "total N users" mention (prefixed by "total/totaling/totalling") is excluded from the sum to avoid double-counting.
+
+Recognised headcount nouns include: users, reps, agents, employees, staff, managers, executives, directors, analysts, consultants, engineers, technicians, specialists, advisors, representatives, and others. Role modifiers up to 2 words are allowed between the number and the noun (e.g. "200 account executives", "80 inside sales reps").
+
 ## Guardrails (enforced in both rules.ts and the LLM system prompt)
 
 - **Data Cloud** only when `externalSystemsCount >= 2` or explicit single-customer-view/segmentation signals.
 - **Agentforce/Einstein** never `recommended`; max `optional`, only for explicit AI automation intent.
 - **Cost simulator** disclaimer is hardcoded: "Directional estimate only. This is not official Salesforce pricing or a quote."
 - Prefer Config over Custom. Prefer standard objects unless "proprietary" or "unique compliance" keywords appear.
+
+## E2E Tests (Playwright)
+
+Test files live in `apps/web/tests/e2e/`. Config at `apps/web/playwright.config.ts`. Chromium only, reuses the existing dev server if running.
+
+```
+tests/e2e/
+├── api.spec.ts           # API contract tests (no browser needed)
+├── home.spec.ts          # Home page / wizard input
+├── ai-widget.spec.ts     # Floating chat widget
+├── auth/                 # Sign-in and sign-up forms
+└── blueprint/
+    ├── demo-mode.spec.ts       # Full wizard E2E in demo mode
+    └── dashboard-tabs.spec.ts  # All 6 dashboard tabs
+```
+
+Page Object Models in `apps/web/tests/pages/`. Screenshots and artifacts written to `apps/web/artifacts/`.
 
 ## Agent Orchestration Workflow
 

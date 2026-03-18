@@ -11,7 +11,8 @@
     "lint": "npm run lint -w @orgblueprint/web",
     "typecheck": "npm run typecheck -w @orgblueprint/core && npm run typecheck -w @orgblueprint/web",
     "doctor": "node scripts/doctor.mjs",
-    "test:core": "tsx packages/core/test/regression.test.ts"
+    "test:core": "tsx packages/core/test/regression.test.ts",
+    "test:e2e": "npm run test:e2e -w @orgblueprint/web"
   },
   "devDependencies": {
     "tsx": "^4.21.0"

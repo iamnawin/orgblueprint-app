@@ -35,8 +35,29 @@ function parsePositiveInteger(text: string): number | null {
 }
 
 function parseUsersFromText(text: string): number | null {
+  const headcountNoun =
+    "(?:users?|reps?|agents?|employees?|staff|people|seats?|licenses?" +
+    "|managers?|executives?|salespeople|sales\\s+people|directors?|admins?|administrators?" +
+    "|analysts?|consultants?|engineers?|associates?|professionals?|coordinators?" +
+    "|specialists?|advisors?|representatives?|technicians?|operators?|supervisors?" +
+    "|developers?|leaders?|partners?)";
+  const roleModifier = "(?:(?!million|billion|thousand|hundred|percent)\\w+\\s+){0,2}";
+
+  // Sum all role-group mentions (e.g. "50 sales reps and 30 support agents" → 80)
+  const sumPattern = new RegExp(
+    `(?<!total\\s)(?<!totaling\\s)(?<!totalling\\s)(\\d[\\d,]*)\\s*\\+?\\s*${roleModifier}${headcountNoun}`,
+    "gi"
+  );
+  const allMatches = [...text.matchAll(sumPattern)];
+  if (allMatches.length > 0) {
+    const total = allMatches.reduce((sum, m) => {
+      const n = Number(m[1].replace(/,/g, ""));
+      return n > 0 && n < 1_000_000 ? sum + n : sum;
+    }, 0);
+    if (total > 0) return total;
+  }
+
   const patterns = [
-    /\b(\d[\d,]*)\s*(?:users?|reps?|agents?|employees?|staff|people|seats?|licenses?)\b/i,
     /\b(\d[\d,]*)-?person\b/i,
     /\bteam of\s+(\d[\d,]*)\b/i,
   ];

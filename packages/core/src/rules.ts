@@ -6,36 +6,49 @@ const has = (text: string, needles: string[]) => needles.some((n) => text.includ
 const countMatches = (text: string, needles: string[]) => needles.filter((n) => text.includes(n)).length;
 
 function parseUsers(text: string): number | null {
-  // Try explicit numeric + headcount noun patterns (most specific first)
-  const headcountNoun = "(?:users?|reps?|agents?|employees?|staff|people|seats?|team members?|licenses?)";
-  const patterns = [
-    new RegExp(`(\\d[\\d,]*)\\s*\\+\\s*${headcountNoun}`),
-    new RegExp(`(\\d[\\d,]*)\\+\\s*${headcountNoun}`),
-    new RegExp(`(\\d[\\d,]*)\\s+${headcountNoun}`),
+  const headcountNoun =
+    "(?:users?|reps?|agents?|employees?|staff|people|seats?|team\\s+members?|licenses?" +
+    "|managers?|executives?|salespeople|sales\\s+people|directors?|admins?|administrators?" +
+    "|analysts?|consultants?|engineers?|associates?|professionals?|coordinators?" +
+    "|specialists?|advisors?|representatives?|technicians?|operators?|supervisors?" +
+    "|developers?|leaders?|partners?)";
+  // Optional role-modifier words (not numeric multipliers like million/billion)
+  const roleModifier = "(?:(?!million|billion|thousand|hundred|percent)\\w+\\s+){0,2}";
+
+  // Step 1: find ALL "N [role] noun" mentions and sum them.
+  // This handles "50 sales reps, 200 account executives, 80 inside sales reps" → 330.
+  // Exclude mentions preceded by "total" (those are summary numbers, not additive groups).
+  const sumPattern = new RegExp(
+    `(?<!total\\s)(?<!totaling\\s)(?<!totalling\\s)(\\d[\\d,]*)\\s*\\+?\\s*${roleModifier}${headcountNoun}`,
+    "g"
+  );
+  const allMatches = [...text.matchAll(sumPattern)];
+  if (allMatches.length > 0) {
+    const total = allMatches.reduce((sum, m) => {
+      const n = Number(m[1].replace(/,/g, ""));
+      return n > 0 && n < 1_000_000 ? sum + n : sum;
+    }, 0);
+    if (total > 0) return total;
+  }
+
+  // Step 2: fallback patterns (single-value, no summing)
+  const fallbacks = [
     /team of\s+(\d[\d,]*)/,
     /(\d[\d,]*)-?person\b/,
     /(\d[\d,]*)-?member\b/,
-    // Require headcount noun after quantity qualifiers to avoid matching revenue/budget figures
-    new RegExp(`more than\\s+(\\d[\\d,]*)\\s+${headcountNoun}`),
-    new RegExp(`over\\s+(\\d[\\d,]*)\\s+${headcountNoun}`),
-    new RegExp(`around\\s+(\\d[\\d,]*)\\s+${headcountNoun}`),
-    new RegExp(`about\\s+(\\d[\\d,]*)\\s+${headcountNoun}`),
-    new RegExp(`for\\s+(\\d[\\d,]*)\\s+${headcountNoun}`),
-    // bare "500+" only when followed by headcount noun (avoid matching revenue like "$3,620+")
-    new RegExp(`(\\d[\\d,]*)\\+\\s*${headcountNoun}`),
-    // bare small numbers in headcount context (e.g. "company of 15", "team: 15")
+    new RegExp(`(?:more than|over|around|about|for)\\s+(\\d[\\d,]*)\\s+${roleModifier}${headcountNoun}`),
     /(?:company|team|org|organisation?)\s*(?:of|:)?\s*(\d{1,4})\b/,
     /(\d{1,4})\s*(?:total\s+)?(?:concurrent\s+)?users?\b/,
   ];
-  for (const p of patterns) {
+  for (const p of fallbacks) {
     const m = text.match(p);
     if (m) {
-      const raw = m[1] ?? m[0].replace(/\D/g, "");
-      const n = Number(raw.replace(/,/g, ""));
+      const n = Number((m[1] ?? m[0].replace(/\D/g, "")).replace(/,/g, ""));
       if (n > 0 && n < 1_000_000) return n;
     }
   }
-  // Named size bands
+
+  // Step 3: named size bands
   if (/\b(?:startup|micro|just (?:me|myself)|solo|founder|1-person)\b/.test(text)) return 5;
   if (/\b(?:small (?:team|company|business|org)|smb|sme|boutique)\b/.test(text)) return 15;
   if (/\b(?:mid-?market|growing (?:team|company)|scale-?up)\b/.test(text)) return 75;
