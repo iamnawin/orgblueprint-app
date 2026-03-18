@@ -135,7 +135,7 @@ export function ConversationChat() {
   const [blueprintSlug, setBlueprintSlug] = useState<string | null>(null);
   const [aiPowered, setAiPowered] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const questionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const questionTimerRef = useRef<number | null>(null);
 
   const answeredMap = Object.fromEntries(
     conversation.map((c) => [c.question, c.answer])
