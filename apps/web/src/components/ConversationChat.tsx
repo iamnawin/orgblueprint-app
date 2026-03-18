@@ -128,6 +128,8 @@ export function ConversationChat() {
   const [selectedExpansions, setSelectedExpansions] = useState<ExpansionKey[]>([]);
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const [progressStep, setProgressStep] = useState(0);
+  const progressIntervalRef = useRef<number | null>(null);
   const [aiRunsLeft, setAiRunsLeft] = useState<number | null>(null);
   const [aiKeyMissing, setAiKeyMissing] = useState(false);
   const [crmPlatform, setCrmPlatform] = useState<CrmPlatform>("salesforce");
@@ -217,7 +219,14 @@ export function ConversationChat() {
   async function generate() {
     setGenerating(true);
     setGenerateError(null);
+    setProgressStep(0);
     setStage("generating");
+
+    // Cycle through progress steps every 3s while waiting
+    progressIntervalRef.current = window.setInterval(() => {
+      setProgressStep((s) => s + 1);
+    }, 3000);
+
     try {
       const res = await fetch("/api/blueprint", {
         method: "POST",
@@ -225,6 +234,11 @@ export function ConversationChat() {
         body: JSON.stringify({ input: needText, answers: answeredMap, mode, expansions: selectedExpansions }),
       });
       const data = await res.json();
+
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
 
       if (res.status === 429) {
         setGenerateError(data.error ?? "Quota exceeded.");
@@ -242,6 +256,10 @@ export function ConversationChat() {
       setAiPowered(data.aiPowered ?? false);
       setStage("results");
     } catch {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
       setGenerateError("Something went wrong. Please try again.");
       setGenerating(false);
       setStage("expand");
@@ -727,27 +745,54 @@ export function ConversationChat() {
       )}
 
       {/* Generating stage */}
-      {stage === "generating" && (
-        <Card className="shadow-sm border-slate-200">
-          <CardContent className="py-20 text-center space-y-5">
-            <div className="relative mx-auto w-16 h-16">
-              <div className="absolute inset-0 rounded-full border-4 border-blue-100" />
-              <div className="absolute inset-0 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
-              <Sparkles className="absolute inset-0 m-auto h-6 w-6 text-blue-500" />
-            </div>
-            <div>
-              <p className="text-slate-700 text-lg font-medium">
-                {mode === "ai" ? "Analysing your Salesforce blueprint…" : "Building your blueprint…"}
-              </p>
-              <p className="text-slate-400 text-sm mt-1">
-                {mode === "ai"
-                  ? "Orb is evaluating 21 product families across all Salesforce clouds"
-                  : "Running rules engine across 21 Salesforce product families"}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {stage === "generating" && (() => {
+        const aiSteps = [
+          { icon: "🔍", text: "Reading your requirements…", sub: "Parsing business context and signals" },
+          { icon: "🧠", text: "Evaluating Salesforce product families…", sub: "Matching 21 clouds to your use case" },
+          { icon: "🏗️", text: "Designing architecture…", sub: "OOTB vs custom, integrations, AppExchange" },
+          { icon: "🗄️", text: "Mapping your data model…", sub: "Objects, relationships, automations" },
+          { icon: "💰", text: "Estimating costs and roadmap…", sub: "License tiers and phased delivery plan" },
+          { icon: "✨", text: "Finalising your blueprint…", sub: "Almost ready" },
+        ];
+        const demoSteps = [
+          { icon: "🔍", text: "Extracting signals…", sub: "Scanning your description" },
+          { icon: "📦", text: "Selecting products…", sub: "Running rules engine" },
+          { icon: "🏗️", text: "Building blueprint…", sub: "Assembling all sections" },
+          { icon: "✨", text: "Done!", sub: "Preparing your dashboard" },
+        ];
+        const steps = mode === "ai" ? aiSteps : demoSteps;
+        const current = steps[Math.min(progressStep, steps.length - 1)];
+        const pct = Math.min(Math.round(((progressStep + 1) / steps.length) * 100), 95);
+        return (
+          <Card className="shadow-sm border-slate-200">
+            <CardContent className="py-16 text-center space-y-6">
+              <div className="relative mx-auto w-16 h-16">
+                <div className="absolute inset-0 rounded-full border-4 border-blue-100" />
+                <div className="absolute inset-0 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
+                <span className="absolute inset-0 flex items-center justify-center text-2xl">{current.icon}</span>
+              </div>
+              <div className="space-y-1">
+                <p className="text-slate-700 text-lg font-semibold">{current.text}</p>
+                <p className="text-slate-400 text-sm">{current.sub}</p>
+              </div>
+              <div className="max-w-xs mx-auto space-y-1.5">
+                <Progress value={pct} className="h-1.5" />
+                <p className="text-xs text-slate-400">{pct}%</p>
+              </div>
+              <div className="flex justify-center gap-1.5">
+                {steps.map((_, i) => (
+                  <div
+                    key={i}
+                    className={`w-1.5 h-1.5 rounded-full transition-colors duration-500 ${
+                      i <= progressStep ? "bg-blue-500" : "bg-slate-200"
+                    }`}
+                  />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
     </div>
   );
 }
