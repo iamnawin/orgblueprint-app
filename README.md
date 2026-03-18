@@ -1,34 +1,50 @@
-# OrgBlueprint
+<div align="center">
+
+# 🏗️ OrgBlueprint
 
 **Turn a rough business description into a structured Salesforce implementation blueprint — in seconds.**
 
-OrgBlueprint is an AI-assisted CRM planning tool for founders, RevOps teams, admins, consultants, and solution architects. Describe your business needs in plain language; OrgBlueprint produces a full delivery package: product recommendations, architecture guidance, cost estimates, a phased roadmap, and a document checklist — ready to share with stakeholders or drop into a discovery workshop.
+[![Next.js](https://img.shields.io/badge/Next.js_14-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React_18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![Prisma](https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white)](https://www.prisma.io/)
+[![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/)
+
+[![Anthropic](https://img.shields.io/badge/Claude_Sonnet-D97757?style=for-the-badge&logo=anthropic&logoColor=white)](https://anthropic.com/)
+[![Gemini](https://img.shields.io/badge/Gemini_2.0_Flash-4285F4?style=for-the-badge&logo=googlegemini&logoColor=white)](https://deepmind.google/gemini/)
+[![NVIDIA](https://img.shields.io/badge/NVIDIA_NIM-76B900?style=for-the-badge&logo=nvidia&logoColor=white)](https://developer.nvidia.com/nim)
+[![Playwright](https://img.shields.io/badge/Playwright-2EAD33?style=for-the-badge&logo=playwright&logoColor=white)](https://playwright.dev/)
+
+*AI-assisted CRM planning for founders, RevOps teams, admins, consultants, and solution architects.*
+
+</div>
 
 ---
 
-## What it produces
+## ✨ What it produces
 
-A single generation run outputs:
+A single generation run outputs a full delivery package:
 
 | Section | What's inside |
 |---|---|
-| **Executive Snapshot** | Confidence score, complexity level, user count band, primary focus |
-| **Product Recommendations** | Recommended vs optional Salesforce products with rationale |
-| **Architecture** | OOTB vs custom guidance, integration map, AppExchange picks |
-| **Data Model** | Business-friendly entity cards, relationship diagram, automations |
-| **Technical Blueprint** | Platform-specific technical guidance derived from product selection |
-| **Cost Estimate** | Directional year-one range — license + implementation (not a quote) |
-| **Roadmap** | Phased delivery plan with implementation checklist |
-| **Document Checklist** | BRD, data model, security model, test plan, and more |
+| 📊 **Executive Snapshot** | Confidence score, complexity level, user count band, primary focus |
+| 📦 **Product Recommendations** | Recommended vs optional Salesforce products with rationale |
+| 🏛️ **Architecture** | OOTB vs custom guidance, integration map, AppExchange picks |
+| 🗄️ **Data Model** | Business-friendly entity cards, relationship diagram, automations |
+| ⚙️ **Technical Blueprint** | Platform-specific technical guidance derived from product selection |
+| 💰 **Cost Estimate** | Directional year-one range — license + implementation (not a quote) |
+| 🗺️ **Roadmap** | Phased delivery plan with implementation checklist |
+| 📋 **Document Checklist** | BRD, data model, security model, test plan, and more |
 
 ---
 
-## Two generation modes
+## ⚡ Two generation modes
 
-### Demo mode — instant, no API key needed
+### 🎯 Demo mode — instant, no API key needed
 Rules engine (`extractSignals` → `decideProducts` → `generateBlueprint`) plus template enrichment. Zero external calls, sub-second output.
 
-### AI Enhanced mode — powered by Orb
+### 🤖 AI Enhanced mode — powered by Orb
 Orb (your built-in CRM architect assistant) asks up to 5 clarifying questions, then generates a richer narrative blueprint using LLM. Falls back to demo mode gracefully if all providers are unavailable.
 
 **AI provider fallback chain:**
@@ -38,23 +54,51 @@ Anthropic Claude Sonnet → Gemini 2.0 Flash → Groq → deterministic rules en
 
 ---
 
-## Tech stack
+## 🛠️ Tech stack
 
-**Frontend & framework**
-- Next.js 14 (App Router) · React 18 · TypeScript · Tailwind CSS · shadcn/ui
+<table>
+<tr>
+<td valign="top" width="50%">
 
-**Backend & data**
-- Prisma ORM · PostgreSQL (Neon on Vercel, SQLite locally) · NextAuth v5
+**Frontend & Framework**
 
-**AI**
-- Anthropic SDK · Google Generative AI SDK · Groq SDK · NVIDIA NIM (MiniMax M2.5)
+![Next.js](https://img.shields.io/badge/Next.js_14-000?logo=nextdotjs&logoColor=white&style=flat-square)
+![React](https://img.shields.io/badge/React_18-61DAFB?logo=react&logoColor=black&style=flat-square)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white&style=flat-square)
+![Tailwind](https://img.shields.io/badge/Tailwind_CSS-06B6D4?logo=tailwindcss&logoColor=white&style=flat-square)
+![shadcn/ui](https://img.shields.io/badge/shadcn%2Fui-000?logo=shadcnui&logoColor=white&style=flat-square)
 
-**Export & utilities**
-- jsPDF + html2canvas · nanoid · Upstash Redis (quota tracking)
+**Backend & Data**
+
+![Prisma](https://img.shields.io/badge/Prisma-2D3748?logo=prisma&logoColor=white&style=flat-square)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white&style=flat-square)
+![SQLite](https://img.shields.io/badge/SQLite_(local)-003B57?logo=sqlite&logoColor=white&style=flat-square)
+![NextAuth](https://img.shields.io/badge/NextAuth_v5-000?logo=nextdotjs&logoColor=white&style=flat-square)
+
+</td>
+<td valign="top" width="50%">
+
+**AI Providers**
+
+![Anthropic](https://img.shields.io/badge/Anthropic_Claude-D97757?logo=anthropic&logoColor=white&style=flat-square)
+![Gemini](https://img.shields.io/badge/Google_Gemini-4285F4?logo=googlegemini&logoColor=white&style=flat-square)
+![Groq](https://img.shields.io/badge/Groq-F55036?logo=groq&logoColor=white&style=flat-square)
+![NVIDIA](https://img.shields.io/badge/NVIDIA_NIM-76B900?logo=nvidia&logoColor=white&style=flat-square)
+
+**Export & Infrastructure**
+
+![Vercel](https://img.shields.io/badge/Vercel-000?logo=vercel&logoColor=white&style=flat-square)
+![Upstash](https://img.shields.io/badge/Upstash_Redis-00E9A3?logo=upstash&logoColor=black&style=flat-square)
+![jsPDF](https://img.shields.io/badge/jsPDF-FF0000?logo=adobeacrobatreader&logoColor=white&style=flat-square)
+![Playwright](https://img.shields.io/badge/Playwright-2EAD33?logo=playwright&logoColor=white&style=flat-square)
+
+</td>
+</tr>
+</table>
 
 ---
 
-## Monorepo structure
+## 📁 Monorepo structure
 
 ```
 orgblueprint-app/
@@ -85,7 +129,7 @@ orgblueprint-app/
 
 ---
 
-## Quick start
+## 🚀 Quick start
 
 ### 1. Install
 
@@ -113,7 +157,7 @@ UPSTASH_REDIS_REST_URL="..."
 UPSTASH_REDIS_REST_TOKEN="..."
 ```
 
-Demo mode works with no API keys at all.
+> Demo mode works with **no API keys** at all.
 
 ### 3. Database
 
@@ -129,7 +173,7 @@ npm run dev       # http://localhost:3000
 
 ---
 
-## Scripts
+## 📜 Scripts
 
 Run from the repo root:
 
@@ -145,7 +189,7 @@ npm run doctor        # Repo and environment health check
 
 ---
 
-## Pages and routes
+## 🗺️ Pages and routes
 
 | Route | Description |
 |---|---|
@@ -166,19 +210,19 @@ npm run doctor        # Repo and environment health check
 
 ---
 
-## Guardrails
+## 🛡️ Guardrails
 
 OrgBlueprint is deliberately opinionated to avoid low-quality recommendations:
 
-- **No official pricing** — all cost output is labelled "Directional estimate only. Not a Salesforce quote."
-- **Data Cloud** — only recommended when `externalSystemsCount ≥ 2` or explicit data-unification signals
-- **Agentforce / Einstein** — never `recommended`; max `optional`, only with explicit AI automation intent
-- **Config over custom** — standard objects and Flow preferred unless "proprietary" or "unique compliance" signals appear
-- **AI quota** — 3 AI Enhanced runs/day per IP, 30s cooldown (Upstash Redis or in-memory fallback)
+- 🚫 **No official pricing** — all cost output is labelled "Directional estimate only. Not a Salesforce quote."
+- ☁️ **Data Cloud** — only recommended when `externalSystemsCount ≥ 2` or explicit data-unification signals
+- 🤖 **Agentforce / Einstein** — never `recommended`; max `optional`, only with explicit AI automation intent
+- ⚙️ **Config over custom** — standard objects and Flow preferred unless "proprietary" or "unique compliance" signals appear
+- ⏱️ **AI quota** — 3 AI Enhanced runs/day per IP, 30s cooldown (Upstash Redis or in-memory fallback)
 
 ---
 
-## Deployment
+## 🚢 Deployment
 
 Deploys to Vercel out of the box.
 
@@ -186,11 +230,11 @@ Deploys to Vercel out of the box.
 Vercel project → connect repo → set env vars → deploy
 ```
 
-Switch `DATABASE_URL` to a Neon Postgres connection string for persistent storage (SQLite is ephemeral on Vercel's serverless runtime).
+Switch `DATABASE_URL` to a [Neon](https://neon.tech) Postgres connection string for persistent storage (SQLite is ephemeral on Vercel's serverless runtime).
 
 ---
 
-## Testing
+## 🧪 Testing
 
 ```bash
 # Rules engine regression
