@@ -2125,22 +2125,24 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
 
       {/* ─── Tabbed sections ─── */}
       <div>
-        {/* Custom scrollable tab navigation */}
-        <div className="flex overflow-x-auto gap-1.5 p-1.5 bg-slate-900 rounded-2xl border border-slate-700 print:hidden mb-4 scrollbar-hide">
+        {/* Custom tab navigation — icon-only on mobile, icon+label on desktop */}
+        <div className="grid grid-cols-6 gap-1 p-1.5 bg-slate-900 rounded-2xl border border-slate-700 print:hidden mb-4 sm:flex sm:overflow-x-auto sm:gap-1.5 sm:scrollbar-hide">
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium transition-all duration-150 whitespace-nowrap ${
+                title={tab.label}
+                className={`flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-0.5 sm:gap-1.5 px-1 sm:px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all duration-150 whitespace-nowrap ${
                   isActive
                     ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
                     : "text-slate-400 hover:text-white hover:bg-slate-700"
                 }`}
               >
-                <span className={`text-base leading-none ${isActive ? "opacity-100" : "opacity-60"}`}>{tab.icon}</span>
-                <span>{tab.label}</span>
+                <span className={`text-lg sm:text-base leading-none ${isActive ? "opacity-100" : "opacity-60"}`}>{tab.icon}</span>
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden text-[10px] leading-tight text-center">{tab.label.split(" ")[0]}</span>
               </button>
             );
           })}
