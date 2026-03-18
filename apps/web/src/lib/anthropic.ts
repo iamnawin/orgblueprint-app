@@ -124,21 +124,34 @@ function buildQuestionPrompt(
   return `A customer described their business needs as:
 "${needText}"
 
-${answeredSummary ? `We already have these answers:\n${answeredSummary}\n\n` : ""}${askedSummary ? `Questions already asked (do NOT repeat or paraphrase these):\n${askedSummary}\n\n` : ""}Based on what you know, what is the SINGLE most important clarifying question you would ask to significantly improve the Salesforce product recommendation?
+${answeredSummary ? `Clarifications already collected:\n${answeredSummary}\n\n` : ""}${askedSummary ? `Questions already asked — do NOT repeat or rephrase any of these:\n${askedSummary}\n\n` : ""}Your task: identify the SINGLE most important gap in the information above, then ask ONE concrete question to fill it.
 
-Focus on questions that reveal: industry vertical, team size, existing systems, specific pain points, or whether they need marketing/commerce/collaboration capabilities.
+Before choosing a question, mentally check what is ALREADY KNOWN from the description and answers above:
+- Is the industry/vertical already mentioned? → do NOT ask about it again.
+- Is team size or user count already mentioned? → do NOT ask about it again.
+- Are existing systems or integrations already mentioned? → do NOT ask about it again.
+- Is the primary pain point already clear? → do NOT ask about it again.
+
+Only ask about something that is genuinely missing and would meaningfully change the Salesforce product recommendation.
+
+Good question areas (pick the most relevant gap only):
+- Industry-specific compliance (HIPAA, GDPR, SOX) if regulated industry is hinted but compliance needs are unclear
+- Key teams or departments not yet mentioned (sales, service, marketing, partners)
+- Existing tech stack or systems that need to integrate
+- Whether customers/partners need a self-service portal
+- Budget range or timeline if completely unknown and relevant
+- Specific pain point driving this project
 
 Rules:
-- NEVER repeat a question that has already been asked.
-- If the user already answered industry, do not ask industry again.
-- Ask only one short, concrete question.
-- DO NOT reveal reasoning, analysis, chain-of-thought, or internal notes.
+- Ask only ONE short, concrete question — one sentence.
+- Make the question clearly relevant to THIS specific customer's description, not generic.
+- DO NOT output reasoning, chain-of-thought, or internal notes.
 - DO NOT use <think> tags.
-- Output only the final user-facing question.
+- Output only the final question text.
 
-If you already have enough information to produce a solid blueprint (you have ${askedCount} asked questions already), respond with exactly: DONE
+If you already have enough information across the description and ${askedCount} answers to produce a solid blueprint, respond with exactly: DONE
 
-Otherwise respond with just the question text, nothing else.`;
+Otherwise respond with just the question, nothing else.`;
 }
 
 export async function getNextQuestion(
