@@ -3,3 +3,6 @@ node_modules
 dist
 apps/web/tsconfig.tsbuildinfo
 apps/web/prisma/prisma/
+apps/web/artifacts/
+apps/web/playwright-report/
+apps/web/test-results/
