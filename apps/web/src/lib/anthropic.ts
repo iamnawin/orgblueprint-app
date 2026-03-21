@@ -7,7 +7,7 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? "" });
 
 // ─── OpenRouter helpers ────────────────────────────────────────────────────────
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/chat/completions";
-const OPENROUTER_MODEL = "stepfun-ai/step-3.5-flash";
+const OPENROUTER_MODEL = "stepfun/step-3.5-flash";
 
 async function openrouterChat(
   messages: { role: "system" | "user" | "assistant"; content: string }[],
@@ -37,8 +37,22 @@ async function openrouterChat(
     throw new Error(`openrouter_error_${response.status}: ${err}`);
   }
 
-  const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
-  return (data.choices?.[0]?.message?.content ?? "").trim();
+  const data = (await response.json()) as {
+    choices?: { message?: { content?: string | null; reasoning?: string } }[];
+  };
+  const msg = data.choices?.[0]?.message;
+  const content = msg?.content?.trim();
+  if (content) return content;
+  // Thinking models (like Step 3.5 Flash) sometimes return content:null when
+  // they exhaust max_tokens during the reasoning phase. Fall back to the last
+  // question found in the reasoning field.
+  const reasoning = msg?.reasoning?.trim();
+  if (reasoning) {
+    const sentences = reasoning.split(/(?<=[.?!])\s+/);
+    const lastQuestion = [...sentences].reverse().find((s) => s.includes("?"));
+    if (lastQuestion) return lastQuestion.trim();
+  }
+  return "";
 }
 const NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const NVIDIA_MODEL = "minimaxai/minimax-m2.5";
@@ -418,7 +432,7 @@ Guardrails for the final blueprint (keep these in mind when deciding what to ask
     try {
       const raw = await openrouterChat(
         [{ role: "system", content: systemPrompt }, ...messages],
-        256
+        1024
       );
       const text = sanitizeQuestionText(raw);
       if (!text || text.toUpperCase().startsWith("DONE")) return null;
