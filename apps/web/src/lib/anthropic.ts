@@ -445,45 +445,14 @@ Guardrails for the final blueprint (keep these in mind when deciding what to ask
     messages.push({ role: "user", content: turn.answer || "(skipped)" });
   }
 
-  // Try OpenRouter first
-  if (process.env.OPENROUTER_API_KEY) {
-    try {
-      const raw = await openrouterChat(
-        [{ role: "system", content: systemPrompt }, ...messages],
-        1024
-      );
-      const text = sanitizeQuestionText(raw);
-      if (!text || text.toUpperCase().startsWith("DONE")) return null;
-      return text;
-    } catch (e) {
-      console.error("OpenRouter question failed:", e);
-    }
-  }
-
-  // Fallback to Anthropic
-  if (process.env.ANTHROPIC_API_KEY) {
-    try {
-      const response = await client.messages.create({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 256,
-        system: systemPrompt,
-        messages: messages.map((m) => ({ role: m.role, content: m.content })),
-      });
-      const text = sanitizeQuestionText((response.content[0] as { text: string }).text.trim());
-      if (!text || text.toUpperCase().startsWith("DONE")) return null;
-      return text;
-    } catch (e) {
-      console.error("Anthropic question failed:", e);
-    }
-  }
-
-  // Fallback to Gemini
+  // Use Gemini for conversational questions
   if (process.env.GEMINI_API_KEY) {
     try {
       const askedList = history.map((t) => t.question);
       const answeredMap = Object.fromEntries(history.map((t) => [t.question, t.answer]));
-      const prompt = buildQuestionPrompt(needText, history.length, Object.entries(answeredMap).map(([q, a]) => `Q: ${q}\nA: ${a}`).join("\n\n"), askedList);
-      const text = sanitizeQuestionText(await geminiGenerate(prompt, ARCHITECT_SYSTEM));
+      const answeredSummary = Object.entries(answeredMap).map(([q, a]) => `Q: ${q}\nA: ${a}`).join("\n\n");
+      const prompt = buildQuestionPrompt(needText, history.length, answeredSummary, askedList);
+      const text = sanitizeQuestionText(await geminiGenerate(prompt, systemPrompt));
       if (!text || text.toUpperCase().startsWith("DONE")) return null;
       return text;
     } catch (e) {
@@ -491,7 +460,7 @@ Guardrails for the final blueprint (keep these in mind when deciding what to ask
     }
   }
 
-  return null; // all providers failed → UI falls back to deterministic
+  return null; // → route falls back to deterministic
 }
 
 export async function generateBlueprintFromGroq(
