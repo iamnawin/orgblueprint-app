@@ -62,12 +62,15 @@ export async function POST(req: NextRequest) {
     try {
       if (process.env.ANTHROPIC_API_KEY) {
         result = await generateBlueprintFromLLM(input, answers);
+      } else if (process.env.GEMINI_API_KEY) {
+        // Gemini first — faster and more reliable than NVIDIA for blueprint generation
+        result = await generateBlueprintFromGemini(input, answers);
       } else if (process.env.NVIDIA_API_KEY) {
         result = await generateBlueprintFromNvidia(input, answers);
-      } else if (process.env.GEMINI_API_KEY) {
-        result = await generateBlueprintFromGemini(input, answers);
-      } else {
+      } else if (process.env.GROQ_API_KEY) {
         result = await generateBlueprintFromGroq(input, answers);
+      } else {
+        throw new Error("no_ai_key");
       }
       result = normalizeBlueprintResult(result, contextInput, structuredAnswers);
       aiPowered = true;

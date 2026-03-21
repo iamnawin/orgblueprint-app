@@ -16,21 +16,30 @@ async function openrouterChat(
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) throw new Error("no_openrouter_key");
 
-  const response = await fetch(OPENROUTER_BASE_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://orgblueprint.app",
-      "X-Title": "OrgBlueprint",
-    },
-    body: JSON.stringify({
-      model: OPENROUTER_MODEL,
-      messages,
-      max_tokens: maxTokens,
-      temperature: 0.7,
-    }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000); // 8s timeout
+
+  let response: Response;
+  try {
+    response = await fetch(OPENROUTER_BASE_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://orgblueprint.app",
+        "X-Title": "OrgBlueprint",
+      },
+      body: JSON.stringify({
+        model: OPENROUTER_MODEL,
+        messages,
+        max_tokens: maxTokens,
+        temperature: 0.7,
+      }),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     const err = await response.text();
@@ -95,24 +104,33 @@ async function nvidiaGenerate(prompt: string, systemHint: string, maxTokens = 40
   const key = process.env.NVIDIA_API_KEY;
   if (!key) throw new Error("no_nvidia_key");
 
-  const response = await fetch(NVIDIA_BASE_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: NVIDIA_MODEL,
-      messages: [
-        { role: "system", content: systemHint },
-        { role: "user", content: prompt },
-      ],
-      temperature: 0.2,
-      top_p: 0.9,
-      max_tokens: maxTokens,
-      stream: false,
-    }),
-  });
+  const nvidiaController = new AbortController();
+  const nvidiaTimeout = setTimeout(() => nvidiaController.abort(), 20000); // 20s timeout
+
+  let response: Response;
+  try {
+    response = await fetch(NVIDIA_BASE_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: NVIDIA_MODEL,
+        messages: [
+          { role: "system", content: systemHint },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.2,
+        top_p: 0.9,
+        max_tokens: maxTokens,
+        stream: false,
+      }),
+      signal: nvidiaController.signal,
+    });
+  } finally {
+    clearTimeout(nvidiaTimeout);
+  }
 
   if (!response.ok) {
     throw new Error(`nvidia_error_${response.status}`);
