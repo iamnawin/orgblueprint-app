@@ -153,29 +153,37 @@ export function ConversationChat() {
   }, [conversation, currentQuestion, loadingQuestion]);
 
   function fetchNextQuestion(
-    answeredOverride?: Record<string, string>,
-    askedOverride?: string[]
+    historyOverride?: { question: string; answer: string }[]
   ) {
     // Cancel any pending transition so stale timers can't overwrite current state
     if (questionTimerRef.current) clearTimeout(questionTimerRef.current);
 
     setLoadingQuestion(true);
-    const nextQuestion = nextOrbQuestion(
-      needText,
-      answeredOverride ?? answeredMap,
-      askedOverride ?? askedQuestions
-    );
-    questionTimerRef.current = window.setTimeout(() => {
-      questionTimerRef.current = null;
-      if (nextQuestion) {
-        setAiKeyMissing(false);
-        setCurrentQuestion(nextQuestion);
-      } else {
+
+    const historyToSend = historyOverride ?? conversation;
+
+    fetch("/api/conversation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ needText, history: historyToSend }),
+    })
+      .then((res) => res.json())
+      .then((data: { question: string | null; provider?: string }) => {
+        if (data.question) {
+          setAiKeyMissing(false);
+          setCurrentQuestion(data.question);
+        } else {
+          setCurrentQuestion(null);
+          setStage("confirm");
+        }
+        setLoadingQuestion(false);
+      })
+      .catch(() => {
+        // Network error fallback: skip to confirm
         setCurrentQuestion(null);
         setStage("confirm");
-      }
-      setLoadingQuestion(false);
-    }, 250);
+        setLoadingQuestion(false);
+      });
   }
 
   function skipAllToConfirm() {
@@ -195,25 +203,20 @@ export function ConversationChat() {
       setStage("confirm");
     } else {
       setAskedQuestions([]);
+      setConversation([]);
       setStage("conversation");
-      fetchNextQuestion({}, []);
+      fetchNextQuestion([]);
     }
   }
 
   function handleAnswer(skip = false) {
     if (!currentQuestion) return;
-    const nextAnswered = { ...answeredMap };
-    const nextAsked = [...askedQuestions, currentQuestion];
-    if (!skip && currentAnswer.trim()) {
-      nextAnswered[currentQuestion] = currentAnswer.trim();
-      setConversation((prev) => [
-        ...prev,
-        { question: currentQuestion, answer: currentAnswer.trim() },
-      ]);
-    }
-    setAskedQuestions(nextAsked);
+    const answer = (!skip && currentAnswer.trim()) ? currentAnswer.trim() : "";
+    const nextConversation = [...conversation, { question: currentQuestion, answer }];
+    setConversation(nextConversation);
+    setAskedQuestions([...askedQuestions, currentQuestion]);
     setCurrentAnswer("");
-    fetchNextQuestion(nextAnswered, nextAsked);
+    fetchNextQuestion(nextConversation);
   }
 
   async function generate() {

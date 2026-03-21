@@ -4,6 +4,42 @@ import Groq from "groq-sdk";
 import { BlueprintResult } from "@orgblueprint/core";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? "" });
+
+// ─── OpenRouter helpers ────────────────────────────────────────────────────────
+const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/chat/completions";
+const OPENROUTER_MODEL = "stepfun-ai/step-3.5-flash";
+
+async function openrouterChat(
+  messages: { role: "system" | "user" | "assistant"; content: string }[],
+  maxTokens = 512
+): Promise<string> {
+  const key = process.env.OPENROUTER_API_KEY;
+  if (!key) throw new Error("no_openrouter_key");
+
+  const response = await fetch(OPENROUTER_BASE_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://orgblueprint.app",
+      "X-Title": "OrgBlueprint",
+    },
+    body: JSON.stringify({
+      model: OPENROUTER_MODEL,
+      messages,
+      max_tokens: maxTokens,
+      temperature: 0.7,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`openrouter_error_${response.status}: ${err}`);
+  }
+
+  const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
+  return (data.choices?.[0]?.message?.content ?? "").trim();
+}
 const NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const NVIDIA_MODEL = "minimaxai/minimax-m2.5";
 
@@ -337,6 +373,93 @@ export async function getNextQuestionGroq(
   const text = sanitizeQuestionText(await groqGenerate(prompt, ARCHITECT_SYSTEM, 256));
   if (!text || text === "DONE" || text.toUpperCase().startsWith("DONE")) return null;
   return text;
+}
+
+// ─── Conversational question generation (OpenRouter primary) ──────────────────
+// Passes full conversation history as proper messages so the model has real context.
+export interface ConversationTurn {
+  question: string;
+  answer: string;
+}
+
+export async function getNextQuestionConversational(
+  needText: string,
+  history: ConversationTurn[]
+): Promise<string | null> {
+  if (history.length >= 5) return null;
+
+  const systemPrompt = `You are a friendly, senior Salesforce solution architect doing a discovery call with a prospective client. Your job is to ask SHORT, NATURAL clarifying questions — like a real conversation, not a form.
+
+Rules:
+- Ask ONE question at a time. One sentence only.
+- Sound human and curious, not robotic or formal.
+- Base each question directly on what the client just said — reference their specific words when helpful.
+- Never repeat or rephrase something already answered.
+- If you have enough context to recommend Salesforce products confidently, respond with exactly: DONE
+- Do NOT output reasoning, bullet points, or anything except the question itself.
+
+Guardrails for the final blueprint (keep these in mind when deciding what to ask):
+- Data Cloud: only if 2+ external integrations or explicit single-customer-view need.
+- Agentforce/Einstein: only if explicit AI automation intent.
+- Prefer standard config over custom code.`;
+
+  // Build message history: user description → AI question → user answer → ...
+  const messages: { role: "user" | "assistant"; content: string }[] = [
+    { role: "user", content: `Here's what we're trying to do: ${needText}` },
+  ];
+
+  for (const turn of history) {
+    messages.push({ role: "assistant", content: turn.question });
+    messages.push({ role: "user", content: turn.answer || "(skipped)" });
+  }
+
+  // Try OpenRouter first
+  if (process.env.OPENROUTER_API_KEY) {
+    try {
+      const raw = await openrouterChat(
+        [{ role: "system", content: systemPrompt }, ...messages],
+        256
+      );
+      const text = sanitizeQuestionText(raw);
+      if (!text || text.toUpperCase().startsWith("DONE")) return null;
+      return text;
+    } catch (e) {
+      console.error("OpenRouter question failed:", e);
+    }
+  }
+
+  // Fallback to Anthropic
+  if (process.env.ANTHROPIC_API_KEY) {
+    try {
+      const response = await client.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 256,
+        system: systemPrompt,
+        messages: messages.map((m) => ({ role: m.role, content: m.content })),
+      });
+      const text = sanitizeQuestionText((response.content[0] as { text: string }).text.trim());
+      if (!text || text.toUpperCase().startsWith("DONE")) return null;
+      return text;
+    } catch (e) {
+      console.error("Anthropic question failed:", e);
+    }
+  }
+
+  // Fallback to Gemini
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const askedList = history.map((t) => t.question);
+      const answeredMap = Object.fromEntries(history.map((t) => [t.question, t.answer]));
+      const prompt = buildQuestionPrompt(needText, history.length, Object.entries(answeredMap).map(([q, a]) => `Q: ${q}\nA: ${a}`).join("\n\n"), askedList);
+      const text = sanitizeQuestionText(await geminiGenerate(prompt, ARCHITECT_SYSTEM));
+      if (!text || text.toUpperCase().startsWith("DONE")) return null;
+      return text;
+    } catch (e) {
+      console.error("Gemini question failed:", e);
+    }
+  }
+
+  return null; // all providers failed → UI falls back to deterministic
 }
 
 export async function generateBlueprintFromGroq(

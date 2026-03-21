@@ -1,107 +1,90 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getNextQuestionConversational, ConversationTurn } from "@/lib/anthropic";
 
+// ── Deterministic fallback (used only when all AI providers fail) ──────────────
 function normalizeText(text: string): string {
   return text.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-function buildCorpus(needText: string, answered: Record<string, string>): string {
+function buildCorpus(needText: string, history: ConversationTurn[]): string {
   return normalizeText(
     [
       needText,
-      ...Object.entries(answered).flatMap(([question, answer]) => [question, answer]),
+      ...history.flatMap((t) => [t.question, t.answer]),
     ].join(" ")
-  );
-}
-
-function hasIndustry(corpus: string): boolean {
-  return /(health|healthcare|medical|clinic|hospital|pharma|finance|financial|bank|insurance|manufacturing|education|school|nonprofit|retail|saas|software|real estate|logistics|construction|consulting)/.test(
-    corpus
-  );
-}
-
-function hasUserShape(corpus: string): boolean {
-  return /(user|users|rep|reps|agent|agents|team|teams|seat|seats|employee|employees|people|headcount)/.test(
-    corpus
-  );
-}
-
-function hasIntegrations(corpus: string): boolean {
-  return /(integrat|erp|ehr|emr|sap|netsuite|workday|api|sync|database|data warehouse|billing system|website|portal)/.test(
-    corpus
-  );
-}
-
-function hasPainPoint(corpus: string): boolean {
-  return /(manual|spreadsheet|excel|slow|bottleneck|pain|problem|issue|duplicate|visibility|forecast|report|reporting|approval|routing|handoff|follow-up)/.test(
-    corpus
-  );
-}
-
-function hasTimelineOrOutcome(corpus: string): boolean {
-  return /(month|months|quarter|q[1-4]|timeline|go live|golive|deadline|target|outcome|goal|improve|reduce|increase|kpi|metric)/.test(
-    corpus
   );
 }
 
 function nextDeterministicQuestion(
   needText: string,
-  answered: Record<string, string>,
-  asked: string[]
+  history: ConversationTurn[]
 ): string | null {
-  if (asked.length >= 5) return null;
+  if (history.length >= 5) return null;
 
-  const corpus = buildCorpus(needText, answered);
-  const askedSet = new Set(asked.map(normalizeText));
+  const corpus = buildCorpus(needText, history);
+  const askedSet = new Set(history.map((t) => normalizeText(t.question)));
 
   const candidates = [
     {
-      when: !hasIndustry(corpus),
-      question:
-        "What industry are you in, and are there any compliance or regulatory requirements we should account for?",
+      when: !/(health|healthcare|medical|finance|financial|bank|insurance|manufacturing|education|nonprofit|retail|saas|real estate|logistics|construction|consulting)/.test(corpus),
+      question: "What industry are you in, and are there any compliance requirements we should know about?",
     },
     {
-      when: !hasUserShape(corpus),
-      question:
-        "Roughly how many users will need access, and which teams will use the system first?",
+      when: !/(user|users|rep|reps|agent|agents|team|seat|employee|people|headcount)/.test(corpus),
+      question: "Roughly how many people will use this system, and which teams will be on it first?",
     },
     {
-      when: !hasIntegrations(corpus),
-      question:
-        "What existing systems need to integrate with your CRM, and how critical is real-time sync versus scheduled updates?",
+      when: !/(integrat|erp|ehr|sap|netsuite|workday|api|sync|database|billing|portal)/.test(corpus),
+      question: "Are there any existing systems this needs to connect to — like an ERP, billing platform, or data warehouse?",
     },
     {
-      when: !hasPainPoint(corpus),
-      question:
-        "What is the biggest manual process or reporting bottleneck you want Orb to eliminate first?",
+      when: !/(manual|spreadsheet|excel|slow|bottleneck|pain|duplicate|visibility|forecast|approval|handoff|follow.up)/.test(corpus),
+      question: "What's the biggest manual headache or bottleneck you're hoping to solve first?",
     },
     {
-      when: !hasTimelineOrOutcome(corpus),
-      question:
-        "What is the single most important business outcome you want this CRM implementation to improve in the first 6 months?",
+      when: !/(month|quarter|timeline|go.live|deadline|target|outcome|goal|improve|reduce|increase|kpi|metric)/.test(corpus),
+      question: "What does success look like 6 months after go-live — what's the one metric you'd most want to see move?",
     },
   ];
 
-  for (const candidate of candidates) {
-    const normalized = normalizeText(candidate.question);
-    if (candidate.when && !askedSet.has(normalized)) {
-      return candidate.question;
+  for (const c of candidates) {
+    if (c.when && !askedSet.has(normalizeText(c.question))) {
+      return c.question;
     }
   }
 
-  const fallbackQuestion =
-    "Is there anything business-critical we have not covered yet, such as approvals, portal access, quoting, service SLAs, or analytics?";
-
-  return askedSet.has(normalizeText(fallbackQuestion)) ? null : fallbackQuestion;
+  const fallback = "Is there anything else critical we haven't covered — like approvals, partner portals, quoting, or service SLAs?";
+  return askedSet.has(normalizeText(fallback)) ? null : fallback;
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req
-    .json()
-    .catch(() => ({ needText: "", answered: {} as Record<string, string>, asked: [] as string[] }));
-  const needText = body.needText ?? "";
-  const answeredMap = body.answered ?? {};
-  const askedQuestions = body.asked ?? [];
+  const body = await req.json().catch(() => ({
+    needText: "",
+    history: [] as ConversationTurn[],
+  }));
 
-  const question = nextDeterministicQuestion(needText, answeredMap, askedQuestions);
+  const needText: string = body.needText ?? "";
+  // Support both new `history` format and legacy `answered` + `asked` format
+  let history: ConversationTurn[] = body.history ?? [];
+  if (!history.length && body.asked?.length) {
+    const answered: Record<string, string> = body.answered ?? {};
+    history = (body.asked as string[]).map((q: string) => ({
+      question: q,
+      answer: answered[q] ?? "",
+    }));
+  }
+
+  // Try AI-powered conversational question
+  try {
+    const question = await getNextQuestionConversational(needText, history);
+    if (question !== undefined) {
+      return NextResponse.json({ question, provider: "ai" });
+    }
+  } catch (e) {
+    console.error("AI conversation error, falling back to deterministic:", e);
+  }
+
+  // Deterministic fallback
+  const question = nextDeterministicQuestion(needText, history);
   return NextResponse.json({ question, provider: "rules" });
 }
