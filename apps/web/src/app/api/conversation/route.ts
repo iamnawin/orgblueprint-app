@@ -76,15 +76,15 @@ export async function POST(req: NextRequest) {
 
   // Try AI-powered conversational question
   try {
-    const question = await getNextQuestionConversational(needText, history);
-    if (question !== undefined) {
-      return NextResponse.json({ question, provider: "ai" });
+    const aiQuestion = await getNextQuestionConversational(needText, history);
+    if (aiQuestion) {
+      return NextResponse.json({ question: aiQuestion, provider: "ai" });
     }
   } catch (e) {
     console.error("AI conversation error, falling back to deterministic:", e);
   }
 
-  // Deterministic fallback
+  // Deterministic fallback (when AI returns null or all providers fail)
   const question = nextDeterministicQuestion(needText, history);
   return NextResponse.json({ question, provider: "rules" });
 }
