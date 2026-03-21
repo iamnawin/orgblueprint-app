@@ -7,7 +7,7 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? "" });
 
 // ─── OpenRouter helpers ────────────────────────────────────────────────────────
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/chat/completions";
-const OPENROUTER_MODEL = "stepfun/step-3.5-flash";
+const OPENROUTER_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
 
 async function openrouterChat(
   messages: { role: "system" | "user" | "assistant"; content: string }[],
@@ -210,7 +210,7 @@ export async function getNextQuestion(
   askedQuestions: string[] = []
 ): Promise<string | null> {
   const askedCount = askedQuestions.length;
-  if (askedCount >= 5) return null;
+  if (askedCount >= 3) return null;
 
   const answeredSummary = Object.entries(answered)
     .map(([q, a]) => `Q: ${q}\nA: ${a}`)
@@ -250,7 +250,7 @@ export async function getNextQuestionGemini(
   askedQuestions: string[] = []
 ): Promise<string | null> {
   const askedCount = askedQuestions.length;
-  if (askedCount >= 5) return null;
+  if (askedCount >= 3) return null;
   const answeredSummary = Object.entries(answered)
     .map(([q, a]) => `Q: ${q}\nA: ${a}`)
     .join("\n\n");
@@ -266,7 +266,7 @@ export async function getNextQuestionNvidia(
   askedQuestions: string[] = []
 ): Promise<string | null> {
   const askedCount = askedQuestions.length;
-  if (askedCount >= 5) return null;
+  if (askedCount >= 3) return null;
   const answeredSummary = Object.entries(answered)
     .map(([q, a]) => `Q: ${q}\nA: ${a}`)
     .join("\n\n");
@@ -379,7 +379,7 @@ export async function getNextQuestionGroq(
   askedQuestions: string[] = []
 ): Promise<string | null> {
   const askedCount = askedQuestions.length;
-  if (askedCount >= 5) return null;
+  if (askedCount >= 3) return null;
   const answeredSummary = Object.entries(answered)
     .map(([q, a]) => `Q: ${q}\nA: ${a}`)
     .join("\n\n");
@@ -400,7 +400,7 @@ export async function getNextQuestionConversational(
   needText: string,
   history: ConversationTurn[]
 ): Promise<string | null> {
-  if (history.length >= 5) return null;
+  if (history.length >= 3) return null;
 
   const systemPrompt = `You are a friendly, senior Salesforce solution architect doing a discovery call with a prospective client. Your job is to ask SHORT, NATURAL clarifying questions — like a real conversation, not a form.
 

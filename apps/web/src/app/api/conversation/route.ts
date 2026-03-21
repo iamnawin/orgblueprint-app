@@ -19,7 +19,7 @@ function nextDeterministicQuestion(
   needText: string,
   history: ConversationTurn[]
 ): string | null {
-  if (history.length >= 5) return null;
+  if (history.length >= 3) return null;
 
   const corpus = buildCorpus(needText, history);
   const askedSet = new Set(history.map((t) => normalizeText(t.question)));
