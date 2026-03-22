@@ -1170,10 +1170,81 @@ function DataModelDiagram({ products }: { products: ProductDecision[] }) {
   );
 }
 
+// ─── Objects & Automations Cards ──────────────────────────────────────────────
+type ItemCategory = { type: string; icon: string; bg: string; border: string; badge: string };
+
+function categoriseItem(item: string): ItemCategory {
+  const s = item.toLowerCase();
+  if (/\bflow\b|auto-create|auto-route|triggered|scheduled|journey|automation|sequence|drip|nurture/.test(s))
+    return { type: "Flow / Automation", icon: "⚡", bg: "bg-amber-50", border: "border-amber-200", badge: "bg-amber-100 text-amber-700" };
+  if (/rule|validation|escalation|entitlement|duplicate|gate-check|routing rule/.test(s))
+    return { type: "Rule", icon: "🛡️", bg: "bg-green-50", border: "border-green-200", badge: "bg-green-100 text-green-700" };
+  if (/api|integration|sync|sso|saml|connector|mulesoft|anypoint|callout|webhook|erp|ehr/.test(s))
+    return { type: "Integration", icon: "🔗", bg: "bg-purple-50", border: "border-purple-200", badge: "bg-purple-100 text-purple-700" };
+  return { type: "Object / Config", icon: "🗄️", bg: "bg-blue-50", border: "border-blue-200", badge: "bg-blue-100 text-blue-700" };
+}
+
+function ObjectsAutomationsCards({ items }: { items: string[] }) {
+  const grouped = items.reduce<Record<string, { cat: ItemCategory; items: string[] }>>((acc, item) => {
+    const cat = categoriseItem(item);
+    if (!acc[cat.type]) acc[cat.type] = { cat, items: [] };
+    acc[cat.type].items.push(item);
+    return acc;
+  }, {});
+
+  const order = ["Object / Config", "Flow / Automation", "Rule", "Integration"];
+  const sorted = order.flatMap((t) => (grouped[t] ? [grouped[t]] : []));
+
+  return (
+    <div className="space-y-4">
+      {sorted.map(({ cat, items: catItems }) => (
+        <div key={cat.type}>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm">{cat.icon}</span>
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{cat.type}</span>
+            <span className="text-xs text-slate-400">({catItems.length})</span>
+          </div>
+          <div className="grid gap-2">
+            {catItems.map((item, i) => (
+              <div key={i} className={`rounded-lg border ${cat.border} ${cat.bg} px-3 py-2.5 flex items-start gap-2.5`}>
+                <span className={`mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded ${cat.badge} flex-shrink-0`}>{i + 1}</span>
+                <p className="text-sm text-slate-700 leading-relaxed">{item}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Technical Blueprint Tab ──────────────────────────────────────────────────
-function TechnicalBlueprintTab({ products }: { products: ProductDecision[] }) {
+interface CodeStep { number: number; title: string; description: string; language: string; code: string; }
+
+function TechnicalBlueprintTab({ products, needText }: { products: ProductDecision[]; needText?: string }) {
   const blueprint = generateTechnicalBlueprint(products);
   const [expanded, setExpanded] = useState<string | null>("automations");
+  const [codeSteps, setCodeSteps] = useState<CodeStep[]>([]);
+  const [generatingCode, setGeneratingCode] = useState(false);
+  const [codeGenerated, setCodeGenerated] = useState(false);
+
+  async function handleGenerateCode() {
+    setGeneratingCode(true);
+    try {
+      const res = await fetch("/api/codegen", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          products: products.filter((p) => p.level !== "not_needed").map((p) => p.name),
+          automations: blueprint.automations.map((a) => ({ name: a.name, technology: a.technology, description: a.description })),
+          context: needText ?? "",
+        }),
+      });
+      const data = await res.json();
+      if (data.steps) { setCodeSteps(data.steps); setCodeGenerated(true); }
+    } catch { /* silently ignore */ }
+    setGeneratingCode(false);
+  }
 
   const sections = [
     { id: "automations",       label: "Automation Strategy",   icon: "⚡", count: blueprint.automations.length },
@@ -1246,13 +1317,63 @@ function TechnicalBlueprintTab({ products }: { products: ProductDecision[] }) {
                 </ul>
               )}
 
-              {section.id === "code" && blueprint.codeExample && (
-                <div className="space-y-2">
-                  <p className="text-sm font-semibold text-slate-700">{blueprint.codeExample.title}</p>
-                  <div className="rounded-xl bg-slate-900 p-4 overflow-x-auto">
-                    <pre className="text-xs text-green-300 font-mono leading-relaxed whitespace-pre">{blueprint.codeExample.code}</pre>
-                  </div>
-                  <p className="text-xs text-slate-400">This is a reference implementation pattern. Adapt to your specific requirements.</p>
+              {section.id === "code" && (
+                <div className="space-y-4">
+                  {/* Static reference snippet */}
+                  {blueprint.codeExample && !codeGenerated && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Reference Sample</p>
+                      <p className="text-sm font-semibold text-slate-700">{blueprint.codeExample.title}</p>
+                      <div className="rounded-xl bg-slate-900 p-4 overflow-x-auto">
+                        <pre className="text-xs text-green-300 font-mono leading-relaxed whitespace-pre">{blueprint.codeExample.code}</pre>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* AI-generated steps */}
+                  {codeGenerated && codeSteps.length > 0 && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-violet-600 uppercase tracking-wide">✨ AI-Generated Implementation Steps</span>
+                      </div>
+                      {codeSteps.map((step) => (
+                        <div key={step.number} className="rounded-xl border border-slate-200 overflow-hidden">
+                          {/* Step header */}
+                          <div className="flex items-start gap-3 px-4 py-3 bg-slate-50 border-b border-slate-200">
+                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-violet-600 text-white text-xs font-bold flex items-center justify-center mt-0.5">{step.number}</span>
+                            <div>
+                              <p className="text-sm font-semibold text-slate-800">{step.title}</p>
+                              <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{step.description}</p>
+                            </div>
+                            <span className="ml-auto flex-shrink-0 text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded font-mono">{step.language}</span>
+                          </div>
+                          {/* Code block */}
+                          <div className="bg-slate-900 p-4 overflow-x-auto">
+                            <pre className="text-xs text-green-300 font-mono leading-relaxed whitespace-pre">{step.code}</pre>
+                          </div>
+                        </div>
+                      ))}
+                      <p className="text-xs text-slate-400">AI-generated reference implementation. Review and adapt for your org's specific configuration.</p>
+                    </div>
+                  )}
+
+                  {/* Generate button */}
+                  <button
+                    onClick={handleGenerateCode}
+                    disabled={generatingCode}
+                    className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-violet-300 bg-violet-50 hover:bg-violet-100 text-violet-700 font-medium text-sm py-3 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {generatingCode ? (
+                      <>
+                        <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                        Generating implementation steps…
+                      </>
+                    ) : codeGenerated ? (
+                      <><span>✨</span> Regenerate Code Steps</>
+                    ) : (
+                      <><span>✨</span> Generate AI Implementation Steps</>
+                    )}
+                  </button>
                 </div>
               )}
             </div>
@@ -2387,8 +2508,8 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
 
               {/* Automations detail list */}
               <div>
-                <h3 className="text-sm font-semibold text-slate-700 mb-2">Objects &amp; Automations</h3>
-                <EditableList items={result.objectsAndAutomations} onSave={editList("objectsAndAutomations")} />
+                <h3 className="text-sm font-semibold text-slate-700 mb-3">Objects &amp; Automations</h3>
+                <ObjectsAutomationsCards items={result.objectsAndAutomations} />
               </div>
             </CardContent>
           </Card>
@@ -2402,7 +2523,7 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
               <p className="text-xs text-slate-500 mt-0.5">Architecture guidance for admins, developers, and solution architects</p>
             </CardHeader>
             <CardContent className="pt-2">
-              <TechnicalBlueprintTab products={result.products} />
+              <TechnicalBlueprintTab products={result.products} needText={initialNeedText} />
             </CardContent>
           </Card>
         )}
