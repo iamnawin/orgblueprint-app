@@ -10,6 +10,7 @@ import { BlueprintDashboard } from "@/components/BlueprintDashboard";
 import { BlueprintResult } from "@orgblueprint/core";
 import { useSpeechInput } from "@/hooks/useSpeechInput";
 import { Mic, MicOff, Send, Sparkles, ArrowRight, ShieldCheck, BarChart3, Brain, Zap, FlaskConical, AlertCircle, Building2 } from "lucide-react";
+import { TechLoadingScreen } from "@/components/TechLoadingScreen";
 
 const CRM_PLATFORMS = [
   { key: "salesforce", label: "Salesforce", icon: "☁️", available: true },
@@ -764,34 +765,18 @@ export function ConversationChat() {
           { icon: "✨", text: "Done!", sub: "Preparing your dashboard" },
         ];
         const steps = mode === "ai" ? aiSteps : demoSteps;
-        const current = steps[Math.min(progressStep, steps.length - 1)];
         const pct = Math.min(Math.round(((progressStep + 1) / steps.length) * 100), 95);
         return (
-          <Card className="shadow-sm border-slate-200">
-            <CardContent className="py-16 text-center space-y-6">
-              <div className="relative mx-auto w-16 h-16">
-                <div className="absolute inset-0 rounded-full border-4 border-blue-100" />
-                <div className="absolute inset-0 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
-                <span className="absolute inset-0 flex items-center justify-center text-2xl">{current.icon}</span>
-              </div>
-              <div className="space-y-1">
-                <p className="text-slate-700 text-lg font-semibold">{current.text}</p>
-                <p className="text-slate-400 text-sm">{current.sub}</p>
-              </div>
-              <div className="max-w-xs mx-auto space-y-1.5">
-                <Progress value={pct} className="h-1.5" />
-                <p className="text-xs text-slate-400">{pct}%</p>
-              </div>
-              <div className="flex justify-center gap-1.5">
-                {steps.map((_, i) => (
-                  <div
-                    key={i}
-                    className={`w-1.5 h-1.5 rounded-full transition-colors duration-500 ${
-                      i <= progressStep ? "bg-blue-500" : "bg-slate-200"
-                    }`}
-                  />
-                ))}
-              </div>
+          <Card className="shadow-sm border-slate-800 bg-slate-900/80">
+            <CardContent className="p-0">
+              <TechLoadingScreen
+                progressStep={progressStep}
+                totalSteps={steps.length}
+                stepText={steps[Math.min(progressStep, steps.length - 1)].text}
+                stepSub={steps[Math.min(progressStep, steps.length - 1)].sub}
+                pct={pct}
+                steps={steps}
+              />
             </CardContent>
           </Card>
         );
