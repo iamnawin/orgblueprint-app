@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { BlueprintDashboard } from "@/components/BlueprintDashboard";
 import { BlueprintResult } from "@orgblueprint/core";
 import { useSpeechInput } from "@/hooks/useSpeechInput";
-import { Mic, MicOff, Send, Sparkles, ArrowRight, ShieldCheck, BarChart3, Brain, Zap, FlaskConical, AlertCircle, Building2 } from "lucide-react";
+import { Mic, MicOff, Send, Sparkles, ArrowRight, ShieldCheck, BarChart3, Brain, AlertCircle, Building2, ChevronRight } from "lucide-react";
 import { TechLoadingScreen } from "@/components/TechLoadingScreen";
 
 const CRM_PLATFORMS = [
@@ -41,7 +41,6 @@ const EXAMPLE_PROMPTS = [
 ];
 
 type Stage = "describe" | "conversation" | "confirm" | "expand" | "generating" | "results";
-type Mode = "demo" | "ai";
 
 const EXPANSION_OPTIONS = [
   { key: "architecture", label: "Salesforce architecture & scalability" },
@@ -119,7 +118,6 @@ function nextOrbQuestion(
 
 export function ConversationChat() {
   const [stage, setStage] = useState<Stage>("describe");
-  const [mode, setMode] = useState<Mode>("demo");
   const [needText, setNeedText] = useState("");
   const [conversation, setConversation] = useState<ConversationEntry[]>([]);
   const [askedQuestions, setAskedQuestions] = useState<string[]>([]);
@@ -131,7 +129,6 @@ export function ConversationChat() {
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [progressStep, setProgressStep] = useState(0);
   const progressIntervalRef = useRef<number | null>(null);
-  const [aiRunsLeft, setAiRunsLeft] = useState<number | null>(null);
   const [aiKeyMissing, setAiKeyMissing] = useState(false);
   const [crmPlatform, setCrmPlatform] = useState<CrmPlatform>("salesforce");
   const [result, setResult] = useState<BlueprintResult | null>(null);
@@ -199,15 +196,10 @@ export function ConversationChat() {
 
   function handleDescribeContinue() {
     if (!needText.trim()) return;
-    if (mode === "demo") {
-      // Demo mode: skip AI question loop, go straight to confirm
-      setStage("confirm");
-    } else {
-      setAskedQuestions([]);
-      setConversation([]);
-      setStage("conversation");
-      fetchNextQuestion([]);
-    }
+    setAskedQuestions([]);
+    setConversation([]);
+    setStage("conversation");
+    fetchNextQuestion([]);
   }
 
   function handleAnswer(skip = false) {
@@ -235,7 +227,7 @@ export function ConversationChat() {
       const res = await fetch("/api/blueprint", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: needText, answers: answeredMap, mode, expansions: selectedExpansions }),
+        body: JSON.stringify({ input: needText, answers: answeredMap, mode: "ai", expansions: selectedExpansions }),
       });
       const data = await res.json();
 
@@ -249,10 +241,6 @@ export function ConversationChat() {
         setGenerating(false);
         setStage("expand");
         return;
-      }
-
-      if (data.quota?.remainingToday !== undefined) {
-        setAiRunsLeft(data.quota.remainingToday);
       }
 
       setResult(data.result);
@@ -297,135 +285,69 @@ export function ConversationChat() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       {/* Header */}
-      <div className="text-center py-8">
-        <div className="inline-flex items-center gap-2 mb-3 text-blue-600 text-sm font-medium bg-blue-50 px-3 py-1.5 rounded-full">
-          <Sparkles className="h-3.5 w-3.5" />
-          AI-powered CRM blueprint generator
+      <div className="text-center py-10">
+        <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 rounded-full border border-blue-200 bg-blue-50 text-blue-700 text-xs font-semibold tracking-wide">
+          <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
+          Powered by Orb — AI Solution Architect
         </div>
-        <h1 className="text-4xl font-bold text-slate-900 mb-2 tracking-tight">OrgBlueprint</h1>
-        <p className="text-slate-500 text-lg mb-5">
-          Describe your business — we&apos;ll ask the right questions and build your CRM blueprint.
+        <h1 className="text-5xl font-extrabold text-slate-900 mb-3 tracking-tight leading-none">OrgBlueprint</h1>
+        <p className="text-slate-500 text-lg max-w-md mx-auto">
+          Describe your business needs. Orb asks the right questions, then builds your CRM blueprint.
         </p>
-        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-400">
-          <span className="flex items-center gap-1.5"><Brain className="h-3.5 w-3.5 text-blue-400" /> Architecture-grade recommendations</span>
-          <span className="flex items-center gap-1.5"><BarChart3 className="h-3.5 w-3.5 text-indigo-400" /> Built on CRM best practices</span>
-          <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-green-400" /> Designed for RevOps &amp; Solution Architects</span>
-        </div>
       </div>
 
       {/* Describe stage */}
       {stage === "describe" && (
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">What does your business need?</CardTitle>
-            <p className="text-sm text-slate-500">
-              Describe your industry, team size, pain points, and goals. The more detail, the better.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {/* CRM Platform selector */}
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium text-slate-500 flex items-center gap-1.5">
-                <Building2 className="h-3.5 w-3.5" /> CRM Platform
-              </p>
-              <div className="flex gap-2 flex-wrap">
-                {CRM_PLATFORMS.map((p) => (
-                  <button
-                    key={p.key}
-                    type="button"
-                    disabled={!p.available}
-                    onClick={() => p.available && setCrmPlatform(p.key)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all duration-150 ${
-                      p.key === crmPlatform
-                        ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                        : p.available
-                        ? "bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:text-blue-600"
-                        : "bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed"
-                    }`}
-                    title={!p.available ? "Coming soon" : undefined}
-                  >
-                    <span>{p.icon}</span>
-                    <span>{p.label}</span>
-                    {!p.available && <span className="text-[9px] opacity-60 font-normal">soon</span>}
-                  </button>
-                ))}
-              </div>
+        <div className="space-y-4">
+          {/* Platform pill + hint row */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              {CRM_PLATFORMS.map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  disabled={!p.available}
+                  onClick={() => p.available && setCrmPlatform(p.key)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-150 ${
+                    p.key === crmPlatform
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : p.available
+                      ? "bg-white text-slate-600 border border-slate-200 hover:border-blue-300 hover:text-blue-600"
+                      : "bg-slate-50 text-slate-300 border border-slate-100 cursor-not-allowed"
+                  }`}
+                  title={!p.available ? "Coming soon" : undefined}
+                >
+                  <span>{p.icon}</span>
+                  <span>{p.label}</span>
+                  {!p.available && <span className="text-[9px] opacity-50">soon</span>}
+                </button>
+              ))}
             </div>
-            {/* Mode toggle */}
-            <div className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Generation Mode</p>
-              <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-100 p-1.5">
-              <button
-                type="button"
-                onClick={() => setMode("demo")}
-                aria-pressed={mode === "demo"}
-                className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border px-3 py-2.5 text-sm transition-all duration-150 ${
-                  mode === "demo"
-                    ? "border-blue-300 bg-white text-slate-950 shadow-sm ring-2 ring-blue-200"
-                    : "border-transparent bg-transparent text-slate-500 hover:border-slate-200 hover:bg-white/70 hover:text-slate-700"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <FlaskConical className="h-4 w-4 text-blue-500 shrink-0" />
-                  <span className="font-semibold">Demo</span>
-                </div>
-                <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${mode === "demo" ? "bg-blue-100 text-blue-700" : "bg-slate-200 text-slate-500"}`}>Free</span>
-                <span className="text-[11px] text-slate-500">Instant rules-based blueprint</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode("ai")}
-                aria-pressed={mode === "ai"}
-                className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border px-3 py-2.5 text-sm transition-all duration-150 ${
-                  mode === "ai"
-                    ? "border-amber-300 bg-white text-slate-950 shadow-sm ring-2 ring-amber-200"
-                    : "border-transparent bg-transparent text-slate-500 hover:border-slate-200 hover:bg-white/70 hover:text-slate-700"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-amber-500 shrink-0" />
-                  <span className="font-semibold">AI Enhanced</span>
-                </div>
-                <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${mode === "ai" ? "bg-amber-100 text-amber-700" : "bg-slate-200 text-slate-500"}`}>Orb</span>
-                <span className="text-[11px] text-slate-500">Clarifying questions + richer output</span>
-              </button>
-            </div>
-            </div>
-            {mode === "demo" && (
-              <p className="text-xs text-slate-400 flex items-start gap-1.5">
-                <FlaskConical className="h-3.5 w-3.5 mt-0.5 text-blue-400 shrink-0" />
-                Instant blueprint using our deterministic rules engine — no API key needed, no wait time.
-              </p>
-            )}
-            {mode === "ai" && (
-              <p className="text-xs text-amber-600 flex items-start gap-1.5 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                <Zap className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                <span>
-                  AI Enhanced asks up to 5 smart clarifying questions, then generates a richer narrative blueprint with Orb.
-                  {aiRunsLeft !== null && (
-                    <span className="ml-1 font-semibold">({aiRunsLeft} AI run{aiRunsLeft !== 1 ? "s" : ""} left today)</span>
-                  )}
-                </span>
-              </p>
-            )}
+            <span className="text-xs text-slate-400 flex items-center gap-1">
+              <Brain className="h-3 w-3 text-indigo-400" /> Smart questions adapt to your input
+            </span>
+          </div>
 
+          {/* Main input card */}
+          <div className="relative rounded-2xl border border-slate-200 bg-white shadow-[0_2px_20px_rgba(0,0,0,0.06)]">
             {/* Example prompt chips */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex gap-2 overflow-x-auto px-4 pt-4 pb-2 scrollbar-none">
               {EXAMPLE_PROMPTS.map((p, i) => (
                 <button
                   key={i}
                   type="button"
                   onClick={() => setNeedText(p.text)}
-                  className="text-xs px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors"
+                  className="whitespace-nowrap text-xs px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors shrink-0"
                 >
                   {p.label}
                 </button>
               ))}
             </div>
-            <div className="relative">
+
+            <div className="relative px-4 pb-1">
               <Textarea
                 placeholder="E.g. We're a 200-person healthcare company. We need to manage patient referrals, track our sales pipeline, integrate with our EHR system, and automate appointment reminders. We also want a patient portal."
-                className="min-h-44 text-base pr-12 resize-none"
+                className="min-h-44 text-base pr-12 resize-none border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent p-0"
                 value={needText}
                 onChange={(e) => setNeedText(e.target.value)}
               />
@@ -440,42 +362,40 @@ export function ConversationChat() {
                   }`}
                   title={isListening ? "Stop recording" : "Speak your needs"}
                 >
-                  {isListening ? (
-                    <MicOff className="h-4 w-4" />
-                  ) : (
-                    <Mic className="h-4 w-4" />
-                  )}
+                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                 </button>
               )}
             </div>
 
             {isListening && (
-              <div className="flex items-center gap-2 text-red-500 text-sm">
+              <div className="flex items-center gap-2 text-red-500 text-xs px-4 pb-2">
                 <span className="inline-block h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-                <span>Listening… speak now</span>
+                Listening… speak now
               </div>
             )}
 
-            {isSupported && !isListening && (
-              <p className="text-xs text-slate-400 flex items-center gap-1.5">
-                <Mic className="h-3 w-3" />
-                Click the mic to speak your needs (Chrome/Edge)
-              </p>
-            )}
+            {/* Bottom action bar */}
+            <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-4 py-3">
+              <div className="flex items-center gap-4 text-xs text-slate-400">
+                <span className="flex items-center gap-1.5"><BarChart3 className="h-3.5 w-3.5 text-indigo-400" /> Architecture-grade</span>
+                <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-green-400" /> No credentials needed</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleDescribeContinue}
+                disabled={!needText.trim()}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
+              >
+                Generate Blueprint
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
 
-            <Button
-              className="w-full h-11 text-base font-medium"
-              onClick={handleDescribeContinue}
-              disabled={!needText.trim()}
-            >
-              Continue
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-            <p className="text-center text-xs text-slate-400">
-              ⏱ ~30 seconds · We&apos;ll ask up to 5 smart questions
-            </p>
-          </CardContent>
-        </Card>
+          <p className="text-center text-xs text-slate-400">
+            Orb will ask up to 3 context-aware questions based on what you describe
+          </p>
+        </div>
       )}
 
       {/* Conversation stage — chat bubbles */}
@@ -489,9 +409,9 @@ export function ConversationChat() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">Orb — Solution Architect</CardTitle>
-                  <span className="text-xs text-slate-400 font-normal">{askedQuestions.length} / 5</span>
+                  <span className="text-xs text-slate-400 font-normal">{askedQuestions.length} / 3</span>
                 </div>
-                <Progress value={(askedQuestions.length / 5) * 100} className="h-1 mt-1" />
+                <Progress value={(askedQuestions.length / 3) * 100} className="h-1 mt-1" />
               </div>
             </div>
           </CardHeader>
@@ -695,23 +615,7 @@ export function ConversationChat() {
             {generateError && (
               <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
                 {generateError}
-                {mode === "ai" && (
-                  <button
-                    type="button"
-                    className="ml-2 underline font-medium"
-                    onClick={() => { setMode("demo"); setGenerateError(null); }}
-                  >
-                    Switch to Demo mode
-                  </button>
-                )}
               </div>
-            )}
-
-            {mode === "ai" && aiRunsLeft !== null && (
-              <p className="text-xs text-amber-600 flex items-center gap-1.5">
-                <Zap className="h-3.5 w-3.5 shrink-0" />
-                AI runs left today: {aiRunsLeft}
-              </p>
             )}
 
             <div className="flex gap-2 pt-1">
@@ -741,16 +645,13 @@ export function ConversationChat() {
         <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-400 pt-2 pb-4">
           <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> No Salesforce credentials required</span>
           <span className="flex items-center gap-1.5"><BarChart3 className="h-3.5 w-3.5" /> Directional estimates only</span>
-          {mode === "ai"
-            ? <span className="flex items-center gap-1.5"><Brain className="h-3.5 w-3.5" /> Orb-powered recommendations</span>
-            : <span className="flex items-center gap-1.5"><FlaskConical className="h-3.5 w-3.5" /> Instant — no AI quota used</span>
-          }
+          <span className="flex items-center gap-1.5"><Brain className="h-3.5 w-3.5" /> Orb-powered recommendations</span>
         </div>
       )}
 
       {/* Generating stage */}
       {stage === "generating" && (() => {
-        const aiSteps = [
+        const steps = [
           { icon: "🔍", text: "Reading your requirements…", sub: "Parsing business context and signals" },
           { icon: "🧠", text: "Evaluating Salesforce product families…", sub: "Matching 21 clouds to your use case" },
           { icon: "🏗️", text: "Designing architecture…", sub: "OOTB vs custom, integrations, AppExchange" },
@@ -758,13 +659,6 @@ export function ConversationChat() {
           { icon: "💰", text: "Estimating costs and roadmap…", sub: "License tiers and phased delivery plan" },
           { icon: "✨", text: "Finalising your blueprint…", sub: "Almost ready" },
         ];
-        const demoSteps = [
-          { icon: "🔍", text: "Extracting signals…", sub: "Scanning your description" },
-          { icon: "📦", text: "Selecting products…", sub: "Running rules engine" },
-          { icon: "🏗️", text: "Building blueprint…", sub: "Assembling all sections" },
-          { icon: "✨", text: "Done!", sub: "Preparing your dashboard" },
-        ];
-        const steps = mode === "ai" ? aiSteps : demoSteps;
         const pct = Math.min(Math.round(((progressStep + 1) / steps.length) * 100), 95);
         return (
           <Card className="shadow-sm border-slate-800 bg-slate-900/80">
