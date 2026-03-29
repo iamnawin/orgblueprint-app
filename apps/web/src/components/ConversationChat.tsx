@@ -24,19 +24,23 @@ type CrmPlatform = (typeof CRM_PLATFORMS)[number]["key"];
 const EXAMPLE_PROMPTS = [
   {
     label: "B2B Sales Team",
-    text: "B2B company with 50 sales reps. We manage leads in spreadsheets and need proper pipeline management, opportunity tracking, and sales forecasting.",
+    text: "We're a B2B SaaS company with 80 quota-carrying AEs and 20 SDRs. Leads live in spreadsheets, deals are tracked in a shared Google Sheet, and sales managers have zero pipeline visibility until end of quarter. The same prospect gets called by 3 different reps because there's no single source of truth. Reps miss follow-ups constantly and we have no way to track calls, emails, or demos without manual entry. Our win rate is declining and we can't forecast accurately. We need lead routing, opportunity management, activity capture, and reliable sales forecasting.",
   },
   {
-    label: "Customer Portal & Support",
-    text: "Need a customer self-service portal and support automation. We handle 500 cases per month and want to reduce manual routing and automate follow-ups.",
+    label: "Customer Service",
+    text: "We're a B2C tech company with a 40-person support team handling 2,000 tickets per month across email, live chat, and phone. 60% of cases are repetitive FAQs that agents resolve manually every time. We have no SLA tracking, no escalation rules, and customers are waiting 48+ hours for replies — our CSAT is dropping fast. We need automated case routing, SLA entitlements, a self-service knowledge base portal, and dashboards that show agent productivity and which product areas drive the most support volume.",
   },
   {
-    label: "Complex Pricing Approvals",
-    text: "We have complex pricing with discounts requiring multi-level approvals. We need CPQ to configure quotes, manage approval workflows, and generate contracts automatically.",
+    label: "Quoting & CPQ",
+    text: "We're a manufacturer selling configurable equipment with 500+ SKUs, tiered pricing, volume discounts, and 3-level approval chains — sales rep, sales director, then CFO for deals over $100k. Quoting is done manually in Excel and takes 3–5 days per quote. Pricing errors happen regularly and we lose deals to competitors who quote in hours. We need CPQ that enforces pricing rules, automates approval workflows, generates branded proposals, and pushes signed contracts directly into our ERP. Roughly 120 sales and finance users.",
+  },
+  {
+    label: "Field Service Ops",
+    text: "We run a facilities management business with 150 field technicians across 5 cities. Jobs are dispatched via phone calls and whiteboards. Technicians don't know their schedule until the morning and we're missing SLA deadlines for priority clients. We have no real-time visibility into technician location, job status, or parts inventory in the van. We need intelligent scheduling and dispatch, a mobile app for technicians to update job status in the field, SLA tracking by client tier, and automated customer notifications when a tech is en route.",
   },
   {
     label: "ERP Integration",
-    text: "We need to integrate Salesforce with our ERP system to sync accounts, orders, and invoices in real time. We have 200 users across sales and operations.",
+    text: "We're a $50M wholesale distributor with 200 users across sales, operations, and finance. Salesforce and our ERP (SAP) are completely siloed — orders placed in Salesforce aren't visible in SAP until someone manually re-keys them, causing fulfillment delays and invoice errors. Sales reps can't see live inventory levels or a customer's credit limit during a call. We need bi-directional real-time sync between Salesforce and SAP, a unified account view showing open orders and invoices, and automated order-to-cash workflows to eliminate manual handoffs.",
   },
 ];
 
