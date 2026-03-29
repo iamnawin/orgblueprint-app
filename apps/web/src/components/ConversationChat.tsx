@@ -1,15 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { useState, useRef } from "react";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import { Card, CardContent } from "@/components/ui/card";
 import { BlueprintDashboard } from "@/components/BlueprintDashboard";
 import { BlueprintResult } from "@orgblueprint/core";
 import { useSpeechInput } from "@/hooks/useSpeechInput";
-import { Mic, MicOff, Send, Sparkles, ArrowRight, ShieldCheck, BarChart3, Brain, AlertCircle, Building2, ChevronRight } from "lucide-react";
+import { Mic, MicOff, Brain, ShieldCheck, BarChart3, ChevronRight } from "lucide-react";
 import { TechLoadingScreen } from "@/components/TechLoadingScreen";
 
 const CRM_PLATFORMS = [
@@ -40,185 +37,29 @@ const EXAMPLE_PROMPTS = [
   },
 ];
 
-type Stage = "describe" | "conversation" | "confirm" | "expand" | "generating" | "results";
-
-const EXPANSION_OPTIONS = [
-  { key: "architecture", label: "Salesforce architecture & scalability" },
-  { key: "ootb", label: "OOTB vs custom guidance" },
-  { key: "integrations", label: "Integration patterns & API design" },
-  { key: "reporting", label: "Reporting & analytics strategy" },
-  { key: "ai_automation", label: "AI & automation opportunities" },
-] as const;
-
-type ExpansionKey = (typeof EXPANSION_OPTIONS)[number]["key"];
-
-interface ConversationEntry {
-  question: string;
-  answer: string;
-}
-
-function normalizeText(text: string): string {
-  return text.toLowerCase().replace(/\s+/g, " ").trim();
-}
-
-function buildCorpus(needText: string, answered: Record<string, string>): string {
-  return normalizeText(
-    [
-      needText,
-      ...Object.entries(answered).flatMap(([question, answer]) => [question, answer]),
-    ].join(" ")
-  );
-}
-
-function nextOrbQuestion(
-  needText: string,
-  answered: Record<string, string>,
-  asked: string[]
-): string | null {
-  if (asked.length >= 5) return null;
-
-  const corpus = buildCorpus(needText, answered);
-  const askedSet = new Set(asked.map(normalizeText));
-
-  const candidates = [
-    {
-      when: !/(health|healthcare|medical|clinic|hospital|pharma|finance|financial|bank|insurance|manufacturing|education|school|nonprofit|retail|saas|software|real estate|logistics|construction|consulting)/.test(corpus),
-      question: "What industry vertical does your company operate in?",
-    },
-    {
-      when: !/(user|users|rep|reps|agent|agents|team|teams|seat|seats|employee|employees|people|headcount)/.test(corpus),
-      question: "Roughly how many users need access, and which teams will use the CRM first?",
-    },
-    {
-      when: !/(integrat|erp|ehr|emr|sap|netsuite|workday|api|sync|database|data warehouse|billing system|website|portal)/.test(corpus),
-      question: "Do you have existing systems that need to integrate with the CRM?",
-    },
-    {
-      when: !/(manual|spreadsheet|excel|slow|bottleneck|pain|problem|issue|duplicate|visibility|forecast|report|reporting|approval|routing|handoff|follow-up)/.test(corpus),
-      question: "What is the biggest manual process or reporting bottleneck you want Orb to eliminate first?",
-    },
-    {
-      when: !/(month|months|quarter|q[1-4]|timeline|go live|golive|deadline|target|outcome|goal|improve|reduce|increase|kpi|metric|budget|cost|price|pricing)/.test(corpus),
-      question: "What is the main business outcome you want this CRM project to improve first?",
-    },
-  ];
-
-  for (const candidate of candidates) {
-    const normalized = normalizeText(candidate.question);
-    if (candidate.when && !askedSet.has(normalized)) {
-      return candidate.question;
-    }
-  }
-
-  const fallbackQuestion =
-    "Is there anything business-critical we have not covered yet, such as approvals, portal access, quoting, service SLAs, or analytics?";
-
-  return askedSet.has(normalizeText(fallbackQuestion)) ? null : fallbackQuestion;
-}
+type Stage = "describe" | "generating" | "results";
 
 export function ConversationChat() {
   const [stage, setStage] = useState<Stage>("describe");
   const [needText, setNeedText] = useState("");
-  const [conversation, setConversation] = useState<ConversationEntry[]>([]);
-  const [askedQuestions, setAskedQuestions] = useState<string[]>([]);
-  const [currentQuestion, setCurrentQuestion] = useState<string | null>(null);
-  const [currentAnswer, setCurrentAnswer] = useState("");
-  const [loadingQuestion, setLoadingQuestion] = useState(false);
-  const [selectedExpansions, setSelectedExpansions] = useState<ExpansionKey[]>([]);
-  const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [progressStep, setProgressStep] = useState(0);
   const progressIntervalRef = useRef<number | null>(null);
-  const [aiKeyMissing, setAiKeyMissing] = useState(false);
   const [crmPlatform, setCrmPlatform] = useState<CrmPlatform>("salesforce");
   const [result, setResult] = useState<BlueprintResult | null>(null);
   const [blueprintSlug, setBlueprintSlug] = useState<string | null>(null);
   const [aiPowered, setAiPowered] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  const questionTimerRef = useRef<number | null>(null);
-
-  const answeredMap = Object.fromEntries(
-    conversation.map((c) => [c.question, c.answer])
-  );
 
   const { isListening, isSupported, startListening, stopListening } = useSpeechInput(
     (transcript) => setNeedText((prev) => (prev ? prev + " " + transcript : transcript))
   );
 
-  // Auto-scroll chat to bottom
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [conversation, currentQuestion, loadingQuestion]);
-
-  function fetchNextQuestion(
-    historyOverride?: { question: string; answer: string }[]
-  ) {
-    // Cancel any pending transition so stale timers can't overwrite current state
-    if (questionTimerRef.current) clearTimeout(questionTimerRef.current);
-
-    setLoadingQuestion(true);
-
-    const historyToSend = historyOverride ?? conversation;
-
-    fetch("/api/conversation", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ needText, history: historyToSend }),
-    })
-      .then((res) => res.json())
-      .then((data: { question: string | null; provider?: string }) => {
-        if (data.question) {
-          setAiKeyMissing(false);
-          setCurrentQuestion(data.question);
-        } else {
-          setCurrentQuestion(null);
-          setStage("confirm");
-        }
-        setLoadingQuestion(false);
-      })
-      .catch(() => {
-        // Network error fallback: skip to confirm
-        setCurrentQuestion(null);
-        setStage("confirm");
-        setLoadingQuestion(false);
-      });
-  }
-
-  function skipAllToConfirm() {
-    if (questionTimerRef.current) {
-      clearTimeout(questionTimerRef.current);
-      questionTimerRef.current = null;
-    }
-    setLoadingQuestion(false);
-    setCurrentQuestion(null);
-    setStage("confirm");
-  }
-
-  function handleDescribeContinue() {
-    if (!needText.trim()) return;
-    setAskedQuestions([]);
-    setConversation([]);
-    setStage("conversation");
-    fetchNextQuestion([]);
-  }
-
-  function handleAnswer(skip = false) {
-    if (!currentQuestion) return;
-    const answer = (!skip && currentAnswer.trim()) ? currentAnswer.trim() : "";
-    const nextConversation = [...conversation, { question: currentQuestion, answer }];
-    setConversation(nextConversation);
-    setAskedQuestions([...askedQuestions, currentQuestion]);
-    setCurrentAnswer("");
-    fetchNextQuestion(nextConversation);
-  }
-
   async function generate() {
-    setGenerating(true);
+    if (!needText.trim()) return;
     setGenerateError(null);
     setProgressStep(0);
     setStage("generating");
 
-    // Cycle through progress steps every 3s while waiting
     progressIntervalRef.current = window.setInterval(() => {
       setProgressStep((s) => s + 1);
     }, 3000);
@@ -227,20 +68,13 @@ export function ConversationChat() {
       const res = await fetch("/api/blueprint", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: needText, answers: answeredMap, mode: "ai", expansions: selectedExpansions }),
+        body: JSON.stringify({ input: needText }),
       });
       const data = await res.json();
 
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
         progressIntervalRef.current = null;
-      }
-
-      if (res.status === 429) {
-        setGenerateError(data.error ?? "Quota exceeded.");
-        setGenerating(false);
-        setStage("expand");
-        return;
       }
 
       setResult(data.result);
@@ -253,8 +87,7 @@ export function ConversationChat() {
         progressIntervalRef.current = null;
       }
       setGenerateError("Something went wrong. Please try again.");
-      setGenerating(false);
-      setStage("expand");
+      setStage("describe");
     }
   }
 
@@ -266,16 +99,12 @@ export function ConversationChat() {
         isOwner={!!blueprintSlug}
         aiPowered={aiPowered}
         needText={needText}
-        savedAnswers={answeredMap}
+        savedAnswers={{}}
         onReset={() => {
           setStage("describe");
           setNeedText("");
-          setConversation([]);
-          setAskedQuestions([]);
-          setCurrentQuestion(null);
           setResult(null);
           setBlueprintSlug(null);
-          setSelectedExpansions([]);
           setGenerateError(null);
         }}
       />
@@ -292,14 +121,14 @@ export function ConversationChat() {
         </div>
         <h1 className="text-5xl font-extrabold text-slate-900 mb-3 tracking-tight leading-none">OrgBlueprint</h1>
         <p className="text-slate-500 text-lg max-w-md mx-auto">
-          Describe your business needs. Orb asks the right questions, then builds your CRM blueprint.
+          Describe your business needs. Orb analyses them and builds your Salesforce blueprint instantly.
         </p>
       </div>
 
       {/* Describe stage */}
       {stage === "describe" && (
         <div className="space-y-4">
-          {/* Platform pill + hint row */}
+          {/* Platform pill row */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               {CRM_PLATFORMS.map((p) => (
@@ -324,7 +153,7 @@ export function ConversationChat() {
               ))}
             </div>
             <span className="text-xs text-slate-400 flex items-center gap-1">
-              <Brain className="h-3 w-3 text-indigo-400" /> Smart questions adapt to your input
+              <Brain className="h-3 w-3 text-indigo-400" /> AI-powered recommendations
             </span>
           </div>
 
@@ -374,6 +203,12 @@ export function ConversationChat() {
               </div>
             )}
 
+            {generateError && (
+              <div className="mx-4 mb-3 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+                {generateError}
+              </div>
+            )}
+
             {/* Bottom action bar */}
             <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-4 py-3">
               <div className="flex items-center gap-4 text-xs text-slate-400">
@@ -382,7 +217,7 @@ export function ConversationChat() {
               </div>
               <button
                 type="button"
-                onClick={handleDescribeContinue}
+                onClick={generate}
                 disabled={!needText.trim()}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
               >
@@ -393,254 +228,12 @@ export function ConversationChat() {
           </div>
 
           <p className="text-center text-xs text-slate-400">
-            Orb will ask up to 3 context-aware questions based on what you describe
+            Orb reads your description and builds a full AI-recommended Salesforce blueprint
           </p>
         </div>
       )}
 
-      {/* Conversation stage — chat bubbles */}
-      {stage === "conversation" && (
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
-                <Sparkles className="h-3.5 w-3.5 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">Orb — Solution Architect</CardTitle>
-                  <span className="text-xs text-slate-400 font-normal">{askedQuestions.length} / 3</span>
-                </div>
-                <Progress value={(askedQuestions.length / 3) * 100} className="h-1 mt-1" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {/* Chat history */}
-            <div className="space-y-3 max-h-96 overflow-y-auto pr-1 pb-1">
-              {/* Greeting bubble always shown first */}
-              <div className="flex justify-start gap-2">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Sparkles className="h-3 w-3 text-white" />
-                </div>
-                <div className="max-w-[82%] rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-2.5 text-sm text-slate-800 leading-relaxed">
-                  Hi! I&apos;m Orb, your CRM solution architect. I read your description — let me ask a few quick questions to fine-tune your blueprint. This usually takes under 2 minutes.
-                </div>
-              </div>
-              {conversation.map((c, i) => (
-                <div key={i} className="space-y-2">
-                  {/* AI question bubble */}
-                  <div className="flex justify-start gap-2">
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Sparkles className="h-3 w-3 text-white" />
-                    </div>
-                    <div className="max-w-[82%] rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-2.5 text-sm text-slate-800 leading-relaxed">
-                      {c.question}
-                    </div>
-                  </div>
-                  {/* User answer bubble */}
-                  <div className="flex justify-end">
-                    <div className="max-w-[82%] rounded-2xl rounded-tr-sm bg-blue-600 px-4 py-2.5 text-sm text-white leading-relaxed">
-                      {c.answer}
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {/* Typing indicator or current question */}
-              {loadingQuestion ? (
-                <div className="flex justify-start gap-2">
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Sparkles className="h-3 w-3 text-white" />
-                  </div>
-                  <div className="rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "0ms" }} />
-                      <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "150ms" }} />
-                      <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "300ms" }} />
-                    </div>
-                  </div>
-                </div>
-              ) : currentQuestion ? (
-                <div className="flex justify-start gap-2">
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Sparkles className="h-3 w-3 text-white" />
-                  </div>
-                  <div className="max-w-[82%] rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-2.5 text-sm text-slate-800 leading-relaxed">
-                    {currentQuestion}
-                  </div>
-                </div>
-              ) : null}
-
-              <div ref={chatEndRef} />
-            </div>
-
-            {/* Input row — shown when there is a current question (hide during typing indicator only if answer input is shown) */}
-            {(currentQuestion || loadingQuestion) && (
-              <>
-                {!loadingQuestion && currentQuestion && (
-                  <div className="flex gap-2 pt-1 border-t border-slate-100">
-                    <Input
-                      placeholder="Your answer…"
-                      value={currentAnswer}
-                      onChange={(e) => setCurrentAnswer(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleAnswer(false)}
-                      className="flex-1 h-10"
-                      autoFocus
-                    />
-                    <Button
-                      size="icon"
-                      className="h-10 w-10 shrink-0"
-                      onClick={() => handleAnswer(false)}
-                      disabled={!currentAnswer.trim()}
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs"
-                    disabled={loadingQuestion}
-                    onClick={() => handleAnswer(true)}
-                  >
-                    Skip question
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="ml-auto text-xs text-slate-400 hover:text-slate-600"
-                    onClick={skipAllToConfirm}
-                  >
-                    Skip all → generate now
-                  </Button>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Confirm stage */}
-      {stage === "confirm" && (
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader>
-            <CardTitle className="text-lg">Ready to generate your blueprint</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {aiKeyMissing && (
-              <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
-                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-amber-500" />
-                <span>
-                  <span className="font-semibold">AI mode unavailable</span> — no API key configured on this server. Switched to Demo mode. Your blueprint will still be generated using the rules engine.
-                </span>
-              </div>
-            )}
-            <div className="rounded-lg bg-slate-50 border border-slate-100 p-4 text-sm text-slate-700">
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Business need</p>
-              <p className="leading-relaxed">{needText}</p>
-            </div>
-            {conversation.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">
-                  Your answers ({conversation.length})
-                </p>
-                {conversation.map((c, i) => (
-                  <div key={i} className="rounded-lg border border-slate-100 px-3 py-2 text-sm">
-                    <p className="font-medium text-slate-600 text-xs mb-0.5">{c.question}</p>
-                    <p className="text-slate-800">{c.answer}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-            <Button
-              className="w-full h-11 text-base font-medium"
-              onClick={() => setStage("expand")}
-              disabled={generating}
-            >
-              Continue
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Expand stage — optional additional recommendations */}
-      {stage === "expand" && (
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader>
-            <CardTitle className="text-lg">Anything else to include?</CardTitle>
-            <p className="text-sm text-slate-500">
-              Select optional deep-dives to add to your blueprint. Skip to generate now.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-2">
-              {EXPANSION_OPTIONS.map((opt) => {
-                const selected = selectedExpansions.includes(opt.key);
-                return (
-                  <button
-                    key={opt.key}
-                    type="button"
-                    onClick={() =>
-                      setSelectedExpansions((prev) =>
-                        selected ? prev.filter((k) => k !== opt.key) : [...prev, opt.key]
-                      )
-                    }
-                    className={`flex items-center gap-3 rounded-lg border px-4 py-3 text-sm text-left transition-all duration-100 ${
-                      selected
-                        ? "border-blue-300 bg-blue-50 text-blue-800 font-medium"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
-                    }`}
-                  >
-                    <span
-                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors ${
-                        selected ? "border-blue-500 bg-blue-500" : "border-slate-300"
-                      }`}
-                    >
-                      {selected && (
-                        <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 12 12">
-                          <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      )}
-                    </span>
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {generateError && (
-              <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-                {generateError}
-              </div>
-            )}
-
-            <div className="flex gap-2 pt-1">
-              <Button
-                variant="outline"
-                className="flex-1 h-10"
-                onClick={() => { setSelectedExpansions([]); generate(); }}
-              >
-                Skip — generate now
-              </Button>
-              <Button
-                className="flex-1 h-10 font-medium"
-                onClick={generate}
-              >
-                {selectedExpansions.length > 0
-                  ? `Generate + ${selectedExpansions.length} extra`
-                  : "Generate Blueprint"}
-                <Sparkles className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Trust signals footer — shown on describe stage only */}
+      {/* Trust signals footer */}
       {stage === "describe" && (
         <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-400 pt-2 pb-4">
           <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> No Salesforce credentials required</span>
@@ -652,12 +245,12 @@ export function ConversationChat() {
       {/* Generating stage */}
       {stage === "generating" && (() => {
         const steps = [
-          { icon: "🔍", text: "Reading your requirements…", sub: "Parsing business context and signals" },
+          { icon: "🔍", text: "Reading your requirements…",            sub: "Parsing business context and signals" },
           { icon: "🧠", text: "Evaluating Salesforce product families…", sub: "Matching 21 clouds to your use case" },
-          { icon: "🏗️", text: "Designing architecture…", sub: "OOTB vs custom, integrations, AppExchange" },
-          { icon: "🗄️", text: "Mapping your data model…", sub: "Objects, relationships, automations" },
-          { icon: "💰", text: "Estimating costs and roadmap…", sub: "License tiers and phased delivery plan" },
-          { icon: "✨", text: "Finalising your blueprint…", sub: "Almost ready" },
+          { icon: "🏗️", text: "Designing architecture…",               sub: "OOTB vs custom, integrations, AppExchange" },
+          { icon: "🗄️", text: "Mapping your data model…",              sub: "Objects, relationships, automations" },
+          { icon: "💰", text: "Estimating costs and roadmap…",          sub: "License tiers and phased delivery plan" },
+          { icon: "✨", text: "Finalising your blueprint…",             sub: "Almost ready" },
         ];
         const pct = Math.min(Math.round(((progressStep + 1) / steps.length) * 100), 95);
         return (
@@ -678,4 +271,3 @@ export function ConversationChat() {
     </div>
   );
 }
-
