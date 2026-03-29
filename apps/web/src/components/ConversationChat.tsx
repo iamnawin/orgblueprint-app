@@ -273,14 +273,14 @@ export function ConversationChat() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       {/* Header */}
-      <div className="text-center py-10">
-        <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 rounded-full border border-blue-200 bg-blue-50 text-blue-700 text-xs font-semibold tracking-wide">
-          <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
-          Powered by Orb — AI Solution Architect
+      <div className="text-center pt-12 pb-8">
+        <div className="inline-flex items-center gap-2 mb-5 px-3 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-xs font-semibold tracking-wide">
+          <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
+          Orb — AI Solution Architect
         </div>
-        <h1 className="text-5xl font-extrabold text-slate-900 mb-3 tracking-tight leading-none">OrgBlueprint</h1>
-        <p className="text-slate-500 text-lg max-w-md mx-auto">
-          Describe your business needs. Orb asks the right questions, then builds your CRM blueprint.
+        <h1 className="text-5xl font-extrabold mb-3 tracking-tight leading-none bg-gradient-to-br from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">OrgBlueprint</h1>
+        <p className="text-slate-400 text-lg max-w-md mx-auto leading-relaxed">
+          Describe your business needs. Orb asks the right questions, then builds your Salesforce blueprint.
         </p>
       </div>
 
@@ -300,8 +300,8 @@ export function ConversationChat() {
                     p.key === crmPlatform
                       ? "bg-blue-600 text-white shadow-sm"
                       : p.available
-                      ? "bg-white text-slate-600 border border-slate-200 hover:border-blue-300 hover:text-blue-600"
-                      : "bg-slate-50 text-slate-300 border border-slate-100 cursor-not-allowed"
+                      ? "bg-slate-800 text-slate-300 border border-slate-700 hover:border-blue-500/50 hover:text-blue-400"
+                      : "bg-slate-900 text-slate-600 border border-slate-800 cursor-not-allowed"
                   }`}
                   title={!p.available ? "Coming soon" : undefined}
                 >
@@ -311,21 +311,21 @@ export function ConversationChat() {
                 </button>
               ))}
             </div>
-            <span className="text-xs text-slate-400 flex items-center gap-1">
+            <span className="text-xs text-slate-500 flex items-center gap-1">
               <Brain className="h-3 w-3 text-indigo-400" /> Smart questions adapt to your input
             </span>
           </div>
 
           {/* Main input card */}
-          <div className="relative rounded-2xl border border-slate-200 bg-white shadow-[0_2px_20px_rgba(0,0,0,0.06)]">
+          <div className="relative rounded-2xl border border-slate-700/60 bg-slate-900/80 shadow-[0_0_40px_rgba(59,130,246,0.08)] ring-1 ring-white/5">
             {/* Example prompt chips */}
-            <div className="flex gap-2 overflow-x-auto px-4 pt-4 pb-2 scrollbar-none">
+            <div className="flex gap-2 overflow-x-auto px-4 pt-4 pb-3 scrollbar-none border-b border-slate-800/60">
               {EXAMPLE_PROMPTS.map((p, i) => (
                 <button
                   key={i}
                   type="button"
                   onClick={() => setNeedText(p.text)}
-                  className="whitespace-nowrap text-xs px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors shrink-0"
+                  className="whitespace-nowrap text-xs px-3 py-1.5 rounded-full border border-slate-700 bg-slate-800/60 text-slate-400 hover:bg-blue-500/10 hover:border-blue-500/40 hover:text-blue-300 transition-colors shrink-0"
                 >
                   {p.label}
                 </button>
@@ -335,7 +335,7 @@ export function ConversationChat() {
             <div className="relative px-4 pb-1">
               <Textarea
                 placeholder="E.g. We're a 200-person healthcare company. We need to manage patient referrals, track our sales pipeline, integrate with our EHR system, and automate appointment reminders. We also want a patient portal."
-                className="min-h-44 text-base pr-12 resize-none border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent p-0"
+                className="min-h-44 text-base pr-12 resize-none border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent p-0 text-slate-100 placeholder:text-slate-600"
                 value={needText}
                 onChange={(e) => setNeedText(e.target.value)}
               />
@@ -346,7 +346,7 @@ export function ConversationChat() {
                   className={`absolute bottom-3 right-3 p-2 rounded-full transition-all duration-200 ${
                     isListening
                       ? "bg-red-500 text-white shadow-lg shadow-red-200 scale-110"
-                      : "bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+                      : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200"
                   }`}
                   title={isListening ? "Stop recording" : "Speak your needs"}
                 >
@@ -363,8 +363,8 @@ export function ConversationChat() {
             )}
 
             {/* Bottom action bar */}
-            <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-4 py-3">
-              <div className="flex items-center gap-4 text-xs text-slate-400">
+            <div className="flex items-center justify-between gap-3 border-t border-slate-800 px-4 py-3">
+              <div className="flex items-center gap-4 text-xs text-slate-500">
                 <span className="flex items-center gap-1.5"><BarChart3 className="h-3.5 w-3.5 text-indigo-400" /> Architecture-grade</span>
                 <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-green-400" /> No credentials needed</span>
               </div>
@@ -380,7 +380,7 @@ export function ConversationChat() {
             </div>
           </div>
 
-          <p className="text-center text-xs text-slate-400">
+          <p className="text-center text-xs text-slate-600">
             Orb will ask up to 3 context-aware questions based on what you describe
           </p>
         </div>
@@ -557,7 +557,7 @@ export function ConversationChat() {
 
       {/* Trust signals footer — shown on describe stage only */}
       {stage === "describe" && (
-        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-400 pt-2 pb-4">
+        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-600 pt-2 pb-4">
           <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> No Salesforce credentials required</span>
           <span className="flex items-center gap-1.5"><BarChart3 className="h-3.5 w-3.5" /> Directional estimates only</span>
           <span className="flex items-center gap-1.5"><Brain className="h-3.5 w-3.5" /> Orb-powered recommendations</span>
