@@ -11,7 +11,8 @@ function parseUsers(text: string): number | null {
     "|managers?|executives?|salespeople|sales\\s+people|directors?|admins?|administrators?" +
     "|analysts?|consultants?|engineers?|associates?|professionals?|coordinators?" +
     "|specialists?|advisors?|representatives?|technicians?|operators?|supervisors?" +
-    "|developers?|leaders?|partners?)";
+    "|developers?|leaders?|partners?" +
+    "|AEs?|SDRs?|BDRs?|AMs?|CSMs?|SEs?|AEs?|BAs?|PMs?)";
   // Optional role-modifier words (not numeric multipliers like million/billion)
   const roleModifier = "(?:(?!million|billion|thousand|hundred|percent)\\w+\\s+){0,2}";
 
