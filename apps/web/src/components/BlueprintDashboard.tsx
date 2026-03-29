@@ -1353,7 +1353,7 @@ function TechnicalBlueprintTab({ products, needText }: { products: ProductDecisi
                           </div>
                         </div>
                       ))}
-                      <p className="text-xs text-slate-400">AI-generated reference implementation. Review and adapt for your org's specific configuration.</p>
+                      <p className="text-xs text-slate-400">AI-generated reference implementation. Review and adapt for your org&apos;s specific configuration.</p>
                     </div>
                   )}
 
