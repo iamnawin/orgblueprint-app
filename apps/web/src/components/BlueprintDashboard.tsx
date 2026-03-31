@@ -725,6 +725,12 @@ function AppExchangeTab({ products }: { products: ProductDecision[] }) {
 function ChecklistTab({ products }: { products: ProductDecision[] }) {
   const phases = generateChecklist(products);
   const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [phaseNames, setPhaseNames] = useState<Record<string, string>>({});
+  const [editingPhase, setEditingPhase] = useState<string | null>(null);
+  const [editPhaseValue, setEditPhaseValue] = useState("");
+  const [taskEdits, setTaskEdits] = useState<Record<string, string>>({});
+  const [editingTask, setEditingTask] = useState<string | null>(null);
 
   function toggle(id: string) {
     setChecked((prev) => {
@@ -733,6 +739,34 @@ function ChecklistTab({ products }: { products: ProductDecision[] }) {
       return next;
     });
   }
+
+  function toggleCollapse(phase: string) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      next.has(phase) ? next.delete(phase) : next.add(phase);
+      return next;
+    });
+  }
+
+  function startEditPhase(e: React.MouseEvent, phase: string) {
+    e.stopPropagation();
+    setEditingPhase(phase);
+    setEditPhaseValue(phaseNames[phase] ?? phase);
+  }
+
+  function savePhase() {
+    if (editingPhase && editPhaseValue.trim()) {
+      setPhaseNames((prev) => ({ ...prev, [editingPhase]: editPhaseValue.trim() }));
+    }
+    setEditingPhase(null);
+  }
+
+  function startEditTask(id: string, currentText: string) {
+    setEditingTask(id);
+    setTaskEdits((prev) => ({ ...prev, [id]: prev[id] ?? currentText }));
+  }
+
+  function saveTask() { setEditingTask(null); }
 
   const totalItems = phases.reduce((sum, p) => sum + p.items.length, 0);
   const completedCount = checked.size;
@@ -752,7 +786,7 @@ function ChecklistTab({ products }: { products: ProductDecision[] }) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Progress */}
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
         <div className="flex justify-between text-sm">
@@ -762,42 +796,127 @@ function ChecklistTab({ products }: { products: ProductDecision[] }) {
         <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
           <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
         </div>
+        <p className="text-xs text-slate-400">Double-click a task to edit it · Click a phase header to collapse · Click ✏ to rename a phase</p>
       </div>
 
-      {phases.map((phase) => (
-        <div key={phase.phase}>
-          <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-blue-500" />
-            {phase.phase}
-            <span className="text-xs text-slate-400 font-normal ml-1">({phase.items.length} tasks)</span>
-          </h3>
-          <div className="space-y-2">
-            {phase.items.map((item, idx) => {
-              const id = `${phase.phase}:${idx}`;
-              const done = checked.has(id);
-              return (
-                <div key={id} className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${done ? "bg-slate-50 border-slate-100 opacity-60" : "bg-white border-slate-200"}`}>
+      {phases.map((phase) => {
+        const displayName = phaseNames[phase.phase] ?? phase.phase;
+        const isCollapsed = collapsed.has(phase.phase);
+        const phaseDone = phase.items.filter((_, idx) => checked.has(`${phase.phase}:${idx}`)).length;
+        const phasePct = phase.items.length > 0 ? Math.round((phaseDone / phase.items.length) * 100) : 0;
+
+        return (
+          <div key={phase.phase} className="rounded-xl border border-slate-200 overflow-hidden">
+            {/* ── Phase header ── */}
+            <div
+              className="flex items-center gap-3 px-4 py-3 bg-slate-50 hover:bg-slate-100 cursor-pointer transition-colors select-none group"
+              onClick={() => toggleCollapse(phase.phase)}
+            >
+              <span className="text-slate-400 text-xs flex-shrink-0">{isCollapsed ? "▶" : "▼"}</span>
+
+              {editingPhase === phase.phase ? (
+                <input
+                  value={editPhaseValue}
+                  onChange={(e) => setEditPhaseValue(e.target.value)}
+                  onBlur={savePhase}
+                  onKeyDown={(e) => { if (e.key === "Enter") savePhase(); if (e.key === "Escape") setEditingPhase(null); }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex-1 text-sm font-bold border-b-2 border-blue-400 bg-transparent outline-none text-slate-800"
+                  autoFocus
+                />
+              ) : (
+                <div className="flex-1 flex items-center gap-2 min-w-0">
+                  <span className="text-sm font-bold text-slate-800 truncate">{displayName}</span>
+                  <span className="text-xs text-slate-400 font-normal flex-shrink-0">
+                    {phaseDone}/{phase.items.length} tasks
+                  </span>
                   <button
-                    onClick={() => toggle(id)}
-                    className={`flex-shrink-0 w-4.5 h-4.5 mt-0.5 rounded border-2 transition-colors flex items-center justify-center ${done ? "bg-green-500 border-green-500" : "border-slate-300 hover:border-blue-400"}`}
-                    style={{ minWidth: 18, minHeight: 18 }}
-                  >
-                    {done && <span className="text-white text-xs leading-none">✓</span>}
-                  </button>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm text-slate-800 leading-snug ${done ? "line-through text-slate-400" : ""}`}>{item.task}</p>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                      <span className="text-xs text-slate-400">{item.product}</span>
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full border font-medium ${effortColor[item.effort]}`}>{item.effort} effort</span>
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${categoryColor[item.category]}`}>{item.category}</span>
-                    </div>
-                  </div>
+                    onClick={(e) => startEditPhase(e, phase.phase)}
+                    className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-blue-500 text-xs flex-shrink-0 transition-opacity"
+                    title="Rename phase"
+                  >✏</button>
                 </div>
-              );
-            })}
+              )}
+
+              {/* Mini phase progress bar */}
+              <div className="w-20 h-1.5 bg-slate-200 rounded-full overflow-hidden flex-shrink-0">
+                <div
+                  className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                  style={{ width: `${phasePct}%` }}
+                />
+              </div>
+              <span className="text-xs text-slate-400 flex-shrink-0 w-8 text-right">{phasePct}%</span>
+            </div>
+
+            {/* ── Phase tasks ── */}
+            {!isCollapsed && (
+              <div className="p-3 space-y-2 bg-white">
+                {phase.items.map((item, idx) => {
+                  const id = `${phase.phase}:${idx}`;
+                  const done = checked.has(id);
+                  const taskText = taskEdits[id] ?? item.task;
+                  const isEditingThis = editingTask === id;
+
+                  return (
+                    <div
+                      key={id}
+                      className={`flex items-start gap-3 p-3 rounded-lg border transition-colors group/task ${
+                        done ? "bg-slate-50 border-slate-100 opacity-60" : "bg-white border-slate-200 hover:border-slate-300"
+                      }`}
+                    >
+                      {/* Checkbox */}
+                      <button
+                        onClick={() => toggle(id)}
+                        className={`flex-shrink-0 rounded border-2 transition-colors flex items-center justify-center ${
+                          done ? "bg-green-500 border-green-500" : "border-slate-300 hover:border-blue-400"
+                        }`}
+                        style={{ minWidth: 18, minHeight: 18, width: 18, height: 18, marginTop: 2 }}
+                      >
+                        {done && <span className="text-white text-xs leading-none">✓</span>}
+                      </button>
+
+                      <div className="flex-1 min-w-0">
+                        {isEditingThis ? (
+                          <input
+                            value={taskEdits[id] ?? item.task}
+                            onChange={(e) => setTaskEdits((prev) => ({ ...prev, [id]: e.target.value }))}
+                            onBlur={saveTask}
+                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") saveTask(); }}
+                            className="w-full text-sm border-b border-blue-400 bg-transparent outline-none text-slate-800 pb-0.5"
+                            autoFocus
+                          />
+                        ) : (
+                          <p
+                            className={`text-sm leading-snug cursor-text ${done ? "line-through text-slate-400" : "text-slate-800"}`}
+                            onDoubleClick={() => !done && startEditTask(id, item.task)}
+                            title="Double-click to edit"
+                          >
+                            {taskText}
+                          </p>
+                        )}
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                          <span className="text-xs text-slate-400">{item.product}</span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full border font-medium ${effortColor[item.effort]}`}>{item.effort} effort</span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${categoryColor[item.category]}`}>{item.category}</span>
+                        </div>
+                      </div>
+
+                      {/* Edit task button */}
+                      {!done && (
+                        <button
+                          onClick={() => startEditTask(id, item.task)}
+                          className="opacity-0 group-hover/task:opacity-100 text-slate-300 hover:text-blue-400 text-xs flex-shrink-0 self-start mt-0.5 transition-opacity"
+                          title="Edit task"
+                        >✏</button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
