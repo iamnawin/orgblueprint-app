@@ -663,6 +663,8 @@ function VisualRoadmap({ roadmap }: { roadmap: BlueprintResult["roadmap"] }) {
 
 // ─── AppExchange Tab ──────────────────────────────────────────────────────────
 function AppExchangeTab({ products }: { products: ProductDecision[] }) {
+  const [showAll, setShowAll] = useState(false);
+
   const activeKeys = products
     .filter((p) => p.level === "recommended" || p.level === "optional")
     .map((p) => p.key);
@@ -680,30 +682,66 @@ function AppExchangeTab({ products }: { products: ProductDecision[] }) {
     );
   }
 
+  const priorityBadge: Record<string, string> = {
+    essential:   "bg-green-100 text-green-700 border-green-200",
+    recommended: "bg-blue-100 text-blue-700 border-blue-200",
+    optional:    "bg-slate-100 text-slate-500 border-slate-200",
+  };
+
+  const totalApps = sections.reduce((s, sec) => s + sec.apps.length, 0);
+  const essentialCount = sections.reduce((s, sec) => s + sec.apps.filter(a => a.priority === "essential").length, 0);
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {/* Header bar */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <span className="font-semibold text-slate-700">{showAll ? totalApps : essentialCount} app{(showAll ? totalApps : essentialCount) !== 1 ? "s" : ""} shown</span>
+          <span className="px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200 font-medium">{essentialCount} essential</span>
+          <span className="px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200 font-medium">{totalApps - essentialCount} optional</span>
+        </div>
+        <button
+          onClick={() => setShowAll(v => !v)}
+          className="text-xs text-blue-600 hover:text-blue-800 font-medium underline decoration-dotted"
+        >
+          {showAll ? "Show essential only" : `Show all ${totalApps} apps`}
+        </button>
+      </div>
+
+      <div className="rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-700">
+        💡 Only showing apps with a clear fit for your product selection. Essential apps are nearly always needed; recommended are strong fits.
+      </div>
+
       {sections.map(({ key, product, apps }) => {
         const cat = PRODUCT_CATEGORY[key];
+        const visibleApps = showAll ? apps : apps.filter(a => a.priority === "essential" || a.priority === "recommended");
+        if (visibleApps.length === 0) return null;
+
         return (
           <div key={key}>
             <div className="flex items-center gap-2 mb-3">
               <span className="text-lg">{cat?.icon ?? "📦"}</span>
               <h3 className="text-sm font-semibold text-slate-700">{product.name}</h3>
-              <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${cat?.bg} ${cat?.color} ${cat?.border}`}>{apps.length} app{apps.length !== 1 ? "s" : ""}</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${cat?.bg} ${cat?.color} ${cat?.border}`}>{visibleApps.length} app{visibleApps.length !== 1 ? "s" : ""}</span>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {apps.map((app, i) => (
+              {visibleApps.map((app, i) => (
                 <div key={i} className="rounded-xl border border-slate-200 bg-white p-4 hover:shadow-sm transition-shadow space-y-2">
                   <div className="flex items-start justify-between gap-2">
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-sm font-bold text-slate-900">{app.name}</p>
                       <span className="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md font-medium">{app.category}</span>
                     </div>
-                    <div className="flex items-center gap-0.5 flex-shrink-0">
-                      {[1,2,3,4,5].map((star) => (
-                        <span key={star} className={`text-xs ${star <= Math.round(app.rating) ? "text-amber-400" : "text-slate-200"}`}>★</span>
-                      ))}
-                      <span className="text-xs text-slate-400 ml-0.5">{app.rating}</span>
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <div className="flex items-center gap-0.5">
+                        {[1,2,3,4,5].map((star) => (
+                          <span key={star} className={`text-xs ${star <= Math.round(app.rating) ? "text-amber-400" : "text-slate-200"}`}>★</span>
+                        ))}
+                        <span className="text-xs text-slate-400 ml-0.5">{app.rating}</span>
+                      </div>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-semibold ${priorityBadge[app.priority]}`}>
+                        {app.priority}
+                      </span>
                     </div>
                   </div>
                   <p className="text-xs text-slate-600 leading-relaxed">{app.description}</p>
