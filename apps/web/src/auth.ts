@@ -4,7 +4,10 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 
+const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  secret: authSecret,
   trustHost: true,
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },

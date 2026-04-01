@@ -54,8 +54,8 @@ cd apps/web && npx prisma studio
 `apps/web/.env.local` must exist with:
 ```
 DATABASE_URL="file:./prisma/dev.db"        # local SQLite. Set to Neon Postgres URL on Vercel.
-NEXTAUTH_SECRET="<any random string>"
-NEXTAUTH_URL="http://localhost:3000"
+AUTH_SECRET="<any random string>"
+# NEXTAUTH_SECRET="<any random string>"    # legacy alias still accepted
 ANTHROPIC_API_KEY="sk-ant-..."        # optional — enables AI mode (Claude Sonnet)
 GEMINI_API_KEY="AIza..."              # optional — free alternative for AI mode (Gemini 2.0 Flash). Used when ANTHROPIC_API_KEY is empty.
 NVIDIA_API_KEY="nvapi-..."            # optional — fallback chat model (MiniMax M2.5 via NVIDIA NIM)
@@ -64,6 +64,7 @@ UPSTASH_REDIS_REST_TOKEN="..."        # optional — persistent AI quota trackin
 ```
 
 Without `UPSTASH_REDIS_*`, quota tracking falls back to an in-memory Map (resets on server restart).
+For deployment, use a Postgres `DATABASE_URL` and set `AUTH_SECRET` in the host environment. Only set `AUTH_URL` / `NEXTAUTH_URL` if the deployed app sits behind a custom proxy or needs an explicit canonical auth URL.
 
 ## Architecture
 

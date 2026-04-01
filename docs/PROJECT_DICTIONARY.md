@@ -86,7 +86,7 @@
 
 ### `src/auth.ts` — Authentication Config
 
-NextAuth v5 setup. Defines the credentials provider (email + bcrypt password), JWT session strategy, and session callbacks. `trustHost: true` is required so CSRF validation doesn't block local dev.
+NextAuth v5 setup. Defines the credentials provider (email + bcrypt password), JWT session strategy, and session callbacks. The app accepts `AUTH_SECRET` with a fallback to legacy `NEXTAUTH_SECRET`. `trustHost: true` keeps Auth.js host and CSRF checks compatible with local dev and typical Vercel deployments.
 
 ---
 

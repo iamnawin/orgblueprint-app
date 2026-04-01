@@ -144,8 +144,9 @@ Create `apps/web/.env.local`:
 ```env
 # Required
 DATABASE_URL="file:./prisma/dev.db"      # SQLite locally; Neon Postgres URL on Vercel
-NEXTAUTH_SECRET="any-random-string"
-NEXTAUTH_URL="http://localhost:3000"
+AUTH_SECRET="any-random-string"
+# Legacy alias also accepted:
+# NEXTAUTH_SECRET="any-random-string"
 
 # AI providers — at least one needed for AI Enhanced mode
 ANTHROPIC_API_KEY="sk-ant-..."
@@ -156,6 +157,12 @@ NVIDIA_API_KEY="nvapi-..."
 UPSTASH_REDIS_REST_URL="..."
 UPSTASH_REDIS_REST_TOKEN="..."
 ```
+
+For deployment:
+
+- Set `DATABASE_URL` to a real Postgres connection string such as Neon.
+- Set `AUTH_SECRET` in your host environment. `NEXTAUTH_SECRET` is still accepted as a legacy fallback.
+- `NEXTAUTH_URL` / `AUTH_URL` is usually unnecessary on Vercel when the deployment URL is correct; only set it if you are behind a custom proxy or need an explicit canonical URL.
 
 > Demo mode works with **no API keys** at all.
 
