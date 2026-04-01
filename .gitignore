@@ -4,6 +4,7 @@ dist
 .sfdx
 .claude/settings.local.json
 apps/web/.env.local
+apps/web/.env
 apps/web/tsconfig.tsbuildinfo
 apps/web/prisma/prisma/
 apps/web/artifacts/
