@@ -1998,6 +1998,134 @@ Users: ${result.executiveSnapshot.usersDetected}`.trim();
   );
 }
 
+// ─── Cloud Usage Donut Chart ─────────────────────────────────────────────────
+const CAT_META: Record<string, { color: string; stroke: string; icon: string; label: string }> = {
+  "CRM":       { color: "#3b82f6", stroke: "#2563eb", icon: "📊", label: "CRM" },
+  "Marketing": { color: "#a855f7", stroke: "#9333ea", icon: "📣", label: "Marketing" },
+  "Data & AI": { color: "#14b8a6", stroke: "#0d9488", icon: "☁️", label: "Data & AI" },
+  "Platform":  { color: "#64748b", stroke: "#475569", icon: "🔗", label: "Platform" },
+  "Industry":  { color: "#f97316", stroke: "#ea580c", icon: "🏭", label: "Industry" },
+};
+
+function CloudUsageDonut({ products }: { products: ProductDecision[] }) {
+  const [hovered, setHovered] = useState<string | null>(null);
+
+  const activeProducts = products.filter((p) => p.level !== "not_needed");
+  const catGroups: Record<string, ProductDecision[]> = {};
+  for (const p of activeProducts) {
+    const label = PRODUCT_CATEGORY[p.key]?.label ?? "Other";
+    if (!catGroups[label]) catGroups[label] = [];
+    catGroups[label].push(p);
+  }
+
+  const cats = Object.entries(catGroups).filter(([, ps]) => ps.length > 0);
+  const total = cats.reduce((s, [, ps]) => s + ps.length, 0);
+  if (total === 0) return null;
+
+  // Build donut arcs
+  const R = 54; const r = 32; const cx = 70; const cy = 70;
+  const arcs: Array<{ cat: string; products: ProductDecision[]; path: string; midAngle: number }> = [];
+  let startAngle = -Math.PI / 2;
+  const GAP = 0.04;
+
+  for (const [cat, ps] of cats) {
+    const angle = (ps.length / total) * 2 * Math.PI - GAP;
+    const endAngle = startAngle + angle;
+    const x1 = cx + R * Math.cos(startAngle + GAP / 2);
+    const y1 = cy + R * Math.sin(startAngle + GAP / 2);
+    const x2 = cx + R * Math.cos(endAngle);
+    const y2 = cy + R * Math.sin(endAngle);
+    const ix1 = cx + r * Math.cos(endAngle);
+    const iy1 = cy + r * Math.sin(endAngle);
+    const ix2 = cx + r * Math.cos(startAngle + GAP / 2);
+    const iy2 = cy + r * Math.sin(startAngle + GAP / 2);
+    const large = angle > Math.PI ? 1 : 0;
+    const path = `M${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${large},1 ${x2.toFixed(2)},${y2.toFixed(2)} L${ix1.toFixed(2)},${iy1.toFixed(2)} A${r},${r} 0 ${large},0 ${ix2.toFixed(2)},${iy2.toFixed(2)} Z`;
+    const midAngle = startAngle + GAP / 2 + angle / 2;
+    arcs.push({ cat, products: ps, path, midAngle });
+    startAngle = endAngle + GAP;
+  }
+
+  const hoveredData = hovered ? catGroups[hovered] : null;
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col sm:flex-row gap-4 items-start">
+      {/* Donut SVG */}
+      <div className="relative flex-shrink-0">
+        <svg width={140} height={140} viewBox="0 0 140 140">
+          {arcs.map(({ cat, path }) => {
+            const meta = CAT_META[cat];
+            const isHov = hovered === cat;
+            return (
+              <path
+                key={cat}
+                d={path}
+                fill={meta?.color ?? "#94a3b8"}
+                stroke={isHov ? (meta?.stroke ?? "#64748b") : "white"}
+                strokeWidth={isHov ? 2 : 1.5}
+                opacity={hovered && !isHov ? 0.35 : 1}
+                style={{ cursor: "pointer", transition: "opacity 0.15s, transform 0.15s", transformOrigin: `${cx}px ${cy}px`, transform: isHov ? "scale(1.06)" : "scale(1)" }}
+                onMouseEnter={() => setHovered(cat)}
+                onMouseLeave={() => setHovered(null)}
+              />
+            );
+          })}
+          {/* Centre label */}
+          <text x={cx} y={cy - 6} textAnchor="middle" fontSize={20} fontWeight="700" fill="#1e293b" fontFamily="system-ui">
+            {total}
+          </text>
+          <text x={cx} y={cy + 10} textAnchor="middle" fontSize={9} fill="#94a3b8" fontFamily="system-ui">
+            {hovered ? hovered : "clouds"}
+          </text>
+        </svg>
+      </div>
+
+      {/* Legend + tooltip */}
+      <div className="flex-1 space-y-3 min-w-0">
+        <div className="flex flex-wrap gap-2">
+          {cats.map(([cat, ps]) => {
+            const meta = CAT_META[cat];
+            return (
+              <button
+                key={cat}
+                onMouseEnter={() => setHovered(cat)}
+                onMouseLeave={() => setHovered(null)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                  hovered === cat ? "border-transparent shadow-md scale-105" : "border-slate-200 bg-slate-50 text-slate-700"
+                }`}
+                style={hovered === cat ? { backgroundColor: meta?.color, color: "white", borderColor: meta?.stroke } : {}}
+              >
+                <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: meta?.color ?? "#94a3b8" }} />
+                {meta?.icon} {cat}
+                <span className="opacity-70">{ps.length}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Hovered category product list */}
+        {hoveredData && hovered && (
+          <div className="rounded-xl border p-3 space-y-1.5" style={{ borderColor: CAT_META[hovered]?.color + "44", backgroundColor: CAT_META[hovered]?.color + "0d" }}>
+            <p className="text-xs font-bold" style={{ color: CAT_META[hovered]?.stroke }}>{hovered} — {hoveredData.length} product{hoveredData.length !== 1 ? "s" : ""}</p>
+            {hoveredData.map((p) => (
+              <div key={p.key} className="flex items-center gap-2">
+                <span className="text-sm">{PRODUCT_CATEGORY[p.key]?.icon ?? "📦"}</span>
+                <span className="text-xs text-slate-700 font-medium">{p.name}</span>
+                <span className={`ml-auto text-[10px] px-1.5 py-0.5 rounded-full border font-semibold ${
+                  p.level === "recommended" ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-700 border-amber-200"
+                }`}>{p.level === "recommended" ? "✓ Rec" : "~ Opt"}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {!hoveredData && (
+          <p className="text-xs text-slate-400">Hover a segment or legend to see products in that category</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main dashboard ───────────────────────────────────────────────────────────
 function inferUsersFromText(text: string): number | null {
   const patterns = [
@@ -2356,36 +2484,8 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
 
       {/* Product Recommendations — widget dashboard */}
       <div className="space-y-3">
-        {/* Summary row */}
-        <div className="flex flex-wrap gap-2">
-          {(["CRM", "Marketing", "Data & AI", "Platform", "Industry"] as const).map((cat) => {
-            const catProducts = result.products.filter(
-              (p) => PRODUCT_CATEGORY[p.key]?.label === cat && p.level !== "not_needed"
-            );
-            if (catProducts.length === 0) return null;
-            const catConfig = {
-              "CRM":       { bg: "bg-blue-600",   text: "text-white", icon: "📊" },
-              "Marketing": { bg: "bg-purple-600",  text: "text-white", icon: "📣" },
-              "Data & AI": { bg: "bg-teal-600",    text: "text-white", icon: "☁️" },
-              "Platform":  { bg: "bg-slate-700",   text: "text-white", icon: "🔗" },
-              "Industry":  { bg: "bg-orange-600",  text: "text-white", icon: "🏭" },
-            }[cat];
-            const recCount = catProducts.filter((p) => p.level === "recommended").length;
-            const optCount = catProducts.filter((p) => p.level === "optional").length;
-            return (
-              <div key={cat} className={`flex items-center gap-2 px-3 py-2 rounded-xl ${catConfig.bg} ${catConfig.text} text-xs font-medium shadow-sm`}>
-                <span className="text-sm">{catConfig.icon}</span>
-                <span className="font-semibold">{cat}</span>
-                {recCount > 0 && <span className="bg-white/25 rounded-full px-1.5 py-0.5 text-xs">{recCount} rec</span>}
-                {optCount > 0 && <span className="bg-white/15 rounded-full px-1.5 py-0.5 text-xs">{optCount} opt</span>}
-              </div>
-            );
-          })}
-          <div className="ml-auto flex items-center gap-3 text-xs text-slate-500 self-center">
-            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-500" />{recommended.length} recommended</span>
-            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-400" />{optional.length} optional</span>
-          </div>
-        </div>
+        {/* ── Cloud Usage Donut Chart ── */}
+        <CloudUsageDonut products={result.products} />
 
         {/* Recommended products */}
         {recommended.length > 0 && (
