@@ -72,7 +72,6 @@ Anthropic Claude Sonnet → Gemini 2.0 Flash → Groq → deterministic rules en
 
 ![Prisma](https://img.shields.io/badge/Prisma-2D3748?logo=prisma&logoColor=white&style=flat-square)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white&style=flat-square)
-![SQLite](https://img.shields.io/badge/SQLite_(local)-003B57?logo=sqlite&logoColor=white&style=flat-square)
 ![NextAuth](https://img.shields.io/badge/NextAuth_v5-000?logo=nextdotjs&logoColor=white&style=flat-square)
 
 </td>
@@ -109,7 +108,7 @@ orgblueprint-app/
 │       │   ├── components/     ConversationChat, BlueprintDashboard, AIAssistantWidget
 │       │   ├── lib/            anthropic.ts, clarifications.ts, quota.ts, pricing.ts
 │       │   └── hooks/          useSpeechInput
-│       ├── prisma/             Schema and migrations
+│       ├── prisma/             Prisma schema
 │       └── tests/              Playwright E2E suite
 ├── packages/
 │   └── core/                   Pure TypeScript — zero runtime dependencies
@@ -143,7 +142,7 @@ Create `apps/web/.env.local`:
 
 ```env
 # Required
-DATABASE_URL="file:./prisma/dev.db"      # SQLite locally; Neon Postgres URL on Vercel
+DATABASE_URL="postgresql://user:password@host:5432/postgres?sslmode=require"
 AUTH_SECRET="any-random-string"
 # Legacy alias also accepted:
 # NEXTAUTH_SECRET="any-random-string"
@@ -158,10 +157,10 @@ UPSTASH_REDIS_REST_URL="..."
 UPSTASH_REDIS_REST_TOKEN="..."
 ```
 
-For deployment:
+For every environment:
 
-- Set `DATABASE_URL` to a real Postgres connection string such as Neon.
-- Set `AUTH_SECRET` in your host environment. `NEXTAUTH_SECRET` is still accepted as a legacy fallback.
+- Use the same hosted Postgres `DATABASE_URL` pattern locally and in deployment.
+- Set `AUTH_SECRET` in the host environment. `NEXTAUTH_SECRET` is still accepted as a legacy fallback.
 - `NEXTAUTH_URL` / `AUTH_URL` is usually unnecessary on Vercel when the deployment URL is correct; only set it if you are behind a custom proxy or need an explicit canonical URL.
 
 > Demo mode works with **no API keys** at all.
@@ -237,7 +236,7 @@ Deploys to Vercel out of the box.
 Vercel project → connect repo → set env vars → deploy
 ```
 
-Switch `DATABASE_URL` to a [Neon](https://neon.tech) Postgres connection string for persistent storage (SQLite is ephemeral on Vercel's serverless runtime).
+Use one hosted Postgres connection string for both local development and deployment so auth and blueprint storage share one consistent database backend. Supabase and Neon both work.
 
 ---
 

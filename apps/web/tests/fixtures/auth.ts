@@ -1,7 +1,7 @@
 import { test as base } from '@playwright/test'
 import { AuthPage } from '../pages/AuthPage'
 
-// Test credentials — only used against local SQLite dev DB
+// Test credentials — only used against the local app backed by hosted Postgres
 export const TEST_USER = {
   name: 'E2E Test User',
   email: 'e2e@test.local',

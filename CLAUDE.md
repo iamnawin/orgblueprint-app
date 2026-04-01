@@ -37,7 +37,7 @@ cd apps/web && npm run test:e2e:report      # open HTML report after a run
 # Check environment and config health
 npm run doctor
 
-# Prisma: push schema to SQLite dev DB
+# Prisma: push schema to hosted Postgres
 cd apps/web && npx prisma db push
 
 # Prisma: generate client after schema changes
@@ -53,7 +53,7 @@ cd apps/web && npx prisma studio
 
 `apps/web/.env.local` must exist with:
 ```
-DATABASE_URL="file:./prisma/dev.db"        # local SQLite. Set to Neon Postgres URL on Vercel.
+DATABASE_URL="postgresql://user:password@host:5432/postgres?sslmode=require"
 AUTH_SECRET="<any random string>"
 # NEXTAUTH_SECRET="<any random string>"    # legacy alias still accepted
 ANTHROPIC_API_KEY="sk-ant-..."        # optional — enables AI mode (Claude Sonnet)
@@ -64,7 +64,7 @@ UPSTASH_REDIS_REST_TOKEN="..."        # optional — persistent AI quota trackin
 ```
 
 Without `UPSTASH_REDIS_*`, quota tracking falls back to an in-memory Map (resets on server restart).
-For deployment, use a Postgres `DATABASE_URL` and set `AUTH_SECRET` in the host environment. Only set `AUTH_URL` / `NEXTAUTH_URL` if the deployed app sits behind a custom proxy or needs an explicit canonical auth URL.
+Use the same hosted Postgres `DATABASE_URL` style in every environment and set `AUTH_SECRET` in the host environment. Only set `AUTH_URL` / `NEXTAUTH_URL` if the deployed app sits behind a custom proxy or needs an explicit canonical auth URL.
 
 ## Architecture
 
@@ -76,7 +76,7 @@ npm workspaces monorepo:
 - `templates.ts` — `enrichWithTemplates(result, signals)`: overlays polished narrative strings onto rules-engine output for demo mode. Covers: primaryFocus, whyMapping, objectsAndAutomations, analyticsPack, roadmap, documentChecklist, risks.
 - `estimateLicenses.ts` / `estimateImplementation.ts` / `pricingAssumptions.ts` — cost estimation helpers.
 
-**`apps/web`** — Next.js 14 App Router, React 18, Tailwind CSS, shadcn/ui, Prisma (SQLite), NextAuth v5.
+**`apps/web`** — Next.js 14 App Router, React 18, Tailwind CSS, shadcn/ui, Prisma (Postgres), NextAuth v5.
 
 ## Three Operating Modes
 
@@ -174,11 +174,11 @@ The 6-stage wizard manages state via a `stage` discriminated union:
 
 NextAuth v5 with `PrismaAdapter` and `CredentialsProvider`. Session strategy is JWT. The JWT callback stores `user.id` so API routes can call `auth()` and read `session.user.id`. Passwords hashed with bcrypt (cost 10).
 
-## Database Schema (SQLite via Prisma)
+## Database Schema (Hosted Postgres via Prisma)
 
 `User` → `Blueprint[]`. `Blueprint` stores `needText`, `answers` (JSON string), `result` (JSON string), `slug` (nanoid(8)), `isPublic` flag. NextAuth adapter tables also present.
 
-`result` and `answers` are stored as raw JSON strings and parsed at read time. **SQLite is ephemeral on Vercel** — swap to Neon Postgres for production persistence.
+`result` and `answers` are stored as raw JSON strings and parsed at read time. The app now assumes a single hosted Postgres backend across local development and deployment.
 
 ## User Count Detection (`parseUsers` in rules.ts, `parseUsersFromText` in clarifications.ts)
 
