@@ -1234,94 +1234,185 @@ function RefineBlueprintPanel({
 }
 
 // ─── Business Object Map ──────────────────────────────────────────────────────
-const BUSINESS_OBJECT_MAP = [
-  { businessName: "Customers",           sfObject: "Account",          icon: "🏢", description: "Stores company or organization information — your B2B accounts or consumer households." },
-  { businessName: "Customer Contacts",   sfObject: "Contact",          icon: "👤", description: "People who work at the customer company — your primary points of contact." },
-  { businessName: "Sales Deals",         sfObject: "Opportunity",      icon: "💰", description: "Tracks potential revenue and deal stages from initial interest to close." },
-  { businessName: "Support Tickets",     sfObject: "Case",             icon: "🎫", description: "Tracks customer service issues from first contact through resolution." },
-  { businessName: "Sales Prospects",     sfObject: "Lead",             icon: "🌱", description: "Unqualified prospects before they become contacts and opportunities." },
-  { businessName: "Marketing Campaigns", sfObject: "Campaign",         icon: "📣", description: "Tracks marketing initiatives, their budget, and measurable ROI." },
-  { businessName: "Customer Contracts",  sfObject: "Contract",         icon: "📋", description: "Legal agreements and terms with your customers, linked to accounts." },
-  { businessName: "Customer Orders",     sfObject: "Order",            icon: "📦", description: "Tracks purchases and their fulfilment status post-sale." },
-  { businessName: "Product Catalog",     sfObject: "Product (Product2)", icon: "🏷️", description: "Items or services available for sale, with descriptions and codes." },
-  { businessName: "Pricing Lists",       sfObject: "Price Book (Pricebook2)", icon: "💲", description: "Collections of products with associated prices for different markets or segments." },
-  { businessName: "Activity Tasks",      sfObject: "Task",             icon: "✅", description: "To-do items and follow-up activities linked to any record." },
-  { businessName: "Calendar Events",     sfObject: "Event",            icon: "📅", description: "Meetings, calls, and appointments tied to accounts and contacts." },
+interface BusinessObject { businessName: string; sfObject: string; icon: string; description: string; cloudTag?: string; }
+
+const BASE_OBJECTS: BusinessObject[] = [
+  { businessName: "Customers",           sfObject: "Account",   icon: "🏢", description: "Stores company or organization information — your B2B accounts or consumer households." },
+  { businessName: "Customer Contacts",   sfObject: "Contact",   icon: "👤", description: "People who work at the customer company — your primary points of contact." },
+  { businessName: "Activity Tasks",      sfObject: "Task",      icon: "✅", description: "To-do items and follow-up activities linked to any record." },
+  { businessName: "Calendar Events",     sfObject: "Event",     icon: "📅", description: "Meetings, calls, and appointments tied to accounts and contacts." },
 ];
+
+const CLOUD_OBJECTS: Partial<Record<string, BusinessObject[]>> = {
+  sales_cloud: [
+    { businessName: "Sales Deals",       sfObject: "Opportunity",  icon: "💰", description: "Tracks potential revenue and deal stages from initial interest to close.", cloudTag: "Sales Cloud" },
+    { businessName: "Sales Prospects",   sfObject: "Lead",         icon: "🌱", description: "Unqualified prospects before they become contacts and opportunities.", cloudTag: "Sales Cloud" },
+    { businessName: "Product Catalog",   sfObject: "Product2",     icon: "🏷️", description: "Items or services available for sale, with descriptions and codes.", cloudTag: "Sales Cloud" },
+    { businessName: "Pricing Lists",     sfObject: "Pricebook2",   icon: "💲", description: "Collections of products with associated prices for different markets or segments.", cloudTag: "Sales Cloud" },
+  ],
+  service_cloud: [
+    { businessName: "Support Tickets",   sfObject: "Case",             icon: "🎫", description: "Tracks customer service issues from first contact through resolution.", cloudTag: "Service Cloud" },
+    { businessName: "Service Contracts", sfObject: "Service Contract", icon: "📄", description: "Customer entitlements and SLA agreements governing support terms.", cloudTag: "Service Cloud" },
+    { businessName: "Knowledge Articles",sfObject: "Knowledge__kav",   icon: "📚", description: "Self-service and agent-facing articles for deflection and resolution.", cloudTag: "Service Cloud" },
+    { businessName: "Entitlements",      sfObject: "Entitlement",      icon: "🛡️", description: "Define support levels and SLA milestones linked to accounts.", cloudTag: "Service Cloud" },
+  ],
+  cpq_revenue: [
+    { businessName: "Price Quotes",      sfObject: "Quote (SBQQ__Quote__c)",           icon: "📋", description: "Configured price quotes generated from the CPQ product catalog.", cloudTag: "CPQ" },
+    { businessName: "Quote Line Items",  sfObject: "QuoteLineItem (SBQQ__QuoteLine__c)",icon: "🔢", description: "Individual products and pricing on a CPQ quote.", cloudTag: "CPQ" },
+    { businessName: "Customer Orders",   sfObject: "Order",             icon: "📦", description: "Tracks purchases and their fulfilment status post-sale.", cloudTag: "CPQ" },
+    { businessName: "Customer Contracts",sfObject: "Contract",          icon: "🤝", description: "Legal agreements generated from approved quotes.", cloudTag: "CPQ" },
+  ],
+  field_service: [
+    { businessName: "Work Orders",          sfObject: "WorkOrder",           icon: "🔧", description: "Field service requests assigned to technicians for on-site work.", cloudTag: "Field Service" },
+    { businessName: "Service Appointments", sfObject: "ServiceAppointment",  icon: "📅", description: "Scheduled time slots assigned to resources to complete work orders.", cloudTag: "Field Service" },
+    { businessName: "Service Territories",  sfObject: "ServiceTerritory",    icon: "🗺️", description: "Geographical regions used to route technicians to the right jobs.", cloudTag: "Field Service" },
+    { businessName: "Work Types",           sfObject: "WorkType",            icon: "⚙️", description: "Templates defining required skills and duration for service jobs.", cloudTag: "Field Service" },
+    { businessName: "Service Resources",    sfObject: "ServiceResource",     icon: "👷", description: "Technicians and tools that can be assigned to service appointments.", cloudTag: "Field Service" },
+  ],
+  health_cloud: [
+    { businessName: "Patients / Members",   sfObject: "Contact (Patient)",   icon: "🏥", description: "Patient or health plan member record with clinical relationships.", cloudTag: "Health Cloud" },
+    { businessName: "Care Plans",           sfObject: "CarePlan",            icon: "📋", description: "Structured care plans with goals, problems, and interventions.", cloudTag: "Health Cloud" },
+    { businessName: "Care Team Members",    sfObject: "CareTeamMember",      icon: "👩‍⚕️", description: "Clinicians and caregivers assigned to patient care plans.", cloudTag: "Health Cloud" },
+    { businessName: "Episodes of Care",     sfObject: "EpisodeOfCare",       icon: "🔄", description: "Discrete periods of health management for a patient.", cloudTag: "Health Cloud" },
+  ],
+  financial_services_cloud: [
+    { businessName: "Financial Accounts",   sfObject: "FinancialAccount",    icon: "💳", description: "Bank accounts, investment portfolios, and insurance policies.", cloudTag: "FSC" },
+    { businessName: "Households",           sfObject: "Account (Household)", icon: "🏠", description: "Household groupings linking related individuals and assets.", cloudTag: "FSC" },
+    { businessName: "Insurance Policies",   sfObject: "InsurancePolicy",     icon: "🛡️", description: "Insurance policy records with coverage details and premiums.", cloudTag: "FSC" },
+    { businessName: "Financial Goals",      sfObject: "FinancialGoal",       icon: "🎯", description: "Client financial objectives tracked over time by advisors.", cloudTag: "FSC" },
+  ],
+  marketing_cloud: [
+    { businessName: "Marketing Campaigns",  sfObject: "Campaign",            icon: "📣", description: "Tracks marketing initiatives, their budget, and measurable ROI.", cloudTag: "Marketing" },
+  ],
+  pardot: [
+    { businessName: "Marketing Campaigns",  sfObject: "Campaign",            icon: "📣", description: "Tracks marketing initiatives, their budget, and measurable ROI.", cloudTag: "Pardot" },
+  ],
+  nonprofit_cloud: [
+    { businessName: "Donors / Constituents",sfObject: "Contact (Constituent)",icon: "❤️", description: "Donors, volunteers, and program participants.", cloudTag: "Nonprofit" },
+    { businessName: "Donations",            sfObject: "Opportunity (Donation)",icon: "💝", description: "Individual donations and pledges tracked as opportunities.", cloudTag: "Nonprofit" },
+    { businessName: "Grants",               sfObject: "Grant__c",            icon: "🏛️", description: "Grant applications and funding lifecycle management.", cloudTag: "Nonprofit" },
+  ],
+  manufacturing_cloud: [
+    { businessName: "Sales Agreements",     sfObject: "SalesAgreement",      icon: "📜", description: "Long-term pricing and volume agreements with key accounts.", cloudTag: "Manufacturing" },
+    { businessName: "Rebate Programs",      sfObject: "Rebate__c",           icon: "💰", description: "Rebate structures and accrual calculations for dealer channels.", cloudTag: "Manufacturing" },
+  ],
+};
+
+function getCloudObjects(products: ProductDecision[]): BusinessObject[] {
+  const activeKeys = new Set(products.filter(p => p.level !== "not_needed").map(p => p.key));
+  const seen = new Set<string>();
+  const result: BusinessObject[] = [];
+
+  for (const obj of BASE_OBJECTS) {
+    if (!seen.has(obj.sfObject)) { seen.add(obj.sfObject); result.push(obj); }
+  }
+  for (const key of activeKeys) {
+    for (const obj of CLOUD_OBJECTS[key] ?? []) {
+      if (!seen.has(obj.sfObject)) { seen.add(obj.sfObject); result.push(obj); }
+    }
+  }
+  return result;
+}
 
 // ─── Data Model Diagram ───────────────────────────────────────────────────────
 function DataModelDiagram({ products }: { products: ProductDecision[] }) {
   const keys = new Set(products.filter((p) => p.level !== "not_needed").map((p) => p.key));
 
-  const accountChildren: Array<{ name: string; icon: string; desc: string }> = [
-    { name: "Contact", icon: "👤", desc: "People at the company" },
-  ];
-  if (keys.has("sales_cloud"))   accountChildren.push({ name: "Opportunity", icon: "💰", desc: "Sales deals in progress" });
-  if (keys.has("service_cloud")) accountChildren.push({ name: "Case",        icon: "🎫", desc: "Support tickets" });
-  if (keys.has("cpq_revenue"))   accountChildren.push({ name: "Quote",       icon: "📋", desc: "Configured price quotes" });
-  if (keys.has("commerce_cloud")) accountChildren.push({ name: "Order",      icon: "📦", desc: "Customer orders" });
-  if (keys.has("field_service")) accountChildren.push({ name: "Work Order",  icon: "🔧", desc: "Field service requests" });
+  // Build nodes and edges for the visual ERD
+  type ERDNode = { id: string; label: string; sfApi: string; icon: string; col: number; row: number };
+  type ERDEdge = { from: string; to: string; label: string };
 
-  const roots = [{ name: "Account", icon: "🏢", children: accountChildren }];
+  const nodes: ERDNode[] = [
+    { id: "Account",  label: "Account",  sfApi: "Account",  icon: "🏢", col: 2, row: 0 },
+    { id: "Contact",  label: "Contact",  sfApi: "Contact",  icon: "👤", col: 1, row: 1 },
+  ];
+  const edges: ERDEdge[] = [
+    { from: "Account", to: "Contact", label: "has many" },
+  ];
 
   if (keys.has("sales_cloud") || keys.has("pardot")) {
-    roots.push({
-      name: "Lead",
-      icon: "🌱",
-      children: [
-        { name: "Contact (converted)",     icon: "👤", desc: "On conversion" },
-        { name: "Opportunity (converted)", icon: "💰", desc: "On conversion" },
-        { name: "Account (converted)",     icon: "🏢", desc: "On conversion" },
-      ],
-    });
+    nodes.push({ id: "Lead", label: "Lead", sfApi: "Lead", icon: "🌱", col: 3, row: 1 });
+    nodes.push({ id: "Opportunity", label: "Opportunity", sfApi: "Opportunity", icon: "💰", col: 2, row: 1 });
+    edges.push({ from: "Account", to: "Opportunity", label: "has many" });
+    edges.push({ from: "Lead", to: "Contact", label: "converts to" });
+  }
+  if (keys.has("service_cloud")) {
+    nodes.push({ id: "Case", label: "Case", sfApi: "Case", icon: "🎫", col: 0, row: 1 });
+    edges.push({ from: "Account", to: "Case", label: "has many" });
+  }
+  if (keys.has("cpq_revenue")) {
+    nodes.push({ id: "Quote", label: "Quote", sfApi: "SBQQ__Quote__c", icon: "📋", col: 2, row: 2 });
+    edges.push({ from: "Opportunity", to: "Quote", label: "generates" });
+  }
+  if (keys.has("field_service")) {
+    nodes.push({ id: "WorkOrder", label: "Work Order", sfApi: "WorkOrder", icon: "🔧", col: 0, row: 2 });
+    nodes.push({ id: "ServiceAppointment", label: "Service Appt", sfApi: "ServiceAppointment", icon: "📅", col: 0, row: 3 });
+    edges.push({ from: "Case", to: "WorkOrder", label: "spawns" });
+    edges.push({ from: "WorkOrder", to: "ServiceAppointment", label: "schedules" });
+  }
+  if (keys.has("health_cloud")) {
+    nodes.push({ id: "CarePlan", label: "Care Plan", sfApi: "CarePlan", icon: "🏥", col: 1, row: 2 });
+    edges.push({ from: "Contact", to: "CarePlan", label: "has" });
   }
 
-  const mermaid = [
-    "graph TD",
-    "  Account --> Contact",
-    keys.has("sales_cloud")    ? "  Account --> Opportunity" : "",
-    keys.has("service_cloud")  ? "  Account --> Case" : "",
-    keys.has("cpq_revenue")    ? "  Opportunity --> Quote" : "",
-    keys.has("field_service")  ? "  Case --> WorkOrder[Work Order]" : "",
-    keys.has("commerce_cloud") ? "  Quote --> Order" : "",
-    keys.has("sales_cloud") || keys.has("pardot") ? "  Lead -->|converted| Contact\n  Lead -->|converted| Opportunity\n  Lead -->|converted| Account" : "",
-  ].filter(Boolean).join("\n");
+  // Lay nodes out in a grid: col*160 + 20, row*90 + 20
+  const W = 130; const H = 56; const COL = 165; const ROW = 100;
+  const gridW = (Math.max(...nodes.map(n => n.col)) + 1) * COL + W + 40;
+  const gridH = (Math.max(...nodes.map(n => n.row)) + 1) * ROW + H + 20;
+
+  function cx(n: ERDNode) { return n.col * COL + W / 2 + 20; }
+  function cy(n: ERDNode) { return n.row * ROW + H / 2 + 20; }
+  function nx(n: ERDNode) { return n.col * COL + 20; }
+  function ny(n: ERDNode) { return n.row * ROW + 20; }
+
+  const nodeMap = Object.fromEntries(nodes.map(n => [n.id, n]));
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       <div className="rounded-lg bg-blue-50 border border-blue-100 p-3 text-xs text-blue-700 leading-relaxed">
-        💡 Core Salesforce object relationships based on your recommended products. Account is always the central record.
+        💡 Object relationship diagram based on your selected clouds. Account is always the central record.
       </div>
 
-      {/* Visual tree */}
-      {roots.map((root, ri) => (
-        <div key={ri} className="space-y-2">
-          <div className="inline-flex items-center gap-2 bg-slate-800 text-white rounded-xl px-3.5 py-2 text-sm font-bold shadow-sm">
-            <span className="text-base">{root.icon}</span>
-            <span>{root.name}</span>
-            <span className="text-xs text-slate-400 font-normal ml-1">root object</span>
-          </div>
-          <div className="ml-5 pl-5 border-l-2 border-slate-200 space-y-2">
-            {root.children.map((child, ci) => (
-              <div key={ci} className="flex items-center gap-2">
-                <div className="flex-shrink-0 w-4 h-px bg-slate-300" />
-                <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 flex items-center gap-2 hover:shadow-sm transition-shadow">
-                  <span className="text-sm">{child.icon}</span>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-800">{child.name}</p>
-                    <p className="text-xs text-slate-400">{child.desc}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-slate-50">
+        <svg
+          width={gridW}
+          height={gridH}
+          viewBox={`0 0 ${gridW} ${gridH}`}
+          className="min-w-full"
+          style={{ minHeight: gridH }}
+        >
+          {/* Edges */}
+          {edges.map((e, i) => {
+            const from = nodeMap[e.from]; const to = nodeMap[e.to];
+            if (!from || !to) return null;
+            const x1 = cx(from); const y1 = cy(from);
+            const x2 = cx(to); const y2 = cy(to);
+            const mx = (x1 + x2) / 2; const my = (y1 + y2) / 2;
+            return (
+              <g key={i}>
+                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#cbd5e1" strokeWidth={1.5} strokeDasharray="4 3" markerEnd="url(#arrow)" />
+                <text x={mx} y={my - 4} textAnchor="middle" fontSize={8} fill="#94a3b8" fontFamily="system-ui">{e.label}</text>
+              </g>
+            );
+          })}
 
-      {/* Mermaid-style text diagram */}
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Relationship Reference</p>
-        <pre className="text-xs text-slate-600 leading-loose font-mono overflow-x-auto whitespace-pre-wrap">{mermaid}</pre>
+          {/* Arrow marker */}
+          <defs>
+            <marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+              <path d="M0,0 L6,3 L0,6 Z" fill="#94a3b8" />
+            </marker>
+          </defs>
+
+          {/* Nodes */}
+          {nodes.map((n) => (
+            <g key={n.id}>
+              <rect x={nx(n)} y={ny(n)} width={W} height={H} rx={10} fill="white" stroke="#e2e8f0" strokeWidth={1.5} />
+              <text x={nx(n) + 14} y={ny(n) + 22} fontSize={16}>{n.icon}</text>
+              <text x={nx(n) + 36} y={ny(n) + 21} fontSize={11} fontWeight="600" fill="#1e293b" fontFamily="system-ui">{n.label}</text>
+              <text x={nx(n) + 36} y={ny(n) + 36} fontSize={8} fill="#94a3b8" fontFamily="monospace">{n.sfApi}</text>
+            </g>
+          ))}
+        </svg>
       </div>
     </div>
   );
@@ -2631,21 +2722,25 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
               <p className="text-xs text-slate-500 mt-0.5">Business entities, Salesforce objects, and their relationships</p>
             </CardHeader>
             <CardContent className="pt-2 space-y-6">
-              {/* Business Entity Cards — business-friendly names first */}
+              {/* Business Entity Cards — cloud-specific, business-friendly names first */}
               <div>
                 <h3 className="text-sm font-semibold text-slate-700 mb-1">Business Entities</h3>
-                <p className="text-xs text-slate-500 mb-3">Your data in plain business language — mapped to the underlying Salesforce object</p>
+                <p className="text-xs text-slate-500 mb-3">Objects tailored to your selected clouds — plain business language mapped to Salesforce API names</p>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {BUSINESS_OBJECT_MAP.map((obj) => (
+                  {getCloudObjects(result.products).map((obj) => (
                     <div key={obj.sfObject} className="rounded-xl border border-slate-200 bg-white p-3.5 hover:shadow-sm transition-shadow space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl">{obj.icon}</span>
-                        <div>
-                          {/* Business-friendly name is the primary label */}
-                          <p className="text-sm font-bold text-slate-900">{obj.businessName}</p>
+                      <div className="flex items-start gap-2">
+                        <span className="text-xl flex-shrink-0">{obj.icon}</span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-slate-900 leading-tight">{obj.businessName}</p>
                           <span className="text-xs font-mono text-slate-400 bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded-md">
                             {obj.sfObject}
                           </span>
+                          {obj.cloudTag && (
+                            <span className="ml-1.5 text-[10px] bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded-full font-medium">
+                              {obj.cloudTag}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <p className="text-xs text-slate-600 leading-relaxed">{obj.description}</p>
