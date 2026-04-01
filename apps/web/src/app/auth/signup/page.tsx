@@ -21,25 +21,40 @@ export default function SignUpPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    const normalizedEmail = email.trim().toLowerCase();
 
-    const res = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, name: name || undefined }),
-    });
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: normalizedEmail, password, name: name || undefined }),
+      });
 
-    if (!res.ok) {
-      const data = await res.json();
-      setError(data.error ?? "Registration failed.");
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error ?? "Registration failed.");
+        return;
+      }
+
+      const signInResult = await signIn("credentials", {
+        email: normalizedEmail,
+        password,
+        redirect: false,
+      });
+
+      if (signInResult?.error) {
+        setError("Account created, but automatic sign-in failed. Please sign in manually.");
+        return;
+      }
+
+      router.push("/");
+      router.refresh();
+    } catch (error) {
+      console.error("Sign-up request failed", error);
+      setError("Registration is temporarily unavailable. Check your auth configuration and database connection.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // Auto sign-in after registration
-    await signIn("credentials", { email, password, redirect: false });
-    setLoading(false);
-    router.push("/");
-    router.refresh();
   }
 
   return (

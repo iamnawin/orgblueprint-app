@@ -20,17 +20,30 @@ export default function SignInPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
-    setLoading(false);
-    if (result?.error) {
-      setError("Invalid email or password.");
-    } else {
+
+    try {
+      const result = await signIn("credentials", {
+        email: email.trim().toLowerCase(),
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError(
+          result.error === "CredentialsSignin"
+            ? "Invalid email or password."
+            : "Sign-in is temporarily unavailable. Check your auth configuration and database connection."
+        );
+        return;
+      }
+
       router.push("/");
       router.refresh();
+    } catch (error) {
+      console.error("Sign-in request failed", error);
+      setError("Sign-in is temporarily unavailable. Check your auth configuration and database connection.");
+    } finally {
+      setLoading(false);
     }
   }
 
