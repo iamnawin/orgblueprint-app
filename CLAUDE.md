@@ -83,9 +83,9 @@ npm workspaces monorepo:
 - Rules engine (`generateBlueprint()`) + `enrichWithTemplates()` — instant, no external calls.
 - Triggered when `mode: "demo"` in the `/api/blueprint` POST body.
 
-**AI Enhanced mode** (requires `ANTHROPIC_API_KEY`):
-- `/api/conversation` runs a Claude Sonnet conversation loop (max 5 clarifying questions).
-- `/api/blueprint` calls `generateBlueprintFromLLM()` (Claude Sonnet, 4096 tokens).
+**AI Enhanced mode** (requires `GEMINI_API_KEY` or `ANTHROPIC_API_KEY`):
+- `/api/conversation` runs a Gemini 2.0 Flash conversation loop (max 3 clarifying questions).
+- `/api/blueprint` calls `generateBlueprintFromLLM()` (Claude Sonnet, 4096 tokens) or Gemini fallback.
 - Per-IP quota enforced: 3 AI runs/day, 30s cooldown (`apps/web/src/lib/quota.ts`).
 - Falls back to demo mode if LLM call fails.
 
@@ -98,7 +98,7 @@ npm workspaces monorepo:
 
 Blueprint generation (`/api/blueprint`): Anthropic Claude Sonnet → Gemini 2.0 Flash → Groq → deterministic rules engine.
 
-Conversation questions (`/api/conversation`): Anthropic → Groq → deterministic clarification path (so the UI never hangs).
+Conversation questions (`/api/conversation`): Gemini 2.0 Flash → deterministic clarification path (so the UI never hangs).
 
 Chat widget (`/api/chat`): Anthropic claude-haiku-4-5 → NVIDIA NIM (MiniMax M2.5).
 
@@ -106,7 +106,7 @@ Chat widget (`/api/chat`): Anthropic claude-haiku-4-5 → NVIDIA NIM (MiniMax M2
 
 The 6-stage wizard manages state via a `stage` discriminated union:
 1. **describe** — user types need text, selects Demo or AI Enhanced mode
-2. **conversation** — (AI mode only) up to 5 Claude clarifying questions
+2. **conversation** — (AI mode only) up to 3 Gemini clarifying questions
 3. **confirm** — review input + answers before generating
 4. **expand** — optional deep-dives: 5 checkboxes (architecture, OOTB vs custom, integrations, reporting, AI automation)
 5. **generating** — spinner while `/api/blueprint` runs
@@ -144,6 +144,7 @@ The 6-stage wizard manages state via a `stage` discriminated union:
 | `/api/recommend` POST | AI expansion endpoint for deep-dive topics |
 | `/api/chat` POST | Blueprint Q&A chat (Anthropic → NVIDIA fallback) |
 | `/api/nvidia-chat` POST | Direct NVIDIA NIM chat endpoint |
+| `/api/codegen` POST | Generate Salesforce code snippets (Apex/Flow XML/SOQL) via Gemini |
 | `/api/auth/[...nextauth]` | NextAuth handler |
 | `/api/auth/register` POST | User registration endpoint |
 
@@ -162,9 +163,10 @@ The 6-stage wizard manages state via a `stage` discriminated union:
 | `apps/web/src/lib/appExchange.ts` | AppExchange product recommendations |
 | `apps/web/src/lib/implementationChecklist.ts` | Checklist items per product |
 | `apps/web/src/components/ConversationChat.tsx` | Full 6-stage wizard |
-| `apps/web/src/components/BlueprintDashboard.tsx` | 7-tab blueprint viewer |
+| `apps/web/src/components/BlueprintDashboard.tsx` | 6-tab blueprint viewer |
 | `apps/web/src/components/AIAssistantWidget.tsx` | Floating chat widget (rendered in layout.tsx) |
 | `apps/web/src/components/BlueprintContext.tsx` | React context + `useBlueprintContext` hook — shares `blueprintSummary` string from dashboard to floating widget |
+| `apps/web/src/components/TechLoadingScreen.tsx` | Orbital tech-platform animation shown during blueprint generation (stage: generating) |
 | `apps/web/src/hooks/useSpeechInput.ts` | Web Speech API hook for voice input |
 
 ## Auth
@@ -206,21 +208,6 @@ tests/e2e/
 ```
 
 Page Object Models in `apps/web/tests/pages/`. Screenshots and artifacts written to `apps/web/artifacts/`.
-
-## Agent Orchestration Workflow
-
-When building features for this project, follow the stage-based agent pipeline:
-
-1. **Discovery** — Understand requirements, define success metrics
-2. **Architecture** — Design system structure, API shape, DB schema
-3. **Implementation** — Build with frontend + backend agents in parallel
-4. **Testing** — API tests, performance checks, reality check
-5. **Deployment** — CI/CD, Vercel deploy, monitoring
-6. **Optimization** — DB query tuning, LLM cost routing, caching
-
-For each task: identify the stage → delegate to the appropriate agent → validate output → advance.
-
-Priority order: maintainability > scalability > clarity.
 
 ## PM2 Services
 

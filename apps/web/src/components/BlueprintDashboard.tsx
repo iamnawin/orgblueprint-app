@@ -252,7 +252,7 @@ function InteractiveCostCalculator({ products, initialUsers = 50 }: { products: 
             onClick={() => setBudgetEnabled((v) => !v)}
             className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${budgetEnabled ? "bg-blue-600" : "bg-slate-300"}`}
           >
-            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${budgetEnabled ? "translate-x-4.5" : "translate-x-0.5"}`} />
+            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${budgetEnabled ? "translate-x-[1.125rem]" : "translate-x-0.5"}`} />
           </button>
         </div>
         {budgetEnabled && (
@@ -1632,133 +1632,143 @@ function TechnicalBlueprintTab({ products, needText }: { products: ProductDecisi
   );
 }
 
-// ─── Analytics Pack Mini Charts ───────────────────────────────────────────────
-function MiniBarChart({ fillClass = "fill-blue-500" }: { fillClass?: string }) {
-  const bars = [55, 80, 45, 92, 65, 70];
-  const max = Math.max(...bars);
-  return (
-    <svg viewBox="0 0 66 22" className="w-full h-5" aria-hidden>
-      {bars.map((v, i) => {
-        const h = (v / max) * 20;
-        return <rect key={i} x={i * 11} y={22 - h} width={9} height={h} rx={2} className={fillClass} opacity={0.55 + (i / bars.length) * 0.45} />;
-      })}
-    </svg>
-  );
-}
+// ─── Business KPI Panel ────────────────────────────────────────────────────────
+type KPIDef = { name: string; benchmark: string; direction: "up" | "down"; desc: string; icon: string; color: string; bg: string };
 
-function MiniSparkline({ strokeClass = "stroke-blue-500" }: { strokeClass?: string }) {
-  const pts = [8, 5, 9, 3, 7, 4, 10, 6, 8, 11];
-  const max = Math.max(...pts); const min = Math.min(...pts); const range = max - min || 1;
-  const step = 60 / (pts.length - 1);
-  const d = pts.map((p, i) => `${i === 0 ? "M" : "L"}${(i * step).toFixed(1)},${(20 - ((p - min) / range) * 18).toFixed(1)}`).join(" ");
-  return (
-    <svg viewBox="0 0 60 22" className="w-full h-5" aria-hidden>
-      <path d={d} fill="none" className={strokeClass} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.7" />
-    </svg>
-  );
-}
-
-function MiniFunnel({ fillClass = "fill-orange-500" }: { fillClass?: string }) {
-  return (
-    <svg viewBox="0 0 60 22" className="w-full h-5" aria-hidden>
-      <rect x="1" y="1" width="58" height="5" rx="2" className={fillClass} opacity="0.85" />
-      <rect x="7" y="8.5" width="46" height="4" rx="2" className={fillClass} opacity="0.65" />
-      <rect x="16" y="15" width="28" height="4" rx="2" className={fillClass} opacity="0.45" />
-    </svg>
-  );
-}
-
-function MiniHeatGrid({ fillClass = "fill-rose-500" }: { fillClass?: string }) {
-  const vals = [0.9, 0.4, 0.7, 0.3, 0.8, 0.5, 0.6, 0.9, 0.2, 0.7, 0.4, 0.8, 0.3, 0.6, 0.5, 0.9, 0.7, 0.4, 0.8, 0.6];
-  return (
-    <svg viewBox="0 0 60 22" className="w-full h-5" aria-hidden>
-      {vals.map((v, i) => (
-        <rect key={i} x={(i % 5) * 12} y={Math.floor(i / 5) * 5.5} width={10} height={4.5} rx={1} className={fillClass} opacity={0.15 + v * 0.8} />
-      ))}
-    </svg>
-  );
-}
-
-function MiniWinLoss({ fillClass = "fill-purple-500" }: { fillClass?: string }) {
-  const won  = [62, 75, 58, 80, 65];
-  const lost = [38, 25, 42, 20, 35];
-  return (
-    <svg viewBox="0 0 60 22" className="w-full h-5" aria-hidden>
-      {won.map((v, i) => {
-        const h = (v / 100) * 18;
-        return <rect key={i} x={i * 12} y={20 - h} width={5} height={h} rx={1.5} className={fillClass} opacity="0.75" />;
-      })}
-      {lost.map((v, i) => {
-        const h = (v / 100) * 18;
-        return <rect key={i} x={i * 12 + 6} y={20 - h} width={5} height={h} rx={1.5} className="fill-slate-300" opacity="0.8" />;
-      })}
-    </svg>
-  );
-}
-
-function MiniAreaChart({ fillClass = "fill-teal-500", strokeClass = "stroke-teal-600" }: { fillClass?: string; strokeClass?: string }) {
-  const pts = [4, 6, 5, 9, 7, 8, 11, 9, 12, 10];
-  const max = Math.max(...pts); const min = Math.min(...pts); const range = max - min || 1;
-  const step = 60 / (pts.length - 1);
-  const lineD = pts.map((p, i) => `${i === 0 ? "M" : "L"}${(i * step).toFixed(1)},${(20 - ((p - min) / range) * 16).toFixed(1)}`).join(" ");
-  const areaD = lineD + ` L60,20 L0,20 Z`;
-  return (
-    <svg viewBox="0 0 60 22" className="w-full h-5" aria-hidden>
-      <path d={areaD} className={fillClass} opacity="0.2" />
-      <path d={lineD} fill="none" className={strokeClass} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity="0.75" />
-    </svg>
-  );
-}
-
-type AnalyticsWidgetConfig = {
-  label: string;
-  icon: string;
-  color: string;
-  bg: string;
-  border: string;
-  fillClass: string;
-  strokeClass: string;
-  chartType: "bar" | "sparkline" | "funnel" | "heatmap" | "winloss" | "area";
-  kpis: string[];
+const PRODUCT_KPIS: Record<string, KPIDef[]> = {
+  sales_cloud: [
+    { name: "Win Rate",            benchmark: "> 25%",   direction: "up",   desc: "Opportunities won vs total closed",         icon: "🏆", color: "text-blue-600",    bg: "bg-blue-50/60" },
+    { name: "Pipeline Coverage",   benchmark: "3× quota", direction: "up",  desc: "Open pipeline vs target revenue",           icon: "📈", color: "text-blue-700",    bg: "bg-blue-50/60" },
+    { name: "Sales Cycle Length",  benchmark: "< 45 days", direction: "down", desc: "Average days from lead to closed-won",    icon: "⏱", color: "text-indigo-600",  bg: "bg-indigo-50/60" },
+    { name: "Lead Response Time",  benchmark: "< 1 hour", direction: "down", desc: "Time from lead creation to first contact", icon: "⚡", color: "text-amber-600",   bg: "bg-amber-50/60" },
+  ],
+  service_cloud: [
+    { name: "CSAT Score",              benchmark: "> 4.5 / 5", direction: "up",   desc: "Customer satisfaction on resolved cases",   icon: "😊", color: "text-teal-600",   bg: "bg-teal-50/60" },
+    { name: "First Contact Resolution", benchmark: "> 70%",    direction: "up",   desc: "Cases resolved without escalation or reopen", icon: "✅", color: "text-green-600", bg: "bg-green-50/60" },
+    { name: "Avg Handle Time",         benchmark: "< 8 min",   direction: "down", desc: "Time spent per case interaction",           icon: "🎧", color: "text-cyan-600",   bg: "bg-cyan-50/60" },
+    { name: "SLA Compliance",          benchmark: "> 95%",     direction: "up",   desc: "Cases closed within SLA terms",             icon: "📋", color: "text-sky-600",    bg: "bg-sky-50/60" },
+  ],
+  marketing_cloud: [
+    { name: "Email Open Rate",    benchmark: "> 25%",  direction: "up",   desc: "Recipients who open marketing emails",        icon: "📧", color: "text-purple-600",  bg: "bg-purple-50/60" },
+    { name: "MQL → SQL Rate",     benchmark: "> 25%",  direction: "up",   desc: "Marketing qualified leads accepted by sales", icon: "🔄", color: "text-violet-600",  bg: "bg-violet-50/60" },
+    { name: "Campaign ROI",       benchmark: "> 150%", direction: "up",   desc: "Revenue attributed vs campaign spend",        icon: "💰", color: "text-fuchsia-600", bg: "bg-fuchsia-50/60" },
+  ],
+  pardot: [
+    { name: "Engagement Score",   benchmark: "> 100",  direction: "up",   desc: "Prospect interaction score for prioritisation", icon: "🔥", color: "text-orange-600", bg: "bg-orange-50/60" },
+    { name: "Lead Conversion",    benchmark: "> 3%",   direction: "up",   desc: "Leads converted to opportunities",              icon: "📊", color: "text-amber-600",  bg: "bg-amber-50/60" },
+    { name: "MQL Acceptance",     benchmark: "> 75%",  direction: "up",   desc: "Sales-accepted marketing qualified leads",      icon: "🤝", color: "text-yellow-600", bg: "bg-yellow-50/60" },
+  ],
+  commerce_cloud: [
+    { name: "Conversion Rate",    benchmark: "> 2.5%", direction: "up",   desc: "Storefront visitors converted into orders",    icon: "🛒", color: "text-pink-600",   bg: "bg-pink-50/60" },
+    { name: "Cart Abandonment",   benchmark: "< 70%",  direction: "down", desc: "Shoppers who leave before checkout",           icon: "🧺", color: "text-rose-600",   bg: "bg-rose-50/60" },
+    { name: "Average Order Value", benchmark: "> $120", direction: "up",  desc: "Revenue per completed transaction",            icon: "💳", color: "text-fuchsia-600", bg: "bg-fuchsia-50/60" },
+  ],
+  loyalty_management: [
+    { name: "Repeat Purchase Rate", benchmark: "> 30%", direction: "up",  desc: "Customers returning after joining loyalty",     icon: "⭐", color: "text-amber-600",  bg: "bg-amber-50/60" },
+    { name: "Points Redemption",    benchmark: "> 20%", direction: "up",  desc: "Members actively redeeming benefits",          icon: "🎁", color: "text-orange-600", bg: "bg-orange-50/60" },
+  ],
+  cpq_revenue: [
+    { name: "Quote Turnaround",   benchmark: "< 24 hrs", direction: "down", desc: "Time from request to approved quote",       icon: "📄", color: "text-orange-600",  bg: "bg-orange-50/60" },
+    { name: "Discount Rate",      benchmark: "< 12%",    direction: "down", desc: "Average discount applied across deals",     icon: "🏷", color: "text-red-600",     bg: "bg-red-50/60" },
+    { name: "Contract Renewal",   benchmark: "> 85%",    direction: "up",   desc: "Contracts renewed at end of term",          icon: "🔁", color: "text-emerald-600", bg: "bg-emerald-50/60" },
+  ],
+  data_cloud: [
+    { name: "360° Profile Score",     benchmark: "> 80%",   direction: "up",   desc: "Completeness of unified customer profiles",  icon: "🗄️", color: "text-teal-600",   bg: "bg-teal-50/60" },
+    { name: "Segment Activation Rate", benchmark: "> 60%",  direction: "up",   desc: "Active segments driving campaigns or flows", icon: "🎯", color: "text-sky-600",    bg: "bg-sky-50/60" },
+    { name: "Data Freshness",         benchmark: "< 24 hrs", direction: "down", desc: "Max age of synced customer data records",   icon: "⚡", color: "text-cyan-600",   bg: "bg-cyan-50/60" },
+  ],
+  experience_cloud: [
+    { name: "Self-Service Rate",     benchmark: "> 60%", direction: "up",   desc: "Users who resolve without agent involvement", icon: "🌐", color: "text-indigo-600", bg: "bg-indigo-50/60" },
+    { name: "Portal Case Deflection", benchmark: "> 40%", direction: "up",  desc: "Cases avoided via portal knowledge access",  icon: "📚", color: "text-blue-600",   bg: "bg-blue-50/60" },
+  ],
+  field_service: [
+    { name: "First-Time Fix Rate",   benchmark: "> 75%",  direction: "up",   desc: "Field jobs resolved on first visit",         icon: "🔧", color: "text-amber-600",  bg: "bg-amber-50/60" },
+    { name: "Technician Utilisation", benchmark: "> 80%", direction: "up",   desc: "Scheduled time vs available capacity",       icon: "👷", color: "text-orange-600", bg: "bg-orange-50/60" },
+    { name: "Mean Time to Repair",   benchmark: "< 4 hrs", direction: "down", desc: "Average time to complete a service job",    icon: "⏱", color: "text-red-600",    bg: "bg-red-50/60" },
+  ],
+  health_cloud: [
+    { name: "Patient Satisfaction",  benchmark: "> 4.5 / 5", direction: "up", desc: "CSAT score on care interactions",           icon: "❤️", color: "text-rose-600",   bg: "bg-rose-50/60" },
+    { name: "Care Plan Adherence",   benchmark: "> 70%",     direction: "up", desc: "Patients on track with care plans",         icon: "📋", color: "text-pink-600",   bg: "bg-pink-50/60" },
+  ],
+  financial_services_cloud: [
+    { name: "AUM per Advisor",        benchmark: "> $50M",  direction: "up",   desc: "Assets under management per advisor",      icon: "💼", color: "text-emerald-600", bg: "bg-emerald-50/60" },
+    { name: "Client Retention Rate",  benchmark: "> 90%",   direction: "up",   desc: "Clients retained year-over-year",          icon: "🤝", color: "text-green-600",   bg: "bg-green-50/60" },
+    { name: "Cross-sell Ratio",       benchmark: "> 2.5×",  direction: "up",   desc: "Average products held per client",         icon: "📈", color: "text-teal-600",    bg: "bg-teal-50/60" },
+  ],
+  nonprofit_cloud: [
+    { name: "Donor Retention",     benchmark: "> 60%",  direction: "up",   desc: "Donors returning in the next giving cycle", icon: "❤️", color: "text-rose-600",  bg: "bg-rose-50/60" },
+    { name: "Gift Conversion Rate", benchmark: "> 20%", direction: "up",   desc: "Prospects converted into active donors",     icon: "🎯", color: "text-red-600",    bg: "bg-red-50/60" },
+  ],
+  manufacturing_cloud: [
+    { name: "Forecast Accuracy",   benchmark: "> 85%",   direction: "up",   desc: "Projected demand aligned to actual orders",   icon: "🏭", color: "text-orange-600", bg: "bg-orange-50/60" },
+    { name: "Partner Fill Rate",   benchmark: "> 95%",   direction: "up",   desc: "Dealer and distributor orders fulfilled",    icon: "📦", color: "text-amber-600",  bg: "bg-amber-50/60" },
+  ],
+  education_cloud: [
+    { name: "Application Conversion", benchmark: "> 15%", direction: "up", desc: "Applicants progressing to enrolled students", icon: "🎓", color: "text-indigo-600", bg: "bg-indigo-50/60" },
+    { name: "Student Retention",      benchmark: "> 85%", direction: "up", desc: "Students retained across academic terms",     icon: "📚", color: "text-blue-600",   bg: "bg-blue-50/60" },
+  ],
+  net_zero_cloud: [
+    { name: "Emission Coverage",    benchmark: "> 90%",   direction: "up",   desc: "Tracked emissions across scoped sources",    icon: "🌿", color: "text-green-600",  bg: "bg-green-50/60" },
+    { name: "Reduction Progress",   benchmark: "> 10%",   direction: "up",   desc: "Year-over-year emissions reduction pace",    icon: "📉", color: "text-emerald-600", bg: "bg-emerald-50/60" },
+  ],
+  agentforce_einstein: [
+    { name: "AI Adoption Rate",       benchmark: "> 60%", direction: "up",   desc: "Reps actively using AI-powered suggestions",  icon: "🤖", color: "text-violet-600", bg: "bg-violet-50/60" },
+    { name: "Time Saved per Rep",     benchmark: "> 2 hrs/day", direction: "up", desc: "Daily time reclaimed through automation", icon: "⚡", color: "text-purple-600", bg: "bg-purple-50/60" },
+  ],
+  tableau_analytics: [
+    { name: "Dashboard Adoption",   benchmark: "> 70%",   direction: "up",   desc: "Users consuming curated dashboards weekly",   icon: "📈", color: "text-cyan-600",   bg: "bg-cyan-50/60" },
+    { name: "Report Latency",       benchmark: "< 5 min", direction: "down", desc: "Time from data refresh to executive insight", icon: "⏱", color: "text-sky-600",    bg: "bg-sky-50/60" },
+  ],
+  mulesoft: [
+    { name: "API Success Rate",     benchmark: "> 99.5%", direction: "up",   desc: "Successful integration calls across systems", icon: "🔗", color: "text-slate-600",  bg: "bg-slate-100" },
+    { name: "Integration Latency",  benchmark: "< 2 sec", direction: "down", desc: "Median response time for process APIs",      icon: "⚙️", color: "text-slate-700", bg: "bg-slate-100" },
+  ],
+  salesforce_shield: [
+    { name: "Audit Coverage",       benchmark: "> 95%",   direction: "up",   desc: "Critical data changes captured and retained", icon: "🔐", color: "text-slate-700", bg: "bg-slate-100" },
+    { name: "Security Incidents",   benchmark: "0 Sev-1", direction: "down", desc: "Material compliance and access breaches",    icon: "🛡️", color: "text-slate-800", bg: "bg-slate-100" },
+  ],
 };
 
-function resolveWidgetConfig(raw: string): AnalyticsWidgetConfig {
-  const t = raw.toLowerCase();
-  if (t.includes("pipeline") || t.includes("stage"))
-    return { label: "Dashboard", icon: "📊", color: "text-blue-700", bg: "bg-blue-50", border: "border-blue-200", fillClass: "fill-blue-500", strokeClass: "stroke-blue-500", chartType: "bar", kpis: ["Open Value", "Avg Close Rate", "Deal Age"] };
-  if (t.includes("win") || t.includes("loss"))
-    return { label: "Report", icon: "🏆", color: "text-purple-700", bg: "bg-purple-50", border: "border-purple-200", fillClass: "fill-purple-500", strokeClass: "stroke-purple-500", chartType: "winloss", kpis: ["Win Rate", "Lost Reason", "Deal Size"] };
-  if (t.includes("forecast") || t.includes("accuracy"))
-    return { label: "Tracker", icon: "🎯", color: "text-indigo-700", bg: "bg-indigo-50", border: "border-indigo-200", fillClass: "fill-indigo-500", strokeClass: "stroke-indigo-500", chartType: "sparkline", kpis: ["Predicted vs Actual", "90-day Trend"] };
-  if (t.includes("velocity") || t.includes("cycle"))
-    return { label: "Board", icon: "⚡", color: "text-amber-700", bg: "bg-amber-50", border: "border-amber-200", fillClass: "fill-amber-500", strokeClass: "stroke-amber-500", chartType: "bar", kpis: ["Avg Deal Cycle", "Lead→Won Conv."] };
-  if (t.includes("case resolution") || t.includes("sla") || t.includes("mttr"))
-    return { label: "Dashboard", icon: "🎧", color: "text-teal-700", bg: "bg-teal-50", border: "border-teal-200", fillClass: "fill-teal-500", strokeClass: "stroke-teal-500", chartType: "bar", kpis: ["MTTR", "FCR %", "SLA Compliance"] };
-  if (t.includes("agent") || t.includes("csat") || t.includes("handle time"))
-    return { label: "Report", icon: "👤", color: "text-green-700", bg: "bg-green-50", border: "border-green-200", fillClass: "fill-green-500", strokeClass: "stroke-green-500", chartType: "bar", kpis: ["Handle Time", "CSAT", "Cases/Day"] };
-  if (t.includes("knowledge") || t.includes("deflection") || t.includes("self-service"))
-    return { label: "Report", icon: "📚", color: "text-cyan-700", bg: "bg-cyan-50", border: "border-cyan-200", fillClass: "fill-cyan-500", strokeClass: "stroke-cyan-500", chartType: "area", kpis: ["Article Views", "Deflection Rate"] };
-  if (t.includes("backlog") || t.includes("heatmap") || t.includes("channel"))
-    return { label: "Heatmap", icon: "🗺️", color: "text-rose-700", bg: "bg-rose-50", border: "border-rose-200", fillClass: "fill-rose-500", strokeClass: "stroke-rose-500", chartType: "heatmap", kpis: ["By Channel", "By Priority", "By Area"] };
-  if (t.includes("quote") || t.includes("cash") || t.includes("approval") || t.includes("funnel"))
-    return { label: "Funnel", icon: "📝", color: "text-orange-700", bg: "bg-orange-50", border: "border-orange-200", fillClass: "fill-orange-500", strokeClass: "stroke-orange-500", chartType: "funnel", kpis: ["Conv %", "Avg Approval Time"] };
-  if (t.includes("discount") || t.includes("leakage"))
-    return { label: "Report", icon: "💸", color: "text-red-700", bg: "bg-red-50", border: "border-red-200", fillClass: "fill-red-500", strokeClass: "stroke-red-500", chartType: "bar", kpis: ["By Product", "By Approver"] };
-  if (t.includes("revenue") || t.includes("arr") || t.includes("renewal") || t.includes("schedule"))
-    return { label: "Tracker", icon: "💰", color: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200", fillClass: "fill-emerald-500", strokeClass: "stroke-emerald-500", chartType: "area", kpis: ["ARR", "Renewal Pipeline"] };
-  return { label: "Analytics", icon: "📈", color: "text-slate-700", bg: "bg-slate-50", border: "border-slate-200", fillClass: "fill-slate-500", strokeClass: "stroke-slate-500", chartType: "sparkline", kpis: [] };
+function getBusinessKPIs(products: ProductDecision[]): KPIDef[] {
+  const activeKeys = products.filter(p => p.level !== "not_needed").map(p => p.key);
+  const kpis: KPIDef[] = [];
+  const seen = new Set<string>();
+
+  for (const key of activeKeys) {
+    for (const kpi of (PRODUCT_KPIS[key] ?? [])) {
+      if (!seen.has(kpi.name)) { seen.add(kpi.name); kpis.push(kpi); }
+    }
+  }
+
+  return kpis;
 }
 
-function AnalyticsPackCards({ items, onSave }: { items: string[]; onSave: (u: string[]) => void }) {
-  const [editMode, setEditMode] = useState(false);
+function BusinessKPIPanel({ kpis }: { kpis: KPIDef[] }) {
+  if (kpis.length === 0) return null;
 
-  const parsed = items.map((item) => {
-    const colonIdx = item.indexOf(":");
-    if (colonIdx > 0 && colonIdx < 80) {
-      return { title: item.slice(0, colonIdx).trim(), body: item.slice(colonIdx + 1).trim(), raw: item };
-    }
-    return { title: item, body: "", raw: item };
-  });
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {kpis.map((kpi, i) => (
+        <div key={i} className={`rounded-xl border border-slate-200 ${kpi.bg} p-4 space-y-2 hover:shadow-md transition-shadow duration-150`}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-base leading-none flex-shrink-0">{kpi.icon}</span>
+              <p className={`text-xs font-bold ${kpi.color} leading-snug`}>{kpi.name}</p>
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <span className={`text-sm font-black ${kpi.color}`}>{kpi.direction === "up" ? "↑" : "↓"}</span>
+            </div>
+          </div>
+          <p className="text-lg font-black text-slate-800 tabular-nums leading-none">{kpi.benchmark}</p>
+          <p className="text-[11px] text-slate-500 leading-snug">{kpi.desc}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SuggestedDashboardsPanel({ items, onSave }: { items: string[]; onSave: (u: string[]) => void }) {
+  const [editMode, setEditMode] = useState(false);
 
   if (editMode) {
     return (
@@ -1770,49 +1780,13 @@ function AnalyticsPackCards({ items, onSave }: { items: string[]; onSave: (u: st
   }
 
   return (
-    <div className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {parsed.map((item, i) => {
-          const cfg = resolveWidgetConfig(item.raw);
-          const metrics = item.body ? item.body.split(",").map(s => s.trim()).filter(Boolean) : cfg.kpis;
-          return (
-            <div key={i} className={`rounded-xl border ${cfg.border} bg-slate-950/88 p-3.5 space-y-2.5 shadow-sm ring-1 ring-white/5 hover:shadow-md transition-shadow duration-150`}>
-              {/* Header */}
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="text-sm leading-none flex-shrink-0 text-white">{cfg.icon}</span>
-                  <p className="text-xs font-semibold text-white leading-snug truncate">{item.title}</p>
-                </div>
-                <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full border font-semibold text-white bg-slate-900/95 ${cfg.border}`}>
-                  {cfg.label}
-                </span>
-              </div>
-              {/* Mini chart */}
-              <div className={`rounded-lg border ${cfg.border} bg-slate-900/95 px-2 pt-2 pb-1`}>
-                {cfg.chartType === "bar"      && <MiniBarChart fillClass={cfg.fillClass} />}
-                {cfg.chartType === "sparkline" && <MiniSparkline strokeClass={cfg.strokeClass} />}
-                {cfg.chartType === "funnel"   && <MiniFunnel fillClass={cfg.fillClass} />}
-                {cfg.chartType === "heatmap"  && <MiniHeatGrid fillClass={cfg.fillClass} />}
-                {cfg.chartType === "winloss"  && <MiniWinLoss fillClass={cfg.fillClass} />}
-                {cfg.chartType === "area"     && <MiniAreaChart fillClass={cfg.fillClass} strokeClass={cfg.strokeClass} />}
-                <p className="mt-0.5 text-right text-[9px] font-semibold uppercase tracking-wide text-slate-400">preview</p>
-              </div>
-              {/* Metric pills */}
-              {metrics.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {metrics.slice(0, 4).map((m, j) => (
-                    <span key={j} className={`text-[10px] px-1.5 py-0.5 rounded-full border ${cfg.border} bg-slate-900/95 text-slate-100 font-medium leading-none`}>
-                      {m}
-                    </span>
-                  ))}
-                  {metrics.length > 4 && (
-                    <span className="text-[10px] px-1.5 py-0.5 text-slate-400">+{metrics.length - 4} more</span>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        {items.map((item, index) => (
+          <span key={`${item}-${index}`} className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+            {item}
+          </span>
+        ))}
       </div>
       <button onClick={() => setEditMode(true)} className="text-xs text-slate-400 hover:text-slate-600 underline decoration-dotted print:hidden">
         ✏ Edit
@@ -1998,17 +1972,17 @@ Users: ${result.executiveSnapshot.usersDetected}`.trim();
   );
 }
 
-// ─── Cloud Usage Donut Chart ─────────────────────────────────────────────────
-const CAT_META: Record<string, { color: string; stroke: string; icon: string; label: string }> = {
-  "CRM":       { color: "#3b82f6", stroke: "#2563eb", icon: "📊", label: "CRM" },
-  "Marketing": { color: "#a855f7", stroke: "#9333ea", icon: "📣", label: "Marketing" },
-  "Data & AI": { color: "#14b8a6", stroke: "#0d9488", icon: "☁️", label: "Data & AI" },
-  "Platform":  { color: "#64748b", stroke: "#475569", icon: "🔗", label: "Platform" },
-  "Industry":  { color: "#f97316", stroke: "#ea580c", icon: "🏭", label: "Industry" },
+// ─── Cloud Usage Signal Chart ────────────────────────────────────────────────
+const CAT_META: Record<string, { color: string; glow: string; barFrom: string; barTo: string; icon: string; label: string }> = {
+  "CRM":       { color: "#3b82f6", glow: "rgba(59,130,246,0.35)",  barFrom: "#3b82f6", barTo: "#60a5fa", icon: "📊", label: "CRM" },
+  "Marketing": { color: "#a855f7", glow: "rgba(168,85,247,0.35)",  barFrom: "#a855f7", barTo: "#c084fc", icon: "📣", label: "Marketing" },
+  "Data & AI": { color: "#14b8a6", glow: "rgba(20,184,166,0.35)",  barFrom: "#14b8a6", barTo: "#2dd4bf", icon: "☁️", label: "Data & AI" },
+  "Platform":  { color: "#64748b", glow: "rgba(100,116,139,0.35)", barFrom: "#64748b", barTo: "#94a3b8", icon: "🔗", label: "Platform" },
+  "Industry":  { color: "#f97316", glow: "rgba(249,115,22,0.35)",  barFrom: "#f97316", barTo: "#fb923c", icon: "🏭", label: "Industry" },
 };
 
 function CloudUsageDonut({ products }: { products: ProductDecision[] }) {
-  const [hovered, setHovered] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   const activeProducts = products.filter((p) => p.level !== "not_needed");
   const catGroups: Record<string, ProductDecision[]> = {};
@@ -2022,106 +1996,145 @@ function CloudUsageDonut({ products }: { products: ProductDecision[] }) {
   const total = cats.reduce((s, [, ps]) => s + ps.length, 0);
   if (total === 0) return null;
 
-  // Build donut arcs
-  const R = 54; const r = 32; const cx = 70; const cy = 70;
-  const arcs: Array<{ cat: string; products: ProductDecision[]; path: string; midAngle: number }> = [];
-  let startAngle = -Math.PI / 2;
-  const GAP = 0.04;
+  const maxCount = Math.max(...cats.map(([, ps]) => ps.length));
+  const totalRec = activeProducts.filter(p => p.level === "recommended").length;
+  const totalOpt = activeProducts.filter(p => p.level !== "recommended").length;
 
-  for (const [cat, ps] of cats) {
-    const angle = (ps.length / total) * 2 * Math.PI - GAP;
-    const endAngle = startAngle + angle;
-    const x1 = cx + R * Math.cos(startAngle + GAP / 2);
-    const y1 = cy + R * Math.sin(startAngle + GAP / 2);
-    const x2 = cx + R * Math.cos(endAngle);
-    const y2 = cy + R * Math.sin(endAngle);
-    const ix1 = cx + r * Math.cos(endAngle);
-    const iy1 = cy + r * Math.sin(endAngle);
-    const ix2 = cx + r * Math.cos(startAngle + GAP / 2);
-    const iy2 = cy + r * Math.sin(startAngle + GAP / 2);
-    const large = angle > Math.PI ? 1 : 0;
-    const path = `M${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${large},1 ${x2.toFixed(2)},${y2.toFixed(2)} L${ix1.toFixed(2)},${iy1.toFixed(2)} A${r},${r} 0 ${large},0 ${ix2.toFixed(2)},${iy2.toFixed(2)} Z`;
-    const midAngle = startAngle + GAP / 2 + angle / 2;
-    arcs.push({ cat, products: ps, path, midAngle });
-    startAngle = endAngle + GAP;
-  }
-
-  const hoveredData = hovered ? catGroups[hovered] : null;
+  // Signal bars: 4 levels based on proportion of max
+  const signalLevel = (count: number) => Math.ceil((count / maxCount) * 4);
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col sm:flex-row gap-4 items-start">
-      {/* Donut SVG */}
-      <div className="relative flex-shrink-0">
-        <svg width={140} height={140} viewBox="0 0 140 140">
-          {arcs.map(({ cat, path }) => {
-            const meta = CAT_META[cat];
-            const isHov = hovered === cat;
-            return (
-              <path
-                key={cat}
-                d={path}
-                fill={meta?.color ?? "#94a3b8"}
-                stroke={isHov ? (meta?.stroke ?? "#64748b") : "white"}
-                strokeWidth={isHov ? 2 : 1.5}
-                opacity={hovered && !isHov ? 0.35 : 1}
-                style={{ cursor: "pointer", transition: "opacity 0.15s, transform 0.15s", transformOrigin: `${cx}px ${cy}px`, transform: isHov ? "scale(1.06)" : "scale(1)" }}
-                onMouseEnter={() => setHovered(cat)}
-                onMouseLeave={() => setHovered(null)}
-              />
-            );
-          })}
-          {/* Centre label */}
-          <text x={cx} y={cy - 6} textAnchor="middle" fontSize={20} fontWeight="700" fill="#1e293b" fontFamily="system-ui">
-            {total}
-          </text>
-          <text x={cx} y={cy + 10} textAnchor="middle" fontSize={9} fill="#94a3b8" fontFamily="system-ui">
-            {hovered ? hovered : "clouds"}
-          </text>
-        </svg>
-      </div>
-
-      {/* Legend + tooltip */}
-      <div className="flex-1 space-y-3 min-w-0">
-        <div className="flex flex-wrap gap-2">
-          {cats.map(([cat, ps]) => {
-            const meta = CAT_META[cat];
-            return (
-              <button
-                key={cat}
-                onMouseEnter={() => setHovered(cat)}
-                onMouseLeave={() => setHovered(null)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
-                  hovered === cat ? "border-transparent shadow-md scale-105" : "border-slate-200 bg-slate-50 text-slate-700"
-                }`}
-                style={hovered === cat ? { backgroundColor: meta?.color, color: "white", borderColor: meta?.stroke } : {}}
-              >
-                <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: meta?.color ?? "#94a3b8" }} />
-                {meta?.icon} {cat}
-                <span className="opacity-70">{ps.length}</span>
-              </button>
-            );
-          })}
+    <div className="rounded-2xl border border-slate-700/60 bg-slate-800/70 backdrop-blur-sm p-5 space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Cloud Distribution</span>
         </div>
-
-        {/* Hovered category product list */}
-        {hoveredData && hovered && (
-          <div className="rounded-xl border p-3 space-y-1.5" style={{ borderColor: CAT_META[hovered]?.color + "44", backgroundColor: CAT_META[hovered]?.color + "0d" }}>
-            <p className="text-xs font-bold" style={{ color: CAT_META[hovered]?.stroke }}>{hovered} — {hoveredData.length} product{hoveredData.length !== 1 ? "s" : ""}</p>
-            {hoveredData.map((p) => (
-              <div key={p.key} className="flex items-center gap-2">
-                <span className="text-sm">{PRODUCT_CATEGORY[p.key]?.icon ?? "📦"}</span>
-                <span className="text-xs text-slate-700 font-medium">{p.name}</span>
-                <span className={`ml-auto text-[10px] px-1.5 py-0.5 rounded-full border font-semibold ${
-                  p.level === "recommended" ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-700 border-amber-200"
-                }`}>{p.level === "recommended" ? "✓ Rec" : "~ Opt"}</span>
-              </div>
-            ))}
-          </div>
-        )}
-        {!hoveredData && (
-          <p className="text-xs text-slate-400">Hover a segment or legend to see products in that category</p>
-        )}
+        <div className="flex items-center gap-3 text-xs">
+          <span className="flex items-center gap-1.5 text-emerald-400">
+            <span className="h-2 w-2 rounded-sm bg-emerald-400 inline-block" />
+            {totalRec} recommended
+          </span>
+          <span className="flex items-center gap-1.5 text-amber-400">
+            <span className="h-2 w-2 rounded-sm bg-amber-400 inline-block" />
+            {totalOpt} optional
+          </span>
+          <span className="text-slate-500 font-mono font-semibold">{total} total</span>
+        </div>
       </div>
+
+      {/* Bar rows */}
+      <div className="space-y-2.5">
+        {cats.map(([cat, ps]) => {
+          const meta = CAT_META[cat];
+          const recCount = ps.filter(p => p.level === "recommended").length;
+          const optCount = ps.length - recCount;
+          const barPct = (ps.length / maxCount) * 100;
+          const recPct = ps.length > 0 ? (recCount / ps.length) * 100 : 0;
+          const sig = signalLevel(ps.length);
+          const isOpen = expanded === cat;
+
+          return (
+            <div key={cat}>
+              <button
+                className="w-full text-left group"
+                onClick={() => setExpanded(isOpen ? null : cat)}
+              >
+                <div className="flex items-center gap-3">
+                  {/* Icon + name */}
+                  <div className="w-28 flex items-center gap-1.5 flex-shrink-0">
+                    <span className="text-base leading-none">{meta?.icon}</span>
+                    <span className="text-xs font-semibold text-slate-200 truncate">{cat}</span>
+                  </div>
+
+                  {/* Bar track */}
+                  <div className="flex-1 relative h-5 rounded-full bg-slate-700/80 overflow-hidden">
+                    {/* Glow layer */}
+                    <div
+                      className="absolute inset-0 rounded-full opacity-30 blur-sm transition-all duration-500"
+                      style={{ width: `${barPct}%`, background: meta?.barFrom }}
+                    />
+                    {/* Recommended segment */}
+                    {recCount > 0 && (
+                      <div
+                        className="absolute left-0 top-0 h-full rounded-l-full transition-all duration-700 ease-out"
+                        style={{
+                          width: `${(recCount / maxCount) * 100}%`,
+                          background: `linear-gradient(90deg, ${meta?.barFrom}, ${meta?.barTo})`,
+                          boxShadow: `0 0 8px ${meta?.glow}`,
+                        }}
+                      />
+                    )}
+                    {/* Optional segment */}
+                    {optCount > 0 && (
+                      <div
+                        className="absolute top-0 h-full transition-all duration-700 ease-out"
+                        style={{
+                          left: `${recPct * (barPct / 100)}%`,
+                          width: `${(optCount / maxCount) * 100}%`,
+                          background: "linear-gradient(90deg, #d97706, #f59e0b)",
+                          opacity: 0.7,
+                          borderRadius: recCount === 0 ? "9999px 0 0 9999px" : "0",
+                        }}
+                      />
+                    )}
+                    {/* Count label inside bar */}
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-white/80 tabular-nums">
+                      {ps.length}
+                    </span>
+                  </div>
+
+                  {/* Signal bars */}
+                  <div className="flex items-end gap-[2px] flex-shrink-0 w-6">
+                    {[1, 2, 3, 4].map((lvl) => (
+                      <div
+                        key={lvl}
+                        className="w-1 rounded-sm transition-all duration-300"
+                        style={{
+                          height: `${lvl * 4}px`,
+                          backgroundColor: lvl <= sig ? (meta?.color ?? "#94a3b8") : "#334155",
+                          boxShadow: lvl <= sig ? `0 0 4px ${meta?.glow}` : "none",
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Expand chevron */}
+                  <span className={`text-slate-500 text-xs transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}>▶</span>
+                </div>
+              </button>
+
+              {/* Expanded product list */}
+              {isOpen && (
+                <div
+                  className="mt-1.5 ml-[7.5rem] rounded-xl border p-3 space-y-1.5"
+                  style={{
+                    borderColor: (meta?.color ?? "#94a3b8") + "44",
+                    background: "rgba(15,23,42,0.6)",
+                  }}
+                >
+                  {ps.map((p) => (
+                    <div key={p.key} className="flex items-center gap-2">
+                      <span className="text-sm">{PRODUCT_CATEGORY[p.key]?.icon ?? "📦"}</span>
+                      <span className="text-xs text-slate-200 font-medium">{p.name}</span>
+                      <span className={`ml-auto text-[10px] px-1.5 py-0.5 rounded-full border font-semibold ${
+                        p.level === "recommended"
+                          ? "bg-emerald-900/60 text-emerald-300 border-emerald-700"
+                          : "bg-amber-900/60 text-amber-300 border-amber-700"
+                      }`}>
+                        {p.level === "recommended" ? "✓ Rec" : "~ Opt"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer hint */}
+      <p className="text-[10px] text-slate-600 text-right">Click a row to see products</p>
     </div>
   );
 }
@@ -2376,6 +2389,7 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
   const recommended = result.products.filter((p) => p.level === "recommended");
   const optional = result.products.filter((p) => p.level === "optional");
   const notNeeded = result.products.filter((p) => p.level === "not_needed");
+  const businessKpis = useMemo(() => getBusinessKPIs(result.products), [result.products]);
 
   return (
     <div className="max-w-5xl mx-auto space-y-4">
@@ -2741,19 +2755,33 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
               </Card>
             )}
 
-            {/* Analytics Pack */}
+            {/* Business KPIs */}
             <Card className="border-slate-200">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">Analytics Pack</CardTitle>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 font-semibold">{result.analyticsPack.length} widgets</span>
-                  </div>
+                  <CardTitle className="text-base">Key Performance Indicators</CardTitle>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 font-semibold">
+                    {businessKpis.length} metrics
+                  </span>
                 </div>
-                <p className="text-xs text-slate-500 mt-0.5">Ready-to-build reports, dashboards, and trackers — each with a live data preview</p>
+                <p className="text-xs text-slate-500 mt-0.5">Industry benchmarks for your selected clouds — measure what matters</p>
               </CardHeader>
-              <CardContent className="pt-2">
-                <AnalyticsPackCards items={result.analyticsPack} onSave={editList("analyticsPack")} />
+              <CardContent className="pt-2 space-y-4">
+                <BusinessKPIPanel kpis={businessKpis} />
+                {result.analyticsPack.length > 0 && (
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-semibold text-slate-700">Suggested Dashboards</p>
+                        <p className="text-[11px] text-slate-500">Recommended reports and trackers to build from this blueprint</p>
+                      </div>
+                      <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                        {result.analyticsPack.length} items
+                      </span>
+                    </div>
+                    <SuggestedDashboardsPanel items={result.analyticsPack} onSave={editList("analyticsPack")} />
+                  </div>
+                )}
               </CardContent>
             </Card>
             <RisksSection risks={result.risks} onSave={editList("risks")} />
