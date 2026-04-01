@@ -176,12 +176,79 @@ const PRODUCT_TASKS: Partial<Record<string, ChecklistItem[]>> = {
   ],
 };
 
-const PHASE_MAPPING: { phase: string; categories: ChecklistCategory[] }[] = [
-  { phase: "Phase 1 — Discovery & Architecture", categories: ["Discovery"] },
-  { phase: "Phase 2 — Configuration & Build", categories: ["Config"] },
-  { phase: "Phase 3 — Integrations & Data Migration", categories: ["Integration"] },
-  { phase: "Phase 4 — Testing & UAT", categories: ["Testing"] },
-  { phase: "Phase 5 — Training & Go-Live", categories: ["Training"] },
+// Generic phase labels used when no cloud-specific override applies
+const PHASE_LABELS: Record<ChecklistCategory, string> = {
+  Discovery: "Discovery & Architecture",
+  Config: "Configuration & Build",
+  Integration: "Integrations & Data Migration",
+  Testing: "Testing & UAT",
+  Training: "Training & Go-Live",
+};
+
+// Cloud-specific phase label overrides — keyed by ProductKey
+const CLOUD_PHASE_OVERRIDES: Partial<Record<string, Partial<Record<ChecklistCategory, string>>>> = {
+  field_service: {
+    Config: "Package Install & FSL Setup",
+    Integration: "Inventory & Parts System Integration",
+  },
+  cpq_revenue: {
+    Config: "Product Catalog & Pricing Rules",
+    Integration: "CPQ-to-Finance Integration",
+  },
+  health_cloud: {
+    Discovery: "HIPAA Discovery & Compliance Planning",
+    Config: "HIPAA Compliance & Clinical Configuration",
+    Integration: "EHR System Integration",
+  },
+  data_cloud: {
+    Discovery: "Data Inventory & Unification Strategy",
+    Config: "Data Ingestion & Identity Resolution",
+    Integration: "Multi-Source Data Connector Build",
+  },
+  mulesoft: {
+    Config: "API Design & Anypoint Platform Setup",
+    Integration: "API Architecture & Integration Build",
+  },
+  financial_services_cloud: {
+    Discovery: "Regulatory & Compliance Assessment",
+    Config: "FSC Data Model & Regulatory Configuration",
+  },
+  manufacturing_cloud: {
+    Config: "Sales Agreement & Rebate Configuration",
+    Integration: "ERP & Order Management Integration",
+  },
+  nonprofit_cloud: {
+    Config: "NPSP Setup & Donation Management",
+    Integration: "Donor Database Migration",
+  },
+};
+
+// When multiple clouds are active the first match wins
+const CLOUD_LABEL_PRIORITY = [
+  "health_cloud",
+  "financial_services_cloud",
+  "mulesoft",
+  "data_cloud",
+  "field_service",
+  "cpq_revenue",
+  "manufacturing_cloud",
+  "nonprofit_cloud",
+];
+
+const PHASE_ORDER: ChecklistCategory[] = ["Discovery", "Config", "Integration", "Testing", "Training"];
+
+// Universal tasks always included regardless of product mix
+const UNIVERSAL_ITEMS: ChecklistItem[] = [
+  { task: "Kick-off meeting and project charter sign-off", product: "Project Management", effort: "Low", category: "Discovery" },
+  { task: "Document business requirements (BRD)", product: "Project Management", effort: "High", category: "Discovery" },
+  { task: "Define change management and user adoption plan", product: "Project Management", effort: "Medium", category: "Discovery" },
+  { task: "Configure Salesforce org settings, profiles, and permission sets", product: "Salesforce Org", effort: "Medium", category: "Config" },
+  { task: "Set up sandbox environments (Dev, QA, UAT)", product: "Salesforce Org", effort: "Low", category: "Config" },
+  { task: "Data cleansing, deduplication, and migration mapping", product: "Data Migration", effort: "High", category: "Integration" },
+  { task: "System integration testing (SIT) across all components", product: "All Products", effort: "High", category: "Testing" },
+  { task: "User acceptance testing (UAT) sign-off", product: "All Products", effort: "High", category: "Testing" },
+  { task: "Salesforce administrator training", product: "All Products", effort: "Medium", category: "Training" },
+  { task: "Go-live hypercare support plan (2 weeks post-launch)", product: "All Products", effort: "Medium", category: "Training" },
 ];
 
 export function generateChecklist(products: ProductDecision[]): ChecklistPhase[] {
@@ -189,31 +256,20 @@ export function generateChecklist(products: ProductDecision[]): ChecklistPhase[]
     (p) => p.level === "recommended" || p.level === "optional"
   );
 
-  const allItems: ChecklistItem[] = [];
-
-  // Universal tasks always included
-  const universalItems: ChecklistItem[] = [
-    { task: "Kick-off meeting and project charter sign-off", product: "Project Management", effort: "Low", category: "Discovery" },
-    { task: "Document business requirements (BRD)", product: "Project Management", effort: "High", category: "Discovery" },
-    { task: "Define change management and user adoption plan", product: "Project Management", effort: "Medium", category: "Discovery" },
-    { task: "Configure Salesforce org settings, profiles, and permission sets", product: "Salesforce Org", effort: "Medium", category: "Config" },
-    { task: "Set up sandbox environments (Dev, QA, UAT)", product: "Salesforce Org", effort: "Low", category: "Config" },
-    { task: "Data cleansing, deduplication, and migration mapping", product: "Data Migration", effort: "High", category: "Integration" },
-    { task: "System integration testing (SIT) across all components", product: "All Products", effort: "High", category: "Testing" },
-    { task: "User acceptance testing (UAT) sign-off", product: "All Products", effort: "High", category: "Testing" },
-    { task: "Salesforce administrator training", product: "All Products", effort: "Medium", category: "Training" },
-    { task: "Go-live hypercare support plan (2 weeks post-launch)", product: "All Products", effort: "Medium", category: "Training" },
-  ];
-
-  allItems.push(...universalItems);
+  const allItems: ChecklistItem[] = [...UNIVERSAL_ITEMS];
 
   for (const product of activeProducts) {
     const tasks = PRODUCT_TASKS[product.key];
     if (tasks) allItems.push(...tasks);
   }
 
-  return PHASE_MAPPING.map(({ phase, categories }) => ({
-    phase,
-    items: allItems.filter((item) => categories.includes(item.category)),
+  // Pick the highest-priority cloud present to drive phase naming
+  const activeKeys = new Set<string>(activeProducts.map((p) => p.key));
+  const dominantCloud = CLOUD_LABEL_PRIORITY.find((k) => activeKeys.has(k));
+  const labelOverrides = dominantCloud ? (CLOUD_PHASE_OVERRIDES[dominantCloud] ?? {}) : {};
+
+  return PHASE_ORDER.map((cat, idx) => ({
+    phase: `Phase ${idx + 1} — ${labelOverrides[cat as ChecklistCategory] ?? PHASE_LABELS[cat as ChecklistCategory]}`,
+    items: allItems.filter((item) => item.category === cat),
   })).filter((p) => p.items.length > 0);
 }
