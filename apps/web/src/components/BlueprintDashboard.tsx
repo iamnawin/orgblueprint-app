@@ -2164,7 +2164,7 @@ function inferUsersFromContext(
   return inferUsersFromText(mergedText) ?? fallback;
 }
 
-type TabId = "overview" | "architecture" | "data-model" | "technical" | "cost" | "roadmap";
+type TabId = "overview" | "architecture" | "data-model" | "technical" | "cost" | "roadmap" | "notes";
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: "overview",      label: "Overview",      icon: "📊" },
@@ -2173,7 +2173,14 @@ const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: "technical",     label: "Technical",     icon: "⚡" },
   { id: "cost",          label: "Cost",          icon: "💰" },
   { id: "roadmap",       label: "Roadmap",       icon: "🗺️" },
+  { id: "notes",         label: "Notes",         icon: "📝" },
 ];
+
+interface NoteEntry {
+  id: string;
+  text: string;
+  createdAt: string;
+}
 
 export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered = false, needText: initialNeedText, savedAnswers: initialAnswers, onReset }: Props) {
   const [result, setResult] = useState<BlueprintResult>(initial);
@@ -2196,6 +2203,30 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
   // Export PDF dialog
   const [pdfOpen, setPdfOpen] = useState(false);
   const [companyName, setCompanyName] = useState("");
+
+  // Notes
+  const [notes, setNotes] = useState<NoteEntry[]>([]);
+  const [noteInput, setNoteInput] = useState("");
+  const [notesOpen, setNotesOpen] = useState(false);
+
+  function addNote(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setNotes((prev) => [
+      { id: Date.now().toString(), text: trimmed, createdAt: new Date().toISOString() },
+      ...prev,
+    ]);
+    setNoteInput("");
+  }
+
+  function deleteNote(id: string) {
+    setNotes((prev) => prev.filter((n) => n.id !== id));
+  }
+
+  function formatNoteTime(iso: string) {
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
   const resolvedUsersDetected = inferUsersFromContext(
     initialNeedText,
     initialAnswers,
@@ -2595,7 +2626,7 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
       {/* ─── Tabbed sections ─── */}
       <div>
         {/* Custom tab navigation — icon-only on mobile, icon+label on desktop */}
-        <div className="grid grid-cols-6 gap-1 p-1.5 bg-slate-900 rounded-2xl border border-slate-700 print:hidden mb-4 sm:flex sm:overflow-x-auto sm:gap-1.5 sm:scrollbar-hide">
+        <div className="grid grid-cols-7 gap-1 p-1.5 bg-slate-900 rounded-2xl border border-slate-700 print:hidden mb-4 sm:flex sm:overflow-x-auto sm:gap-1.5 sm:scrollbar-hide">
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
@@ -2927,6 +2958,127 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
             </Card>
           </div>
         )}
+
+        {/* ── Notes ── */}
+        {activeTab === "notes" && (
+          <div className="space-y-4">
+            <Card className="border-slate-200">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">📝 Call &amp; Implementation Notes</CardTitle>
+                <p className="text-xs text-slate-500 mt-0.5">Capture discovery notes, call takeaways, and action items — saved for this session</p>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="flex gap-2 mb-5">
+                  <textarea
+                    value={noteInput}
+                    onChange={(e) => setNoteInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) addNote(noteInput); }}
+                    placeholder="Type a note… (Ctrl+Enter to save)"
+                    rows={3}
+                    className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <button
+                    onClick={() => addNote(noteInput)}
+                    disabled={!noteInput.trim()}
+                    className="self-end px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Add
+                  </button>
+                </div>
+
+                {notes.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                    <span className="text-4xl mb-3">📋</span>
+                    <p className="text-sm font-medium">No notes yet</p>
+                    <p className="text-xs mt-1">Use the form above or the floating button to add your first note</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {notes.map((note) => (
+                      <div key={note.id} className="flex gap-3 p-3.5 rounded-xl bg-amber-50 border border-amber-200 group">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-amber-600 font-medium mb-1">{formatNoteTime(note.createdAt)}</p>
+                          <p className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">{note.text}</p>
+                        </div>
+                        <button
+                          onClick={() => deleteNote(note.id)}
+                          title="Delete note"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity self-start p-1 rounded-lg hover:bg-amber-100 text-amber-500 hover:text-red-500"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
+
+      {/* ── Floating notes button ── */}
+      <div className="fixed bottom-6 left-4 z-40 flex flex-col items-start print:hidden">
+        {/* Quick-note panel (slide up) */}
+        {notesOpen && (
+          <div className="mb-2 w-72 rounded-2xl bg-white border border-slate-200 shadow-2xl shadow-slate-900/20 overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2.5 bg-slate-900 text-white">
+              <span className="text-sm font-semibold">Quick Note</span>
+              <button
+                onClick={() => { setNotesOpen(false); setActiveTab("notes"); }}
+                className="text-xs text-slate-400 hover:text-white underline decoration-dotted"
+              >
+                view all →
+              </button>
+            </div>
+            <div className="p-3">
+              <textarea
+                autoFocus
+                value={noteInput}
+                onChange={(e) => setNoteInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { addNote(noteInput); setNotesOpen(false); } }}
+                placeholder="Quick note… (Ctrl+Enter to save)"
+                rows={3}
+                className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <button
+                onClick={() => { addNote(noteInput); setNotesOpen(false); }}
+                disabled={!noteInput.trim()}
+                className="mt-2 w-full py-2 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Save Note
+              </button>
+            </div>
+            {notes.length > 0 && (
+              <div className="border-t border-slate-100 px-3 pb-3 pt-2 space-y-2 max-h-40 overflow-y-auto">
+                {notes.slice(0, 3).map((note) => (
+                  <div key={note.id} className="p-2 rounded-lg bg-amber-50 border border-amber-100">
+                    <p className="text-[10px] text-amber-500 font-medium mb-0.5">{formatNoteTime(note.createdAt)}</p>
+                    <p className="text-xs text-slate-700 line-clamp-2">{note.text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Trigger button */}
+        <button
+          onClick={() => setNotesOpen((o) => !o)}
+          title="Notes"
+          className="relative flex items-center justify-center w-12 h-12 rounded-full bg-amber-400 hover:bg-amber-500 text-white shadow-lg shadow-amber-400/40 transition-all duration-150 active:scale-95"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          {notes.length > 0 && (
+            <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 rounded-full bg-red-500 text-[10px] font-bold text-white">
+              {notes.length > 9 ? "9+" : notes.length}
+            </span>
+          )}
+        </button>
       </div>
     </div>
   );
