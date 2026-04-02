@@ -12,7 +12,7 @@ export async function Navbar() {
   }
 
   return (
-    <nav className="border-b border-slate-800 bg-slate-900 px-6 py-3 flex items-center justify-between shadow-sm">
+    <nav className="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-5 py-2.5 shadow-sm">
       <div className="flex items-center gap-6">
         <Link href="/" className="text-lg font-bold text-blue-400 tracking-tight">
           OrgBlueprint
@@ -43,10 +43,14 @@ export async function Navbar() {
         ) : (
           <>
             <Link href="/auth/signin">
-              <Button variant="outline" size="sm">Sign in</Button>
+              <Button variant="outline" size="sm" className="border-slate-700 bg-slate-950 text-slate-100 hover:bg-slate-900">
+                Sign in
+              </Button>
             </Link>
             <Link href="/auth/signup">
-              <Button size="sm">Sign up</Button>
+              <Button size="sm" className="bg-white text-slate-950 hover:bg-slate-200">
+                Sign up
+              </Button>
             </Link>
           </>
         )}

@@ -305,7 +305,7 @@ export function ConversationChat() {
         <div className="relative mx-auto max-w-6xl">
 
         {/* ── HERO ──────────────────────────────────────────────────── */}
-        <div className="text-center pt-16 pb-12 px-4 sm:pt-20">
+        <div className="text-center px-4 pb-12 pt-12 sm:pt-14">
 
           {/* Badge pill */}
           <div className="inline-flex items-center gap-2 mb-7 px-3 py-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 text-xs font-semibold tracking-widest uppercase">
@@ -327,7 +327,7 @@ export function ConversationChat() {
             so founders, RevOps teams, admins, and consultants start with a real scope instead of another blank discovery doc.
           </p>
 
-          <div className="mx-auto mb-8 grid max-w-4xl grid-cols-1 gap-3 text-left sm:grid-cols-3">
+          <div className="mx-auto mb-6 grid max-w-4xl grid-cols-1 gap-3 text-left sm:grid-cols-3">
             {[
               {
                 eyebrow: "FAST START",
