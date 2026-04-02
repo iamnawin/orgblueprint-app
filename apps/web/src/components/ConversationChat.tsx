@@ -310,39 +310,39 @@ export function ConversationChat() {
           {/* Badge pill */}
           <div className="inline-flex items-center gap-2 mb-7 px-3 py-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 text-xs font-semibold tracking-widest uppercase">
             <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-pulse" />
-            AI Architectural Engine · Orb V4
+            Salesforce Discovery Engine · Orb V4
           </div>
 
           {/* Headline */}
           <h1 className="text-5xl sm:text-6xl font-extrabold mb-5 tracking-tight leading-[1.08]">
-            <span className="text-white block">Design Your System.</span>
+            <span className="text-white block">Cut Salesforce Discovery</span>
             <span className="block bg-gradient-to-r from-pink-400 via-fuchsia-400 to-indigo-400 bg-clip-text text-transparent">
-              Don&apos;t Guess It.
+              From Weeks to Minutes.
             </span>
           </h1>
 
           {/* Subtitle */}
           <p className="text-slate-400 text-lg max-w-xl mx-auto mb-10 leading-relaxed">
-            Turn business intent into a structured Salesforce implementation blueprint —<br className="hidden sm:block" />
-            describe your needs in plain English, or just speak them aloud.
+            Turn a rough business description into a structured Salesforce implementation blueprint in seconds —<br className="hidden sm:block" />
+            so founders, RevOps teams, admins, and consultants start with a real scope instead of another blank discovery doc.
           </p>
 
           <div className="mx-auto mb-8 grid max-w-4xl grid-cols-1 gap-3 text-left sm:grid-cols-3">
             {[
               {
                 eyebrow: "FAST START",
-                title: "Instant demo path",
-                body: "Run the rules engine immediately when you just want a directional answer.",
+                title: "First-cut scope instantly",
+                body: "Run the rules engine immediately when you need a directional blueprint without waiting on a discovery cycle.",
               },
               {
                 eyebrow: "GUIDED",
-                title: "Clarifying questions",
-                body: "Use Orb to tighten the brief before the blueprint is assembled.",
+                title: "Tighten the brief",
+                body: "Use Orb to ask the questions a solution architect would ask before finalising the recommendation.",
               },
               {
                 eyebrow: "DELIVERABLE",
-                title: "Structured output",
-                body: "Recommendations, architecture, cost, roadmap, and checklist in one pass.",
+                title: "Start with a blueprint",
+                body: "Recommendations, architecture, cost, roadmap, and checklist in one pass so the real conversation starts sooner.",
               },
             ].map((item) => (
               <div key={item.title} className="rounded-2xl border border-white/10 bg-slate-900/55 px-4 py-4 shadow-[0_10px_40px_rgba(15,23,42,0.28)] backdrop-blur">
