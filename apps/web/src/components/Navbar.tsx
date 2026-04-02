@@ -1,9 +1,15 @@
 import Link from "next/link";
-import { auth, signOut } from "@/auth";
 import { Button } from "@/components/ui/button";
 
 export async function Navbar() {
-  const session = await auth();
+  let session: { user?: { email?: string | null } } | null = null;
+
+  try {
+    const { auth } = await import("@/auth");
+    session = await auth();
+  } catch (error) {
+    console.error("Navbar auth unavailable", error);
+  }
 
   return (
     <nav className="border-b border-slate-800 bg-slate-900 px-6 py-3 flex items-center justify-between shadow-sm">
@@ -25,6 +31,7 @@ export async function Navbar() {
             <form
               action={async () => {
                 "use server";
+                const { signOut } = await import("@/auth");
                 await signOut({ redirectTo: "/" });
               }}
             >

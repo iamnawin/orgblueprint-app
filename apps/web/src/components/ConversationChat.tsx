@@ -9,14 +9,14 @@ import { Progress } from "@/components/ui/progress";
 import { BlueprintDashboard } from "@/components/BlueprintDashboard";
 import { BlueprintResult } from "@orgblueprint/core";
 import { useSpeechInput } from "@/hooks/useSpeechInput";
-import { Mic, MicOff, Send, Sparkles, ArrowRight, ShieldCheck, BarChart3, Brain, AlertCircle, ChevronRight } from "lucide-react";
+import { Mic, MicOff, Send, Sparkles, ArrowRight, ShieldCheck, BarChart3, AlertCircle } from "lucide-react";
 import { TechLoadingScreen } from "@/components/TechLoadingScreen";
 
 const CRM_PLATFORMS = [
-  { key: "salesforce", label: "Salesforce", icon: "☁️", available: true },
-  { key: "hubspot",    label: "HubSpot",    icon: "🟠", available: false },
-  { key: "dynamics",   label: "Dynamics 365", icon: "🔷", available: false },
-  { key: "zoho",       label: "Zoho CRM",   icon: "🟣", available: false },
+  { key: "salesforce", label: "Salesforce", icon: "SF", available: true },
+  { key: "hubspot", label: "HubSpot", icon: "HS", available: false },
+  { key: "dynamics", label: "Dynamics 365", icon: "D365", available: false },
+  { key: "zoho", label: "Zoho CRM", icon: "ZOHO", available: false },
 ] as const;
 
 type CrmPlatform = (typeof CRM_PLATFORMS)[number]["key"];
@@ -45,6 +45,7 @@ const EXAMPLE_PROMPTS = [
 ];
 
 type Stage = "describe" | "conversation" | "confirm" | "generating" | "results";
+type GenerationMode = "demo" | "ai";
 
 interface ConversationEntry {
   question: string;
@@ -123,6 +124,7 @@ export function ConversationChat() {
   const [progressStep, setProgressStep] = useState(0);
   const progressIntervalRef = useRef<number | null>(null);
   const [aiKeyMissing, setAiKeyMissing] = useState(false);
+  const [generationMode, setGenerationMode] = useState<GenerationMode>("demo");
   const [crmPlatform, setCrmPlatform] = useState<CrmPlatform>("salesforce");
   const [result, setResult] = useState<BlueprintResult | null>(null);
   const [blueprintSlug, setBlueprintSlug] = useState<string | null>(null);
@@ -160,8 +162,8 @@ export function ConversationChat() {
     })
       .then((res) => res.json())
       .then((data: { question: string | null; provider?: string }) => {
+        setAiKeyMissing(data.provider === "rules");
         if (data.question) {
-          setAiKeyMissing(false);
           setCurrentQuestion(data.question);
         } else {
           setCurrentQuestion(null);
@@ -191,6 +193,16 @@ export function ConversationChat() {
     if (!needText.trim()) return;
     setAskedQuestions([]);
     setConversation([]);
+    setGenerateError(null);
+    setCurrentQuestion(null);
+    setCurrentAnswer("");
+    setAiKeyMissing(false);
+
+    if (generationMode === "demo") {
+      void generate("demo");
+      return;
+    }
+
     setStage("conversation");
     fetchNextQuestion([]);
   }
@@ -205,7 +217,8 @@ export function ConversationChat() {
     fetchNextQuestion(nextConversation);
   }
 
-  async function generate() {
+  async function generate(modeOverride?: GenerationMode) {
+    const mode = modeOverride ?? generationMode;
     setGenerating(true);
     setGenerateError(null);
     setProgressStep(0);
@@ -220,7 +233,7 @@ export function ConversationChat() {
       const res = await fetch("/api/blueprint", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: needText, answers: answeredMap, mode: "ai" }),
+        body: JSON.stringify({ input: needText, answers: answeredMap, mode }),
       });
       const data = await res.json();
 
@@ -236,6 +249,7 @@ export function ConversationChat() {
         return;
       }
 
+      setAiKeyMissing(mode === "ai" && !data.aiPowered);
       setResult(data.result);
       setBlueprintSlug(data.slug ?? null);
       setAiPowered(data.aiPowered ?? false);
@@ -266,129 +280,311 @@ export function ConversationChat() {
           setConversation([]);
           setAskedQuestions([]);
           setCurrentQuestion(null);
+          setCurrentAnswer("");
           setResult(null);
           setBlueprintSlug(null);
           setGenerateError(null);
+          setGenerating(false);
+          setAiKeyMissing(false);
+          setProgressStep(0);
         }}
       />
     );
   }
 
-  return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      {/* Header */}
-      <div className="text-center pt-12 pb-8">
-        <div className="inline-flex items-center gap-2 mb-5 px-3 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-xs font-semibold tracking-wide">
-          <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
-          Orb — AI Solution Architect
+  /* ── Describe stage — full hero layout ─────────────────────────────── */
+  if (stage === "describe") {
+    return (
+      <div className="relative isolate w-full overflow-hidden">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute left-[-8rem] top-12 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
+          <div className="absolute right-[-6rem] top-28 h-80 w-80 rounded-full bg-fuchsia-500/10 blur-3xl" />
+          <div className="absolute inset-x-0 top-0 h-40 bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.18),transparent_60%)]" />
+          <div className="absolute inset-x-0 bottom-0 h-64 bg-[linear-gradient(180deg,transparent,rgba(15,23,42,0.85))]" />
         </div>
-        <h1 className="text-5xl font-extrabold mb-3 tracking-tight leading-none bg-gradient-to-br from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">OrgBlueprint</h1>
-        <p className="text-slate-400 text-lg max-w-md mx-auto leading-relaxed">
-          Describe your business needs. Orb asks the right questions, then builds your Salesforce blueprint.
-        </p>
-      </div>
+        <div className="relative mx-auto max-w-6xl">
 
-      {/* Describe stage */}
-      {stage === "describe" && (
-        <div className="space-y-4">
-          {/* Platform pill + hint row */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              {CRM_PLATFORMS.map((p) => (
-                <button
-                  key={p.key}
-                  type="button"
-                  disabled={!p.available}
-                  onClick={() => p.available && setCrmPlatform(p.key)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-150 ${
-                    p.key === crmPlatform
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : p.available
-                      ? "bg-slate-800 text-slate-300 border border-slate-700 hover:border-blue-500/50 hover:text-blue-400"
-                      : "bg-slate-900 text-slate-600 border border-slate-800 cursor-not-allowed"
-                  }`}
-                  title={!p.available ? "Coming soon" : undefined}
-                >
-                  <span>{p.icon}</span>
-                  <span>{p.label}</span>
-                  {!p.available && <span className="text-[9px] opacity-50">soon</span>}
-                </button>
-              ))}
-            </div>
-            <span className="text-xs text-slate-500 flex items-center gap-1">
-              <Brain className="h-3 w-3 text-indigo-400" /> Smart questions adapt to your input
+        {/* ── HERO ──────────────────────────────────────────────────── */}
+        <div className="text-center pt-16 pb-12 px-4 sm:pt-20">
+
+          {/* Badge pill */}
+          <div className="inline-flex items-center gap-2 mb-7 px-3 py-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 text-xs font-semibold tracking-widest uppercase">
+            <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-pulse" />
+            AI Architectural Engine · Orb V4
+          </div>
+
+          {/* Headline */}
+          <h1 className="text-5xl sm:text-6xl font-extrabold mb-5 tracking-tight leading-[1.08]">
+            <span className="text-white block">Design Your System.</span>
+            <span className="block bg-gradient-to-r from-pink-400 via-fuchsia-400 to-indigo-400 bg-clip-text text-transparent">
+              Don&apos;t Guess It.
+            </span>
+          </h1>
+
+          {/* Subtitle */}
+          <p className="text-slate-400 text-lg max-w-xl mx-auto mb-10 leading-relaxed">
+            Turn business intent into a structured Salesforce implementation blueprint —<br className="hidden sm:block" />
+            describe your needs in plain English, or just speak them aloud.
+          </p>
+
+          <div className="mx-auto mb-8 grid max-w-4xl grid-cols-1 gap-3 text-left sm:grid-cols-3">
+            {[
+              {
+                eyebrow: "FAST START",
+                title: "Instant demo path",
+                body: "Run the rules engine immediately when you just want a directional answer.",
+              },
+              {
+                eyebrow: "GUIDED",
+                title: "Clarifying questions",
+                body: "Use Orb to tighten the brief before the blueprint is assembled.",
+              },
+              {
+                eyebrow: "DELIVERABLE",
+                title: "Structured output",
+                body: "Recommendations, architecture, cost, roadmap, and checklist in one pass.",
+              },
+            ].map((item) => (
+              <div key={item.title} className="rounded-2xl border border-white/10 bg-slate-900/55 px-4 py-4 shadow-[0_10px_40px_rgba(15,23,42,0.28)] backdrop-blur">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">{item.eyebrow}</p>
+                <p className="mb-1 text-sm font-semibold text-white">{item.title}</p>
+                <p className="text-sm leading-relaxed text-slate-400">{item.body}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-center gap-3 mb-6 px-4">
+            <button
+              type="button"
+              onClick={() => setGenerationMode("demo")}
+              className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                generationMode === "demo"
+                  ? "bg-white text-slate-950"
+                  : "border border-slate-700 bg-slate-900/70 text-slate-300 hover:border-indigo-500/50 hover:text-white"
+              }`}
+            >
+              Demo Mode
+            </button>
+            <button
+              type="button"
+              onClick={() => setGenerationMode("ai")}
+              className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                generationMode === "ai"
+                  ? "bg-indigo-500 text-white"
+                  : "border border-slate-700 bg-slate-900/70 text-slate-300 hover:border-indigo-500/50 hover:text-white"
+              }`}
+            >
+              AI Enhanced
+            </button>
+            <span className="hidden md:block text-xs text-slate-500">
+              {generationMode === "demo"
+                ? "Instant rules-engine output"
+                : "Orb asks clarifying questions first"}
             </span>
           </div>
 
-          {/* Main input card */}
-          <div className="relative rounded-2xl border border-slate-700/60 bg-slate-900/80 shadow-[0_0_40px_rgba(59,130,246,0.08)] ring-1 ring-white/5">
-            {/* Example prompt chips */}
-            <div className="flex gap-2 overflow-x-auto px-4 pt-4 pb-3 scrollbar-none border-b border-slate-800/60">
-              {EXAMPLE_PROMPTS.map((p, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setNeedText(p.text)}
-                  className="whitespace-nowrap text-xs px-3 py-1.5 rounded-full border border-slate-700 bg-slate-800/60 text-slate-400 hover:bg-blue-500/10 hover:border-blue-500/40 hover:text-blue-300 transition-colors shrink-0"
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
+          {/* ── INPUT BAR ── */}
+          <div className="max-w-3xl mx-auto">
+            <div className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/85 shadow-[0_24px_80px_rgba(15,23,42,0.45)] ring-1 ring-white/5 backdrop-blur">
 
-            <div className="relative px-4 pb-1">
-              <Textarea
-                placeholder="E.g. We're a 200-person healthcare company. We need to manage patient referrals, track our sales pipeline, integrate with our EHR system, and automate appointment reminders. We also want a patient portal."
-                className="min-h-44 text-base pr-12 resize-none border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent p-0 text-slate-100 placeholder:text-slate-600"
-                value={needText}
-                onChange={(e) => setNeedText(e.target.value)}
-              />
-              {isSupported && (
-                <button
-                  type="button"
-                  onClick={isListening ? stopListening : startListening}
-                  className={`absolute bottom-3 right-3 p-2 rounded-full transition-all duration-200 ${
-                    isListening
-                      ? "bg-red-500 text-white shadow-lg shadow-red-200 scale-110"
-                      : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200"
-                  }`}
-                  title={isListening ? "Stop recording" : "Speak your needs"}
-                >
-                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                </button>
+              {/* Example chips */}
+              <div className="flex gap-2 overflow-x-auto px-4 pt-3 pb-3 scrollbar-none border-b border-slate-800/60">
+                {EXAMPLE_PROMPTS.map((p, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setNeedText(p.text)}
+                    className="shrink-0 whitespace-nowrap rounded-full border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-400 transition-colors hover:border-indigo-500/40 hover:bg-indigo-500/10 hover:text-indigo-300"
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Textarea */}
+              <div className="px-4 pt-3 pb-1">
+                <Textarea
+                  placeholder="E.g. We're a 200-person B2B SaaS company. 80 AEs, 20 SDRs, need pipeline, CPQ for complex deals, service team of 20 handling tickets, integrate with NetSuite..."
+                  className="min-h-40 resize-none border-0 bg-transparent p-0 text-base text-slate-100 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-slate-600"
+                  value={needText}
+                  onChange={(e) => setNeedText(e.target.value)}
+                />
+              </div>
+
+              {/* Listening indicator */}
+              {isListening && (
+                <div className="flex items-center gap-2 text-red-400 text-xs px-4 pb-2">
+                  <span className="inline-flex gap-0.5">
+                    {[0,1,2,3].map(i => (
+                      <span key={i} className="inline-block w-0.5 bg-red-400 rounded-full animate-pulse" style={{ height: `${8 + i * 4}px`, animationDelay: `${i * 100}ms` }} />
+                    ))}
+                  </span>
+                  <span className="font-medium">Listening… speak now</span>
+                  <span className="ml-1 text-slate-500">Click Stop when done</span>
+                </div>
               )}
+
+              {/* Bottom bar: mic + trust + CTA */}
+              <div className="flex flex-col gap-3 border-t border-slate-800 px-4 py-3 sm:flex-row sm:items-center">
+                {/* Mic button — prominent, labelled */}
+                {isSupported ? (
+                  <button
+                    type="button"
+                    onClick={isListening ? stopListening : startListening}
+                    className={`flex shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 sm:justify-start ${
+                      isListening
+                        ? "bg-red-500 text-white shadow-lg shadow-red-500/30 scale-105"
+                        : "bg-slate-800 text-slate-300 border border-slate-700 hover:bg-indigo-500/20 hover:border-indigo-500/50 hover:text-indigo-300"
+                    }`}
+                    title={isListening ? "Stop recording" : "Use your voice instead of typing"}
+                  >
+                    {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                    {isListening ? "Stop" : "Voice Input"}
+                  </button>
+                ) : (
+                  <span className="flex shrink-0 items-center justify-center gap-1.5 text-xs text-slate-600 sm:justify-start">
+                    <Mic className="h-3.5 w-3.5" /> Type your needs
+                  </span>
+                )}
+
+                {/* Trust badges */}
+                <div className="hidden items-center gap-3 text-xs text-slate-600 sm:flex sm:ml-1">
+                  <span className="flex items-center gap-1"><ShieldCheck className="h-3 w-3 text-green-500/70" /> No credentials</span>
+                  <span className="flex items-center gap-1"><BarChart3 className="h-3 w-3 text-indigo-400/70" /> Architecture-grade</span>
+                </div>
+
+                {/* CTA */}
+                <button
+                  type="button"
+                  onClick={handleDescribeContinue}
+                  disabled={!needText.trim()}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition-all hover:from-indigo-500 hover:to-purple-500 disabled:cursor-not-allowed disabled:opacity-40 sm:ml-auto sm:w-auto"
+                >
+                  {generationMode === "demo" ? "Run Instant Blueprint" : "Start Guided Blueprint"}
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
-            {isListening && (
-              <div className="flex items-center gap-2 text-red-500 text-xs px-4 pb-2">
-                <span className="inline-block h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-                Listening… speak now
-              </div>
-            )}
-
-            {/* Bottom action bar */}
-            <div className="flex items-center justify-between gap-3 border-t border-slate-800 px-4 py-3">
-              <div className="flex items-center gap-4 text-xs text-slate-500">
-                <span className="flex items-center gap-1.5"><BarChart3 className="h-3.5 w-3.5 text-indigo-400" /> Architecture-grade</span>
-                <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-green-400" /> No credentials needed</span>
-              </div>
-              <button
-                type="button"
-                onClick={handleDescribeContinue}
-                disabled={!needText.trim()}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
-              >
-                Generate Blueprint
-                <ChevronRight className="h-4 w-4" />
-              </button>
+            {/* Trust strip */}
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] uppercase tracking-widest text-slate-600">
+              <span>{generationMode === "demo" ? "Instant Output" : "Guided Discovery"}</span>
+              <span className="text-slate-700">·</span>
+              <span>No Salesforce Login Needed</span>
+              <span className="text-slate-700">·</span>
+              <span>Deterministic Output</span>
             </div>
           </div>
-
-          <p className="text-center text-xs text-slate-600">
-            Orb will ask up to 3 context-aware questions based on what you describe
-          </p>
         </div>
-      )}
+
+        {/* ── PLATFORM PILLS ─────────────────────────────────────────── */}
+        <div className="flex flex-wrap justify-center gap-2 pb-10 px-4">
+          {CRM_PLATFORMS.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              disabled={!p.available}
+              onClick={() => p.available && setCrmPlatform(p.key)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 ${
+                p.key === crmPlatform
+                  ? "bg-indigo-600 text-white shadow-sm"
+                  : p.available
+                  ? "bg-slate-800 text-slate-300 border border-slate-700 hover:border-indigo-500/50 hover:text-indigo-300"
+                  : "bg-slate-900 text-slate-600 border border-slate-800 cursor-not-allowed"
+              }`}
+              title={!p.available ? "Coming soon" : undefined}
+            >
+              <span>{p.icon}</span>
+              <span>{p.label}</span>
+              {!p.available && <span className="text-[9px] opacity-50">soon</span>}
+            </button>
+          ))}
+        </div>
+
+        {/* ── HOW IT WORKS — 3 cards ──────────────────────────────────── */}
+        <div className="max-w-5xl mx-auto px-4 pb-10">
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-white mb-2">From Input to Architecture</h2>
+            <p className="text-slate-500 text-sm max-w-lg">
+              A multi-stage engine that turns a plain English description into a structured, production-ready blueprint.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {[
+              {
+                icon: "01",
+                title: "Understand",
+                desc: "Extract signals from natural language — user count, industry, product needs, integration complexity, and pain points.",
+                tag: "Signal Processing Layer",
+                color: "from-blue-500/10 to-indigo-500/5",
+                border: "border-blue-500/20",
+              },
+              {
+                icon: "02",
+                title: "Refine",
+                desc: "Orb asks up to 3 context-aware questions to eliminate ambiguity and improve blueprint accuracy.",
+                tag: "Decision Logic Matrix",
+                color: "from-purple-500/10 to-fuchsia-500/5",
+                border: "border-purple-500/20",
+              },
+              {
+                icon: "03",
+                title: "Generate",
+                desc: "Produce structured blueprints: product recommendations, data model, cost estimates, roadmap, and document checklist.",
+                tag: "Output Synthesis Module",
+                color: "from-indigo-500/10 to-purple-500/5",
+                border: "border-indigo-500/20",
+              },
+            ].map((card) => (
+              <div key={card.title} className={`rounded-2xl border ${card.border} bg-gradient-to-br ${card.color} p-5 flex flex-col gap-3`}>
+                <span className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">{card.icon}</span>
+                <div>
+                  <h3 className="text-white font-bold text-base mb-1">{card.title}</h3>
+                  <p className="text-slate-400 text-sm leading-relaxed">{card.desc}</p>
+                </div>
+                <span className="mt-auto text-[10px] font-semibold uppercase tracking-widest text-slate-600">{card.tag}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── TECH STACK SECTION ──────────────────────────────────────── */}
+        <div className="max-w-5xl mx-auto border-t border-slate-800/60 px-4 pb-16 pt-10">
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-white mb-2">How We Built This</h2>
+            <p className="text-slate-500 text-sm max-w-lg">
+              No Salesforce org connection needed. You describe your needs — we apply a deterministic rules engine + LLM to produce recommendations based on Salesforce&apos;s product catalog.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              { layer: "Frontend", tech: "Next.js 14 · React 18 · TypeScript", icon: "FE", detail: "App Router, server components, Tailwind CSS" },
+              { layer: "Voice Input", tech: "Web Speech API", icon: "MIC", detail: "Browser-native, no server, no API key — speak your needs directly" },
+              { layer: "Rules Engine", tech: "Pure TypeScript · Deterministic", icon: "RULES", detail: "extractSignals() → decideProducts() → generateBlueprint() — zero LLM, about 200ms" },
+              { layer: "AI Layer", tech: "Claude Sonnet → Gemini → Groq", icon: "AI", detail: "4-provider fallback chain — always produces output even if one provider is down" },
+              { layer: "Database", tech: "Prisma ORM · Hosted Postgres", icon: "DB", detail: "Blueprints saved as JSON, slugs via nanoid, NextAuth v5 JWT auth" },
+              { layer: "Salesforce Data", tech: "Hardcoded product catalog", icon: "CRM", detail: "21 Salesforce product families, pricing assumptions, AppExchange recommendations — no live SF API" },
+            ].map((item) => (
+              <div key={item.layer} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 flex flex-col gap-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-indigo-300">{item.icon}</span>
+                  <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">{item.layer}</span>
+                </div>
+                <p className="text-white text-sm font-semibold">{item.tech}</p>
+                <p className="text-slate-500 text-xs leading-relaxed">{item.detail}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        </div>
+      </div>
+    );
+  }
+
+  /* ── All other stages (conversation / confirm / generating) ─────── */
+  return (
+    <div className="mx-auto max-w-2xl space-y-6">
 
       {/* Conversation stage — chat bubbles */}
       {stage === "conversation" && (
@@ -549,7 +745,7 @@ export function ConversationChat() {
             )}
             <Button
               className="w-full h-11 text-base font-medium"
-              onClick={generate}
+              onClick={() => void generate()}
               disabled={generating}
             >
               Continue
@@ -557,15 +753,6 @@ export function ConversationChat() {
             </Button>
           </CardContent>
         </Card>
-      )}
-
-      {/* Trust signals footer — shown on describe stage only */}
-      {stage === "describe" && (
-        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-600 pt-2 pb-4">
-          <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> No Salesforce credentials required</span>
-          <span className="flex items-center gap-1.5"><BarChart3 className="h-3.5 w-3.5" /> Directional estimates only</span>
-          <span className="flex items-center gap-1.5"><Brain className="h-3.5 w-3.5" /> Orb-powered recommendations</span>
-        </div>
       )}
 
       {/* Generating stage */}
@@ -597,4 +784,3 @@ export function ConversationChat() {
     </div>
   );
 }
-

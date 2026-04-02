@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const input: string = body.input ?? "";
   const answers: Record<string, string> = body.answers ?? {};
+  const mode: "demo" | "ai" = body.mode === "demo" ? "demo" : "ai";
   const contextInput = buildBlueprintContext(input, answers);
   const structuredAnswers = inferClarificationAnswers(input, answers);
 
@@ -41,9 +42,8 @@ export async function POST(req: NextRequest) {
     process.env.NVIDIA_API_KEY
   );
 
-  // Always try LLM first — it makes ALL decisions (products, objects, architecture, roadmap)
-  // Falls through silently if quota exhausted or all providers fail
-  if (hasAiKey) {
+  // AI mode tries LLM first and falls through silently if quota is exhausted or providers fail.
+  if (mode === "ai" && hasAiKey) {
     const ip = getClientIp(req);
     const quota = await checkAndRecordAiRun(ip);
 
@@ -96,5 +96,5 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  return NextResponse.json({ result, slug, aiPowered });
+  return NextResponse.json({ result, slug, aiPowered, mode });
 }
