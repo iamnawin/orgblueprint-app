@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { BlueprintDashboard } from "@/components/BlueprintDashboard";
 import { BlueprintResult } from "@orgblueprint/core";
 import { useSpeechInput } from "@/hooks/useSpeechInput";
-import { Mic, MicOff, Send, Sparkles, ArrowRight, ShieldCheck, BarChart3, AlertCircle } from "lucide-react";
+import { Mic, MicOff, Send, Sparkles, ArrowRight, ShieldCheck, BarChart3, AlertCircle, Globe, Loader2, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { TechLoadingScreen } from "@/components/TechLoadingScreen";
 
 const CRM_PLATFORMS = [
@@ -132,6 +132,16 @@ export function ConversationChat() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const questionTimerRef = useRef<number | null>(null);
 
+  // ── Company website research ──────────────────────────────────────────────
+  const [showResearch, setShowResearch] = useState(false);
+  const [researchUrl, setResearchUrl] = useState("");
+  const [researchState, setResearchState] = useState<"idle" | "starting" | "running" | "done" | "error">("idle");
+  const [researchSessionId, setResearchSessionId] = useState<string | null>(null);
+  const [researchLiveUrl, setResearchLiveUrl] = useState<string | null>(null);
+  const [researchDescription, setResearchDescription] = useState<string | null>(null);
+  const [researchRaw, setResearchRaw] = useState<Record<string, unknown> | null>(null);
+  const researchPollRef = useRef<number | null>(null);
+
   const answeredMap = Object.fromEntries(
     conversation.map((c) => [c.question, c.answer])
   );
@@ -144,6 +154,78 @@ export function ConversationChat() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conversation, currentQuestion, loadingQuestion]);
+
+  // Poll Browser Use session until done
+  useEffect(() => {
+    if (!researchSessionId || researchState !== "running") return;
+    researchPollRef.current = window.setInterval(async () => {
+      try {
+        const res = await fetch(`/api/research-company/${researchSessionId}`);
+        const data = await res.json() as {
+          done: boolean;
+          status: string;
+          output?: string;
+          parsed?: Record<string, unknown>;
+          liveUrl?: string;
+        };
+        if (data.liveUrl && !researchLiveUrl) setResearchLiveUrl(data.liveUrl);
+        if (data.done) {
+          if (researchPollRef.current) clearInterval(researchPollRef.current);
+          if (data.status === "error") {
+            setResearchState("error");
+          } else {
+            setResearchState("done");
+            if (data.parsed) {
+              setResearchRaw(data.parsed);
+              const desc = data.parsed.description as string | undefined;
+              if (desc) setResearchDescription(desc);
+            } else if (data.output) {
+              setResearchDescription(data.output);
+            }
+          }
+        }
+      } catch {
+        if (researchPollRef.current) clearInterval(researchPollRef.current);
+        setResearchState("error");
+      }
+    }, 2500);
+    return () => { if (researchPollRef.current) clearInterval(researchPollRef.current); };
+  }, [researchSessionId, researchState, researchLiveUrl]);
+
+  async function startCompanyResearch() {
+    if (!researchUrl.trim()) return;
+    setResearchState("starting");
+    setResearchDescription(null);
+    setResearchRaw(null);
+    setResearchLiveUrl(null);
+    setResearchSessionId(null);
+    try {
+      const res = await fetch("/api/research-company", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: researchUrl.trim() }),
+      });
+      const data = await res.json() as { sessionId?: string; liveUrl?: string; error?: string };
+      if (!res.ok || !data.sessionId) {
+        setResearchState("error");
+        return;
+      }
+      setResearchSessionId(data.sessionId);
+      if (data.liveUrl) setResearchLiveUrl(data.liveUrl);
+      setResearchState("running");
+    } catch {
+      setResearchState("error");
+    }
+  }
+
+  function applyResearchContext() {
+    if (!researchDescription) return;
+    setNeedText((prev) =>
+      prev.trim()
+        ? prev.trim() + "\n\n" + researchDescription
+        : researchDescription
+    );
+  }
 
   function fetchNextQuestion(
     historyOverride?: { question: string; answer: string }[]
@@ -473,6 +555,111 @@ export function ConversationChat() {
               <span>No Salesforce Login Needed</span>
               <span className="text-slate-700">·</span>
               <span>Deterministic Output</span>
+            </div>
+
+            {/* ── Company website research panel ── */}
+            <div className="mt-5 rounded-2xl border border-slate-700/60 bg-slate-900/60 backdrop-blur overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowResearch((v) => !v)}
+                className="w-full flex items-center justify-between px-4 py-3 text-sm text-slate-300 hover:text-white transition-colors"
+              >
+                <span className="flex items-center gap-2 font-medium">
+                  <Globe className="h-4 w-4 text-indigo-400" />
+                  Auto-fill from your website
+                  <span className="text-[10px] uppercase tracking-widest text-indigo-400 font-semibold bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded-full">
+                    Browser AI
+                  </span>
+                </span>
+                {showResearch ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
+              </button>
+
+              {showResearch && (
+                <div className="border-t border-slate-700/50 px-4 pb-4 pt-3 space-y-3">
+                  <p className="text-xs text-slate-400">
+                    Paste your company URL — an AI agent will browse your site and extract business context to pre-fill the description above.
+                  </p>
+
+                  <div className="flex gap-2">
+                    <Input
+                      type="url"
+                      placeholder="https://yourcompany.com"
+                      value={researchUrl}
+                      onChange={(e) => setResearchUrl(e.target.value)}
+                      className="flex-1 h-9 bg-slate-800/80 border-slate-600 text-slate-100 placeholder:text-slate-500 text-sm focus-visible:ring-indigo-500/50"
+                      disabled={researchState === "starting" || researchState === "running"}
+                    />
+                    <button
+                      type="button"
+                      onClick={startCompanyResearch}
+                      disabled={!researchUrl.trim() || researchState === "starting" || researchState === "running"}
+                      className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+                    >
+                      {(researchState === "starting" || researchState === "running") ? (
+                        <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Researching…</>
+                      ) : (
+                        <><Globe className="h-3.5 w-3.5" /> Analyze</>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Live browser iframe */}
+                  {researchLiveUrl && researchState === "running" && (
+                    <div className="rounded-xl overflow-hidden border border-slate-700">
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 border-b border-slate-700 text-xs text-slate-400">
+                        <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
+                        Live — AI agent browsing your site
+                      </div>
+                      <iframe
+                        src={researchLiveUrl}
+                        className="w-full h-56 border-0"
+                        allow="autoplay"
+                        title="Browser Use live session"
+                      />
+                    </div>
+                  )}
+
+                  {/* Done state */}
+                  {researchState === "done" && researchDescription && (
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                        <div className="space-y-1 min-w-0">
+                          <p className="text-xs font-semibold text-emerald-300">Context extracted</p>
+                          {researchRaw && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {researchRaw.company_name ? (
+                                <span className="text-[10px] bg-slate-800 text-slate-300 border border-slate-600 px-1.5 py-0.5 rounded-full">{String(researchRaw.company_name)}</span>
+                              ) : null}
+                              {researchRaw.industry ? (
+                                <span className="text-[10px] bg-slate-800 text-slate-300 border border-slate-600 px-1.5 py-0.5 rounded-full">{String(researchRaw.industry)}</span>
+                              ) : null}
+                              {researchRaw.team_size_hint ? (
+                                <span className="text-[10px] bg-slate-800 text-slate-300 border border-slate-600 px-1.5 py-0.5 rounded-full">{String(researchRaw.team_size_hint)}</span>
+                              ) : null}
+                            </div>
+                          )}
+                          <p className="text-xs text-slate-400 leading-relaxed line-clamp-3">{researchDescription}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={applyResearchContext}
+                        className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-indigo-500/40 bg-indigo-500/10 py-2 text-xs font-semibold text-indigo-300 hover:bg-indigo-500/20 transition-colors"
+                      >
+                        <ArrowRight className="h-3.5 w-3.5" />
+                        Use this context in description
+                      </button>
+                    </div>
+                  )}
+
+                  {researchState === "error" && (
+                    <p className="text-xs text-red-400 flex items-center gap-1.5">
+                      <AlertCircle className="h-3.5 w-3.5" /> Could not analyze the site. Check the URL and try again.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

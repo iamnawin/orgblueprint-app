@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { BlueprintResult, ProductDecision } from "@orgblueprint/core";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -658,6 +658,130 @@ function VisualRoadmap({ roadmap }: { roadmap: BlueprintResult["roadmap"] }) {
         </div>
       ))}
     </div>
+  );
+}
+
+// ─── Live Docs Research ───────────────────────────────────────────────────────
+function LiveDocsResearch({ products }: { products: ProductDecision[] }) {
+  const [state, setState] = useState<"idle" | "starting" | "running" | "done" | "error">("idle");
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [liveUrl, setLiveUrl] = useState<string | null>(null);
+  const [output, setOutput] = useState<string | null>(null);
+  const pollRef = useRef<number | null>(null);
+
+  const activeProducts = products
+    .filter((p) => p.level === "recommended" || p.level === "optional")
+    .map((p) => p.key);
+
+  const startResearch = useCallback(async () => {
+    setState("starting");
+    setOutput(null);
+    setLiveUrl(null);
+    setSessionId(null);
+    try {
+      const res = await fetch("/api/research-salesforce", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ products: activeProducts }),
+      });
+      const data = await res.json() as { sessionId?: string; liveUrl?: string; error?: string };
+      if (!res.ok || !data.sessionId) { setState("error"); return; }
+      setSessionId(data.sessionId);
+      if (data.liveUrl) setLiveUrl(data.liveUrl);
+      setState("running");
+    } catch {
+      setState("error");
+    }
+  }, [activeProducts]);
+
+  useEffect(() => {
+    if (!sessionId || state !== "running") return;
+    pollRef.current = window.setInterval(async () => {
+      try {
+        const res = await fetch(`/api/research-salesforce/${sessionId}`);
+        const data = await res.json() as { done: boolean; status: string; output?: string; liveUrl?: string };
+        if (data.liveUrl && !liveUrl) setLiveUrl(data.liveUrl);
+        if (data.done) {
+          if (pollRef.current) clearInterval(pollRef.current);
+          setState(data.status === "error" ? "error" : "done");
+          if (data.output) setOutput(data.output);
+        }
+      } catch {
+        if (pollRef.current) clearInterval(pollRef.current);
+        setState("error");
+      }
+    }, 2500);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [sessionId, state, liveUrl]);
+
+  if (activeProducts.length === 0) return null;
+
+  return (
+    <Card className="border-indigo-200 bg-indigo-50/30">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <CardTitle className="text-base flex items-center gap-2">
+              🌐 Live Salesforce Research
+              <span className="text-[10px] uppercase tracking-widest font-semibold bg-indigo-100 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded-full">
+                Browser AI
+              </span>
+            </CardTitle>
+            <p className="text-xs text-slate-500 mt-0.5">
+              An AI agent browses AppExchange and Salesforce docs in real-time to find current app recommendations and implementation notes for your products.
+            </p>
+          </div>
+          {state === "idle" && (
+            <button
+              type="button"
+              onClick={startResearch}
+              className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors shrink-0"
+            >
+              🔍 Research Live Docs
+            </button>
+          )}
+          {(state === "starting" || state === "running") && (
+            <span className="flex items-center gap-1.5 text-xs text-indigo-600 font-medium">
+              <span className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse" />
+              Agent browsing…
+            </span>
+          )}
+        </div>
+      </CardHeader>
+
+      {(state === "running" || state === "done" || state === "error") && (
+        <CardContent className="pt-0 space-y-3">
+          {/* Live browser iframe */}
+          {liveUrl && state === "running" && (
+            <div className="rounded-xl overflow-hidden border border-indigo-200">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-100 border-b border-indigo-200 text-xs text-indigo-700">
+                <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                Live — AI agent browsing Salesforce docs &amp; AppExchange
+              </div>
+              <iframe
+                src={liveUrl}
+                className="w-full h-72 border-0 bg-white"
+                allow="autoplay"
+                title="Browser Use live session"
+              />
+            </div>
+          )}
+
+          {state === "done" && output && (
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Research Findings</p>
+              <pre className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap font-sans">{output}</pre>
+            </div>
+          )}
+
+          {state === "error" && (
+            <p className="text-xs text-red-500 flex items-center gap-1.5">
+              ⚠️ Research failed. Check your BROWSER_USE_API_KEY or try again.
+            </p>
+          )}
+        </CardContent>
+      )}
+    </Card>
   );
 }
 
@@ -2870,6 +2994,8 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
                 <AppExchangeTab products={result.products} />
               </CardContent>
             </Card>
+
+            <LiveDocsResearch products={result.products} />
           </div>
         )}
 

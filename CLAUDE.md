@@ -59,6 +59,8 @@ AUTH_SECRET="<any random string>"
 ANTHROPIC_API_KEY="sk-ant-..."        # optional — enables AI mode (Claude Sonnet)
 GEMINI_API_KEY="AIza..."              # optional — free alternative for AI mode (Gemini 2.0 Flash). Used when ANTHROPIC_API_KEY is empty.
 NVIDIA_API_KEY="nvapi-..."            # optional — fallback chat model (MiniMax M2.5 via NVIDIA NIM)
+GROQ_API_KEY="gsk_..."                # optional — tertiary blueprint fallback (Groq LLM)
+BROWSER_USE_API_KEY="bu_..."          # optional — Browser AI (company site research + live Salesforce docs). Get key at cloud.browser-use.com/settings
 UPSTASH_REDIS_REST_URL="..."          # optional — persistent AI quota tracking
 UPSTASH_REDIS_REST_TOKEN="..."        # optional — persistent AI quota tracking
 ```
@@ -146,6 +148,10 @@ The 6-stage wizard manages state via a `stage` discriminated union:
 | `/api/chat` POST | Blueprint Q&A chat (Anthropic → NVIDIA fallback) |
 | `/api/nvidia-chat` POST | Direct NVIDIA NIM chat endpoint |
 | `/api/codegen` POST | Generate Salesforce code snippets (Apex/Flow XML/SOQL) via Gemini |
+| `/api/research-company` POST | Start Browser Use session to scrape company URL; returns `{ sessionId, liveUrl }` |
+| `/api/research-company/[sessionId]` GET | Poll session status; returns `{ done, status, output, parsed, liveUrl }` |
+| `/api/research-salesforce` POST | Start Browser Use session to research AppExchange/Salesforce docs for given products |
+| `/api/research-salesforce/[sessionId]` GET | Poll session status; returns `{ done, status, output, liveUrl }` |
 | `/api/auth/[...nextauth]` | NextAuth handler |
 | `/api/auth/register` POST | User registration endpoint |
 
