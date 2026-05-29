@@ -2157,22 +2157,76 @@ function BusinessKPIPanel({ kpis }: { kpis: KPIDef[] }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {kpis.map((kpi, i) => (
-        <div key={i} className={`rounded-xl border border-slate-200 ${kpi.bg} p-4 space-y-2 hover:shadow-md transition-shadow duration-150`}>
+        <div key={i} className={`rounded-xl border ${getKpiAccent(kpi.color).border} bg-slate-950 p-4 space-y-3 shadow-sm transition duration-150 hover:-translate-y-0.5 hover:shadow-lg`}>
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-base leading-none flex-shrink-0">{kpi.icon}</span>
-              <p className={`text-xs font-bold ${kpi.color} leading-snug`}>{kpi.name}</p>
+              <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border ${getKpiAccent(kpi.color).iconBorder} ${getKpiAccent(kpi.color).iconBg} text-base leading-none`}>{kpi.icon}</span>
+              <p className={`text-sm font-bold ${getKpiAccent(kpi.color).title} leading-snug`}>{kpi.name}</p>
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
-              <span className={`text-sm font-black ${kpi.color}`}>{kpi.direction === "up" ? "↑" : "↓"}</span>
+              <span className={`flex h-7 w-7 items-center justify-center rounded-full border ${getKpiAccent(kpi.color).iconBorder} ${getKpiAccent(kpi.color).iconBg} text-sm font-black ${getKpiAccent(kpi.color).title}`}>{kpi.direction === "up" ? "↑" : "↓"}</span>
             </div>
           </div>
-          <p className="text-lg font-black text-slate-800 tabular-nums leading-none">{kpi.benchmark}</p>
-          <p className="text-[11px] text-slate-500 leading-snug">{kpi.desc}</p>
+          <p className="text-2xl font-black text-white tabular-nums leading-none tracking-normal">{kpi.benchmark}</p>
+          <p className="text-xs text-slate-300 leading-snug">{kpi.desc}</p>
         </div>
       ))}
     </div>
   );
+}
+
+function getKpiAccent(color: string) {
+  if (color.includes("amber") || color.includes("orange") || color.includes("yellow")) {
+    return {
+      border: "border-amber-400/30",
+      iconBg: "bg-amber-400/10",
+      iconBorder: "border-amber-400/25",
+      title: "text-amber-200",
+    };
+  }
+
+  if (color.includes("green") || color.includes("emerald") || color.includes("teal")) {
+    return {
+      border: "border-emerald-400/30",
+      iconBg: "bg-emerald-400/10",
+      iconBorder: "border-emerald-400/25",
+      title: "text-emerald-200",
+    };
+  }
+
+  if (color.includes("red") || color.includes("rose") || color.includes("pink")) {
+    return {
+      border: "border-rose-400/30",
+      iconBg: "bg-rose-400/10",
+      iconBorder: "border-rose-400/25",
+      title: "text-rose-200",
+    };
+  }
+
+  if (color.includes("purple") || color.includes("violet") || color.includes("fuchsia") || color.includes("indigo")) {
+    return {
+      border: "border-violet-400/30",
+      iconBg: "bg-violet-400/10",
+      iconBorder: "border-violet-400/25",
+      title: "text-violet-200",
+    };
+  }
+
+  if (color.includes("cyan") || color.includes("sky")) {
+    return {
+      border: "border-cyan-400/30",
+      iconBg: "bg-cyan-400/10",
+      iconBorder: "border-cyan-400/25",
+      title: "text-cyan-200",
+    };
+  }
+
+  return {
+    border: "border-blue-400/30",
+    iconBg: "bg-blue-400/10",
+    iconBorder: "border-blue-400/25",
+    title: "text-blue-200",
+  };
 }
 
 function SuggestedDashboardsPanel({ items, onSave }: { items: string[]; onSave: (u: string[]) => void }) {
