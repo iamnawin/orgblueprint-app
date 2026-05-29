@@ -28,7 +28,7 @@ if (pkg.name !== 'orgblueprint-app') {
   pass('Correct project detected (orgblueprint-app).');
 }
 
-const requiredScripts = ['dev', 'lint', 'typecheck', 'build'];
+const requiredScripts = ['dev', 'lint', 'typecheck', 'build', 'db:push', 'test:web:v2-render'];
 for (const script of requiredScripts) {
   if (!pkg.scripts?.[script]) {
     fail(`Missing npm script: ${script}`);
@@ -59,5 +59,8 @@ if (!nodeModulesExists) {
 }
 
 if (!process.exitCode) {
-  console.log('🎉 Environment looks good. You can run: npm run lint; npm run typecheck; npm run build');
+  if (!process.env.DATABASE_URL) {
+    console.log('⚠️  DATABASE_URL is not set in this shell. Build, db:push, dev, and E2E need apps/web/.env.local or an exported DATABASE_URL.');
+  }
+  console.log('🎉 Environment looks good. You can run: npm run lint; npm run typecheck; npm run test:core; npm run test:web:v2-render');
 }

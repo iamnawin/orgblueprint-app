@@ -168,8 +168,11 @@ For every environment:
 ### 3. Database
 
 ```bash
-cd apps/web && npx prisma db push
+npm run db:push
 ```
+
+`DATABASE_URL` must point to a hosted PostgreSQL database. SQLite connection strings are
+not supported by this app.
 
 ### 4. Run
 
@@ -186,10 +189,14 @@ Run from the repo root:
 ```bash
 npm run dev           # Start Next.js dev server
 npm run build         # Build core → web
+npm run db:push       # Push Prisma schema to the configured DATABASE_URL
+npm run build:with-db -w @orgblueprint/web  # Push schema, then build the web app
 npm run typecheck     # Type-check both packages
 npm run lint          # ESLint (web)
 npm run test:core     # Rules engine regression test
+npm run test:web:v2-render # V2 dashboard/output/LLM smoke tests
 npm run test:e2e      # Playwright E2E suite (from apps/web)
+npm run test:e2e:db   # Push schema, then run Playwright E2E
 npm run doctor        # Repo and environment health check
 ```
 
@@ -246,13 +253,21 @@ Use one hosted Postgres connection string for both local development and deploym
 # Rules engine regression
 npm run test:core
 
+# V2 UI/output/LLM rendering smoke tests
+npm run test:web:v2-render
+
 # User-count detection
 npx tsx packages/core/test/users.test.ts
 
-# E2E (Playwright — requires dev server)
-cd apps/web && npm run test:e2e
+# E2E (Playwright — requires dev server and DATABASE_URL)
+npm run test:e2e
+npm run test:e2e:db
 cd apps/web && npm run test:e2e:headed    # watch mode
 cd apps/web && npm run test:e2e:report    # HTML report
 ```
+
+`npm run build`, `npm run dev`, `npm run db:push`, and E2E tests require
+`apps/web/.env.local` to include `DATABASE_URL`. Without it, Prisma reports `P1012`
+or the app fails fast when database-backed routes import the Prisma client.
 
 E2E coverage: API contracts · home wizard · auth forms · demo mode full-flow · all 6 dashboard tabs · floating AI widget.
