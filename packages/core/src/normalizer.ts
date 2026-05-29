@@ -130,9 +130,89 @@ function normalizeRoadmap(roadmap: BlueprintResultV1["roadmap"]): RoadmapPhase[]
   return converted;
 }
 
+function isStructuredRisk(risk: unknown): risk is RiskItem {
+  return typeof risk === "object" && risk !== null && "severity" in risk && "mitigation" in risk;
+}
+
+function isStructuredRoadmapPhase(phase: unknown): phase is RoadmapPhase {
+  return typeof phase === "object" && phase !== null && "title" in phase && "deliverables" in phase && "milestone" in phase;
+}
+
 export function normalizeBlueprintResult(result: BlueprintResult): BlueprintResultV2 {
   if ((result as BlueprintResultV2).schemaVersion === "v2") {
-    return result as BlueprintResultV2;
+    const partial = result as Partial<BlueprintResultV2> & BlueprintResultV1;
+    const legacyRoadmap = partial.legacyRoadmap ?? (
+      (partial.roadmap ?? []).every(isStructuredRoadmapPhase) ? [] : partial.roadmap as BlueprintResultV1["roadmap"] ?? []
+    );
+    const legacyRisks = partial.legacyRisks ?? (
+      (partial.risks ?? []).every(isStructuredRisk) ? [] : partial.risks as string[] ?? []
+    );
+    const legacy: BlueprintResultV1 = {
+      schemaVersion: "v1",
+      executiveSnapshot: partial.executiveSnapshot ?? {
+        primaryFocus: "custom_workflow",
+        usersDetected: 0,
+        userCountBand: "1-49",
+        complexityLevel: "Low",
+        confidenceScore: partial.blueprintConfidence ?? partial.confidenceScore ?? 50,
+      },
+      products: partial.products ?? [],
+      whyMapping: partial.whyMapping ?? [],
+      ootbVsCustom: partial.ootbVsCustom ?? [],
+      objectsAndAutomations: partial.objectsAndAutomations ?? [],
+      integrationMap: partial.integrationMap ?? [],
+      analyticsPack: partial.analyticsPack ?? [],
+      costEstimate: partial.costEstimate ?? {
+        license: { breakdown: [], totalLow: 0, totalHigh: 0 },
+        implementation: { low: 0, high: 0, rationale: "" },
+        yearOneTotal: { low: 0, high: 0 },
+        assumptions: [],
+        disclaimer: "Directional estimate only. This is not official Salesforce pricing or a quote.",
+      },
+      roadmap: legacyRoadmap,
+      documentChecklist: partial.documentChecklist ?? [],
+      risks: legacyRisks,
+      confidenceScore: partial.confidenceScore ?? partial.blueprintConfidence ?? 50,
+      perUserCostData: partial.perUserCostData,
+    };
+    const objectProjection = normalizeObjects(legacy.objectsAndAutomations);
+    const fallback = emptyV2Fallback(legacy);
+
+    return {
+      ...legacy,
+      ...partial,
+      schemaVersion: "v2",
+      analysis: partial.analysis ?? fallback.analysis,
+      capabilities: partial.capabilities ?? fallback.capabilities,
+      recommendations: partial.recommendations ?? fallback.recommendations,
+      objectModel: partial.objectModel ?? { standard: [], custom: objectProjection.custom },
+      automations: partial.automations ?? objectProjection.automations,
+      integrations: partial.integrations ?? legacy.integrationMap.map((item) => ({
+        system: item.system,
+        type: "bidirectional" as const,
+        pattern: item.pattern === "Event" ? "event-driven" as const : item.pattern === "Batch" ? "batch sync" as const : "real-time API" as const,
+        notes: "Converted from compatibility projection.",
+        detectedFrom: item.system,
+      })),
+      analytics: partial.analytics ?? legacy.analyticsPack.map((item) => ({
+        name: item,
+        type: "Report" as const,
+        audience: "Manager",
+        description: item,
+      })),
+      risks: partial.risks?.every(isStructuredRisk) ? partial.risks : normalizeRisks(legacy.risks),
+      roadmap: partial.roadmap?.every(isStructuredRoadmapPhase) ? partial.roadmap : normalizeRoadmap(legacy.roadmap),
+      assumptions: partial.assumptions ?? fallback.assumptions,
+      clarifyingQuestions: partial.clarifyingQuestions ?? fallback.clarifyingQuestions,
+      security: partial.security ?? fallback.security,
+      aiReadiness: partial.aiReadiness ?? fallback.aiReadiness,
+      userStories: partial.userStories ?? fallback.userStories,
+      blueprintConfidence: partial.blueprintConfidence ?? partial.confidenceScore ?? fallback.blueprintConfidence,
+      integrationMap: partial.integrationMap ?? legacy.integrationMap,
+      analyticsPack: partial.analyticsPack ?? legacy.analyticsPack,
+      legacyRoadmap,
+      legacyRisks,
+    };
   }
 
   const legacy = result as BlueprintResultV1;

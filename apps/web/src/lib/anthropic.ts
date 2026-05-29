@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import Groq from "groq-sdk";
-import { BlueprintResult } from "@orgblueprint/core";
+import { BlueprintResult, normalizeBlueprintResult } from "@orgblueprint/core";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? "" });
 
@@ -306,29 +306,75 @@ export async function generateBlueprintFromLLM(
     model: "claude-sonnet-4-6",
     max_tokens: 4096,
     system: ARCHITECT_SYSTEM,
-    messages: [{ role: "user", content: BLUEPRINT_PROMPT(needText, answeredSummary) }],
+    messages: [{ role: "user", content: buildBlueprintPrompt(needText, answeredSummary) }],
   });
 
   const text = (response.content[0] as { text: string }).text.trim();
   return parseBlueprintJson(text);
 }
 
-const BLUEPRINT_PROMPT = (needText: string, answeredSummary: string) => `Generate a complete Salesforce implementation blueprint for this customer.
+export const buildBlueprintPrompt = (needText: string, answeredSummary: string) => `Generate a complete Salesforce implementation blueprint for this customer.
 
 Business needs: "${needText}"
 
 ${answeredSummary ? `Clarifications:\n${answeredSummary}` : ""}
 
-Return ONLY valid JSON matching this exact TypeScript interface (no markdown, no explanation):
+Return ONLY valid JSON matching this v2 BlueprintResult shape (no markdown, no explanation).
+The process analysis section is the "analysis" property. Include compatibility projections too because older screens still read them.
 
 {
-  "executiveSnapshot": string[],
+  "schemaVersion": "v2",
+  "executiveSnapshot": {
+    "primaryFocus": string,
+    "usersDetected": number,
+    "userCountBand": "1-49" | "50-199" | "200+",
+    "complexityLevel": "Low" | "Medium" | "High",
+    "confidenceScore": number
+  },
+  "analysis": {
+    "primaryProcess": "sales_pipeline" | "case_management" | "field_service_execution" | "portal_self_service" | "retail_execution" | "employee_request" | "vendor_onboarding" | "contract_review" | "compliance_audit" | "asset_tracking" | "survey_feedback" | "data_integration" | "executive_reporting" | "custom_workflow",
+    "secondaryProcesses": string[],
+    "industry": string,
+    "personas": [{ "name": string, "type": "internal" | "external" | "partner", "accessLevel": "full" | "limited" | "self-service" }],
+    "hasExternalUsers": boolean,
+    "hasMobileRequirement": boolean,
+    "hasAISignals": boolean,
+    "hasIntegrationSignals": boolean,
+    "hasDataMigration": boolean,
+    "detectedSignals": string[],
+    "missingInfo": string[]
+  },
+  "capabilities": [{ "id": string, "name": string, "description": string, "confidence": "high" | "medium" | "low", "sourcedFrom": string[] }],
+  "recommendations": [{ "product": string, "level": "recommended" | "optional" | "not_needed", "confidence": number, "reason": string, "capabilities": string[], "edition": string }],
+  "objectModel": {
+    "standard": [{ "name": string, "type": "standard", "purpose": string, "keyFields": string[], "relationships": [{ "to": string, "type": "lookup" | "master-detail" | "many-to-many" }] }],
+    "custom": [{ "name": string, "type": "custom", "purpose": string, "keyFields": string[], "relationships": [{ "to": string, "type": "lookup" | "master-detail" | "many-to-many" }] }]
+  },
+  "automations": [{ "name": string, "type": "Record-Triggered Flow" | "Screen Flow" | "Scheduled Flow" | "Apex Trigger" | "Platform Event" | "OmniScript" | "Approval Process", "trigger": string, "purpose": string, "complexity": "simple" | "medium" | "complex" }],
+  "integrations": [{ "system": string, "type": "bidirectional" | "inbound" | "outbound", "pattern": "real-time API" | "batch sync" | "event-driven" | "middleware", "notes": string, "detectedFrom": string }],
+  "analytics": [{ "name": string, "type": "CRM Analytics Dashboard" | "Report" | "Einstein Discovery" | "Tableau", "audience": string, "description": string }],
+  "security": {
+    "profiles": string[],
+    "permissionSets": string[],
+    "sharingModel": "Public Read/Write" | "Public Read Only" | "Private" | "Controlled by Parent",
+    "recordLevelAccess": string,
+    "communityAccess": string,
+    "mfaRecommended": boolean,
+    "notes": string
+  },
+  "aiReadiness": { "score": number, "readyFor": string[], "blockers": string[], "agentforceUseCases": string[] },
+  "assumptions": [{ "id": string, "text": string, "category": "data" | "process" | "users" | "integration" | "scope" | "timeline" }],
+  "clarifyingQuestions": [{ "id": string, "question": string, "why": string, "category": "scope" | "users" | "data" | "integration" | "process" | "timeline" }],
+  "risks": [{ "title": string, "description": string, "severity": "high" | "medium" | "low", "mitigation": string, "category": "data" | "technical" | "adoption" | "scope" | "integration" | "licensing" }],
+  "roadmap": [{ "phase": number, "title": string, "duration": string, "deliverables": string[], "outcomes": string[], "sfProducts": string[], "milestone": string }],
+  "userStories": [{ "persona": string, "action": string, "outcome": string, "acceptanceCriteria": string[] }],
+  "blueprintConfidence": number,
   "products": [
     {
       "key": "sales_cloud" | "service_cloud" | "experience_cloud" | "field_service" | "cpq_revenue" |
              "marketing_cloud" | "pardot" | "loyalty_management" | "commerce_cloud" |
              "data_cloud" | "agentforce_einstein" | "tableau_analytics" |
-             "mulesoft" | "slack_collab" | "salesforce_shield" |
+             "mulesoft" | "slack_collab" | "salesforce_shield" | "salesforce_platform" |
              "health_cloud" | "financial_services_cloud" | "nonprofit_cloud" |
              "manufacturing_cloud" | "education_cloud" | "net_zero_cloud",
       "name": string,
@@ -337,36 +383,39 @@ Return ONLY valid JSON matching this exact TypeScript interface (no markdown, no
     }
   ],
   "whyMapping": [{ "need": string, "product": string, "why": string }],
-  "ootbVsCustom": [{ "capability": string, "approach": "OOTB" | "Config" | "Custom", "notes": string }],
+  "ootbVsCustom": [{ "area": string, "ootbFit": "High" | "Medium" | "Low", "customizationLevel": "Low" | "Medium" | "High", "risk": "Low" | "Medium" | "High", "notes": string }],
   "objectsAndAutomations": string[],
-  "integrationMap": string[],
+  "integrationMap": [{ "system": string, "pattern": "API" | "Batch" | "Event" }],
   "analyticsPack": string[],
-  "costSimulator": {
-    "range": string,
+  "costEstimate": {
+    "license": { "breakdown": [{ "product": string, "users": number, "annualLow": number, "annualHigh": number, "assumedEdition": string }], "totalLow": number, "totalHigh": number },
+    "implementation": { "low": number, "high": number, "rationale": string },
+    "yearOneTotal": { "low": number, "high": number },
     "assumptions": string[],
     "disclaimer": "Directional estimate only. This is not official Salesforce pricing or a quote."
   },
-  "roadmap": [{ "phase": string, "outcomes": string[] }],
+  "legacyRoadmap": [{ "phase": string, "outcomes": string[] }],
+  "legacyRisks": string[],
   "documentChecklist": string[],
-  "risks": string[],
   "confidenceScore": number
 }
 
-Include recommended and optional products. Omit not_needed products for brevity. confidenceScore: 55-90.`;
+Include recommended and optional products. Omit not_needed products for brevity. blueprintConfidence and confidenceScore: 55-90.
+Every top-level field shown above must be present. Use empty arrays only when genuinely not applicable.`;
 
-function parseBlueprintJson(raw: string): BlueprintResult {
+export function parseBlueprintJson(raw: string): BlueprintResult {
   const json = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
   const parsed = JSON.parse(json) as BlueprintResult;
   const validKeys = new Set([
     "sales_cloud", "service_cloud", "experience_cloud", "field_service", "cpq_revenue",
     "marketing_cloud", "pardot", "loyalty_management", "commerce_cloud",
     "data_cloud", "agentforce_einstein", "tableau_analytics",
-    "mulesoft", "slack_collab", "salesforce_shield",
+    "mulesoft", "slack_collab", "salesforce_shield", "salesforce_platform",
     "health_cloud", "financial_services_cloud", "nonprofit_cloud",
     "manufacturing_cloud", "education_cloud", "net_zero_cloud",
   ]);
-  parsed.products = parsed.products.filter((p) => validKeys.has(p.key));
-  return parsed;
+  parsed.products = (parsed.products ?? []).filter((p) => validKeys.has(p.key));
+  return normalizeBlueprintResult(parsed);
 }
 
 export async function generateBlueprintFromGemini(
@@ -376,7 +425,7 @@ export async function generateBlueprintFromGemini(
   const answeredSummary = Object.entries(answers)
     .map(([q, a]) => `Q: ${q}\nA: ${a}`)
     .join("\n\n");
-  const text = await geminiGenerate(BLUEPRINT_PROMPT(needText, answeredSummary), ARCHITECT_SYSTEM);
+  const text = await geminiGenerate(buildBlueprintPrompt(needText, answeredSummary), ARCHITECT_SYSTEM);
   return parseBlueprintJson(text);
 }
 
@@ -387,7 +436,7 @@ export async function generateBlueprintFromNvidia(
   const answeredSummary = Object.entries(answers)
     .map(([q, a]) => `Q: ${q}\nA: ${a}`)
     .join("\n\n");
-  const text = await nvidiaGenerate(BLUEPRINT_PROMPT(needText, answeredSummary), ARCHITECT_SYSTEM);
+  const text = await nvidiaGenerate(buildBlueprintPrompt(needText, answeredSummary), ARCHITECT_SYSTEM);
   return parseBlueprintJson(text);
 }
 
@@ -470,6 +519,6 @@ export async function generateBlueprintFromGroq(
   const answeredSummary = Object.entries(answers)
     .map(([q, a]) => `Q: ${q}\nA: ${a}`)
     .join("\n\n");
-  const text = await groqGenerate(BLUEPRINT_PROMPT(needText, answeredSummary), ARCHITECT_SYSTEM);
+  const text = await groqGenerate(buildBlueprintPrompt(needText, answeredSummary), ARCHITECT_SYSTEM);
   return parseBlueprintJson(text);
 }
