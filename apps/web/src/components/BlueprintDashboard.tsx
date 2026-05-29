@@ -33,6 +33,282 @@ function riskTexts(result: BlueprintResult): string[] {
   return result.risks.map(riskText);
 }
 
+type BlueprintResultV2View = Extract<BlueprintResult, { schemaVersion: "v2" }>;
+
+function isV2Blueprint(result: BlueprintResult): result is BlueprintResultV2View {
+  return result.schemaVersion === "v2";
+}
+
+function confidenceColor(confidence: number): string {
+  if (confidence >= 80) return "bg-green-50 text-green-800 border-green-200";
+  if (confidence >= 60) return "bg-amber-50 text-amber-800 border-amber-200";
+  return "bg-slate-50 text-slate-700 border-slate-200";
+}
+
+function V2IntelligencePanel({ result }: { result: BlueprintResultV2View }) {
+  const processLabel = result.analysis.primaryProcess.replace(/_/g, " ");
+  const primaryRecommendations = result.recommendations.filter((item) => item.level !== "not_needed");
+  const objects = [...result.objectModel.standard, ...result.objectModel.custom];
+
+  return (
+    <div className="space-y-4" data-testid="v2-intelligence-panel">
+      <Card className="border-blue-200 bg-blue-50/35">
+        <CardHeader className="pb-2">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle className="text-base">Process Analysis</CardTitle>
+              <p className="mt-0.5 text-xs text-slate-600">Detected business process, signals, personas, and missing information</p>
+            </div>
+            <Badge className="border-blue-200 bg-white text-blue-700 hover:bg-white">
+              {result.blueprintConfidence}% blueprint confidence
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-lg border border-blue-100 bg-white p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-600">Primary Process</p>
+            <p className="mt-1 text-sm font-bold capitalize text-slate-900">{processLabel}</p>
+            <p className="mt-1 text-xs text-slate-500">Industry: {result.analysis.industry}</p>
+          </div>
+          <div className="rounded-lg border border-blue-100 bg-white p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-600">Personas</p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {result.analysis.personas.map((persona) => (
+                <span key={`${persona.name}-${persona.type}`} className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-700">
+                  {persona.name}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-lg border border-blue-100 bg-white p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-600">Detected Signals</p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {result.analysis.detectedSignals.slice(0, 8).map((signal) => (
+                <span key={signal} className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+                  {signal}
+                </span>
+              ))}
+              {result.analysis.detectedSignals.length === 0 && <span className="text-xs text-slate-500">No strong keyword signals detected</span>}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="border-slate-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Business Capabilities</CardTitle>
+            <p className="mt-0.5 text-xs text-slate-500">Business-level needs before mapping to Salesforce products</p>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {result.capabilities.map((capability) => (
+              <div key={capability.id} className="rounded-lg border border-slate-100 bg-white p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-semibold text-slate-900">{capability.name}</p>
+                  <span className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase text-slate-500">
+                    {capability.confidence}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-slate-600">{capability.description}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Salesforce Recommendations</CardTitle>
+            <p className="mt-0.5 text-xs text-slate-500">Product fit with confidence and detected-signal rationale</p>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {primaryRecommendations.map((recommendation) => (
+              <div key={recommendation.product} className="rounded-lg border border-slate-100 bg-white p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-slate-900">{recommendation.product}</p>
+                  <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${confidenceColor(recommendation.confidence)}`}>
+                    {recommendation.confidence}% {recommendation.level}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-slate-600">{recommendation.reason}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-3">
+        <Card className="border-slate-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Object Model</CardTitle>
+            <p className="mt-0.5 text-xs text-slate-500">Standard and custom records used by the process</p>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {objects.slice(0, 6).map((object) => (
+              <div key={`${object.type}-${object.name}`} className="rounded-lg border border-slate-100 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-slate-800">{object.name}</p>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-slate-500">{object.type}</span>
+                </div>
+                <p className="mt-1 text-xs text-slate-600">{object.purpose}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Automations</CardTitle>
+            <p className="mt-0.5 text-xs text-slate-500">Flow-first implementation candidates</p>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {result.automations.map((automation) => (
+              <div key={automation.name} className="rounded-lg border border-slate-100 p-3">
+                <p className="text-sm font-semibold text-slate-800">{automation.name}</p>
+                <p className="mt-0.5 text-[11px] font-medium text-blue-700">{automation.type} · {automation.complexity}</p>
+                <p className="mt-1 text-xs text-slate-600">{automation.purpose}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Integrations</CardTitle>
+            <p className="mt-0.5 text-xs text-slate-500">Only shown when system keywords are detected</p>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {result.integrations.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
+                No integration keywords detected in the input.
+              </div>
+            ) : (
+              result.integrations.map((integration) => (
+                <div key={`${integration.system}-${integration.detectedFrom}`} className="rounded-lg border border-slate-100 p-3">
+                  <p className="text-sm font-semibold text-slate-800">{integration.system}</p>
+                  <p className="mt-0.5 text-[11px] font-medium text-blue-700">{integration.pattern} · {integration.type}</p>
+                  <p className="mt-1 text-xs text-slate-600">{integration.notes}</p>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="border-slate-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Analytics</CardTitle>
+            <p className="mt-0.5 text-xs text-slate-500">Process-specific dashboards and reports</p>
+          </CardHeader>
+          <CardContent className="grid gap-2 sm:grid-cols-2">
+            {result.analytics.map((item) => (
+              <div key={item.name} className="rounded-lg border border-slate-100 p-3">
+                <p className="text-sm font-semibold text-slate-800">{item.name}</p>
+                <p className="mt-1 text-xs text-slate-500">{item.audience} · {item.type}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Security</CardTitle>
+            <p className="mt-0.5 text-xs text-slate-500">Access model generated from personas and products</p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="rounded-lg border border-slate-100 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Sharing Model</p>
+              <p className="mt-1 text-sm font-semibold text-slate-800">{result.security.sharingModel}</p>
+              <p className="mt-1 text-xs text-slate-600">{result.security.recordLevelAccess}</p>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {result.security.permissionSets.map((set) => (
+                <span key={set} className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-700">
+                  {set}
+                </span>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="border-slate-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">AI Readiness</CardTitle>
+            <p className="mt-0.5 text-xs text-slate-500">Agentforce fit, blockers, and near-term use cases</p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-lg font-bold text-blue-700">
+                {result.aiReadiness.score}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Readiness score</p>
+                <p className="text-xs text-slate-500">Based on data, automation, and AI signals.</p>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-700">Blockers</p>
+              <ul className="mt-1 list-disc space-y-1 pl-5 text-xs text-slate-600">
+                {result.aiReadiness.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Risks &amp; Assumptions</CardTitle>
+            <p className="mt-0.5 text-xs text-slate-500">Structured delivery risks plus assumptions to validate</p>
+          </CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-2">
+            <div>
+              <p className="mb-2 text-xs font-semibold text-slate-700">Top Risks</p>
+              <div className="space-y-2">
+                {result.risks.slice(0, 3).map((risk) => (
+                  <div key={risk.title} className="rounded-lg border border-slate-100 p-2">
+                    <p className="text-xs font-semibold text-slate-800">{risk.title}</p>
+                    <p className="mt-0.5 text-[11px] text-slate-500">{risk.mitigation}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="mb-2 text-xs font-semibold text-slate-700">Assumptions</p>
+              <div className="space-y-2">
+                {result.assumptions.slice(0, 3).map((assumption) => (
+                  <div key={assumption.id} className="rounded-lg border border-slate-100 p-2">
+                    <p className="text-xs text-slate-700">{assumption.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="border-slate-200">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">User Stories</CardTitle>
+          <p className="mt-0.5 text-xs text-slate-500">Persona-led implementation outcomes for delivery planning</p>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-3">
+          {result.userStories.map((story) => (
+            <div key={`${story.persona}-${story.action}`} className="rounded-lg border border-slate-100 p-3">
+              <p className="text-sm font-semibold text-slate-900">{story.persona}</p>
+              <p className="mt-1 text-xs text-slate-600">Can {story.action} so {story.outcome}.</p>
+              <ul className="mt-2 list-disc space-y-1 pl-4 text-[11px] text-slate-500">
+                {story.acceptanceCriteria.slice(0, 2).map((criterion) => <li key={criterion}>{criterion}</li>)}
+              </ul>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // ─── Category config ──────────────────────────────────────────────────────────
 const PRODUCT_CATEGORY: Record<string, { label: string; color: string; bg: string; border: string; dot: string; icon: string }> = {
   sales_cloud:              { label: "CRM",       color: "text-blue-700",    bg: "bg-blue-50",    border: "border-blue-200",  dot: "bg-blue-500",    icon: "📊" },
@@ -2797,6 +3073,8 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
         {/* ── Overview ── */}
         {activeTab === "overview" && (
           <div className="space-y-4">
+            {isV2Blueprint(result) && <V2IntelligencePanel result={result} />}
+
             {/* Cost Snapshot */}
             <div>
               <div className="flex items-center justify-between mb-2">
