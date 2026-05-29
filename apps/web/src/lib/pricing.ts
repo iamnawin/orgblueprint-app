@@ -142,6 +142,15 @@ export const PRODUCT_PRICING: Record<ProductKey, ProductPricing> = {
       { tier: "Standard", perUserPerMonth: 30, flatMonthly: null, flatAnnual: null },
     ],
   },
+  salesforce_platform: {
+    key: "salesforce_platform",
+    name: "Salesforce Platform",
+    pricingModel: "per_user",
+    tiers: [
+      { tier: "Platform Starter", perUserPerMonth: 25, flatMonthly: null, flatAnnual: null },
+      { tier: "Platform Plus", perUserPerMonth: 100, flatMonthly: null, flatAnnual: null },
+    ],
+  },
   health_cloud: {
     key: "health_cloud",
     name: "Health Cloud",

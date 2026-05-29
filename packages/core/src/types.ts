@@ -18,6 +18,7 @@ export type ProductKey =
   | "mulesoft"
   | "slack_collab"
   | "salesforce_shield"
+  | "salesforce_platform"
   // Industry
   | "health_cloud"
   | "financial_services_cloud"
@@ -132,7 +133,154 @@ export interface InteractiveCostData {
   disclaimer: string;
 }
 
-export interface BlueprintResult {
+export type ProcessType =
+  | "sales_pipeline"
+  | "case_management"
+  | "field_service_execution"
+  | "portal_self_service"
+  | "retail_execution"
+  | "employee_request"
+  | "vendor_onboarding"
+  | "contract_review"
+  | "compliance_audit"
+  | "asset_tracking"
+  | "survey_feedback"
+  | "data_integration"
+  | "executive_reporting"
+  | "custom_workflow";
+
+export interface Persona {
+  name: string;
+  type: "internal" | "external" | "partner";
+  accessLevel: "full" | "limited" | "self-service";
+}
+
+export interface RequirementAnalysis {
+  primaryProcess: ProcessType;
+  secondaryProcesses: ProcessType[];
+  industry: string;
+  personas: Persona[];
+  hasExternalUsers: boolean;
+  hasMobileRequirement: boolean;
+  hasAISignals: boolean;
+  hasIntegrationSignals: boolean;
+  hasDataMigration: boolean;
+  detectedSignals: string[];
+  missingInfo: string[];
+}
+
+export interface BusinessCapability {
+  id: string;
+  name: string;
+  description: string;
+  confidence: "high" | "medium" | "low";
+  sourcedFrom: string[];
+}
+
+export interface SalesforceRecommendation {
+  product: string;
+  level: RecommendationLevel;
+  confidence: number;
+  reason: string;
+  capabilities: string[];
+  edition?: string;
+}
+
+export interface ObjectRecommendation {
+  name: string;
+  type: "standard" | "custom";
+  purpose: string;
+  keyFields: string[];
+  relationships: { to: string; type: "lookup" | "master-detail" | "many-to-many" }[];
+}
+
+export interface AutomationRecommendation {
+  name: string;
+  type:
+    | "Record-Triggered Flow"
+    | "Screen Flow"
+    | "Scheduled Flow"
+    | "Apex Trigger"
+    | "Platform Event"
+    | "OmniScript"
+    | "Approval Process";
+  trigger: string;
+  purpose: string;
+  complexity: "simple" | "medium" | "complex";
+}
+
+export interface IntegrationRecommendation {
+  system: string;
+  type: "bidirectional" | "inbound" | "outbound";
+  pattern: "real-time API" | "batch sync" | "event-driven" | "middleware";
+  notes: string;
+  detectedFrom: string;
+}
+
+export interface AnalyticsRecommendation {
+  name: string;
+  type: "CRM Analytics Dashboard" | "Report" | "Einstein Discovery" | "Tableau";
+  audience: string;
+  description: string;
+}
+
+export interface SecurityRecommendation {
+  profiles: string[];
+  permissionSets: string[];
+  sharingModel: "Public Read/Write" | "Public Read Only" | "Private" | "Controlled by Parent";
+  recordLevelAccess: string;
+  communityAccess?: string;
+  mfaRecommended: boolean;
+  notes: string;
+}
+
+export interface AIReadiness {
+  score: number;
+  readyFor: string[];
+  blockers: string[];
+  agentforceUseCases: string[];
+}
+
+export interface Assumption {
+  id: string;
+  text: string;
+  category: "data" | "process" | "users" | "integration" | "scope" | "timeline";
+}
+
+export interface ClarifyingQuestion {
+  id: string;
+  question: string;
+  why: string;
+  category: "scope" | "users" | "data" | "integration" | "process" | "timeline";
+}
+
+export interface RiskItem {
+  title: string;
+  description: string;
+  severity: "high" | "medium" | "low";
+  mitigation: string;
+  category: "data" | "technical" | "adoption" | "scope" | "integration" | "licensing";
+}
+
+export interface RoadmapPhase {
+  phase: number | string;
+  title: string;
+  duration: string;
+  deliverables: string[];
+  outcomes: string[];
+  sfProducts: string[];
+  milestone: string;
+}
+
+export interface UserStory {
+  persona: string;
+  action: string;
+  outcome: string;
+  acceptanceCriteria: string[];
+}
+
+export interface BlueprintResultV1 {
+  schemaVersion?: undefined | "v1";
   executiveSnapshot: {
     primaryFocus: string;
     usersDetected: number;
@@ -176,3 +324,34 @@ export interface BlueprintResult {
   confidenceScore: number;
   perUserCostData?: InteractiveCostData;
 }
+
+export interface BlueprintResultV2
+  extends Omit<BlueprintResultV1, "schemaVersion" | "integrationMap" | "analyticsPack" | "roadmap" | "risks"> {
+  schemaVersion: "v2";
+  analysis: RequirementAnalysis;
+  capabilities: BusinessCapability[];
+  recommendations: SalesforceRecommendation[];
+  objectModel: {
+    standard: ObjectRecommendation[];
+    custom: ObjectRecommendation[];
+  };
+  automations: AutomationRecommendation[];
+  integrations: IntegrationRecommendation[];
+  analytics: AnalyticsRecommendation[];
+  security: SecurityRecommendation;
+  aiReadiness: AIReadiness;
+  assumptions: Assumption[];
+  clarifyingQuestions: ClarifyingQuestion[];
+  risks: RiskItem[];
+  roadmap: RoadmapPhase[];
+  userStories: UserStory[];
+  blueprintConfidence: number;
+
+  // Compatibility projections for the existing UI while it migrates to v2 sections.
+  integrationMap: Array<{ system: string; pattern: "API" | "Batch" | "Event" }>;
+  analyticsPack: string[];
+  legacyRoadmap: BlueprintResultV1["roadmap"];
+  legacyRisks: string[];
+}
+
+export type BlueprintResult = BlueprintResultV1 | BlueprintResultV2;

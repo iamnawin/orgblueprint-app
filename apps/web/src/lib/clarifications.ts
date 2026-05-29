@@ -1,4 +1,9 @@
-import { BlueprintResult, ClarificationAnswers, generateBlueprint } from "@orgblueprint/core";
+import {
+  BlueprintResult,
+  ClarificationAnswers,
+  generateBlueprint,
+  normalizeBlueprintResult as normalizeCoreBlueprintResult,
+} from "@orgblueprint/core";
 
 type OrbAnswers = Record<string, string>;
 
@@ -173,7 +178,7 @@ export function normalizeBlueprintResult(
 ): BlueprintResult {
   const baseline = generateBlueprint(contextInput, answers);
 
-  return {
+  return normalizeCoreBlueprintResult({
     ...result,
     executiveSnapshot: {
       primaryFocus: result.executiveSnapshot?.primaryFocus ?? baseline.executiveSnapshot.primaryFocus,
@@ -184,5 +189,5 @@ export function normalizeBlueprintResult(
     },
     costEstimate: baseline.costEstimate,
     confidenceScore: result.confidenceScore ?? baseline.confidenceScore,
-  };
+  });
 }

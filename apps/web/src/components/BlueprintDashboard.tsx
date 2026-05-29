@@ -25,6 +25,14 @@ interface Props {
   onReset?: () => void;
 }
 
+function riskText(risk: BlueprintResult["risks"][number]): string {
+  return typeof risk === "string" ? risk : risk.title;
+}
+
+function riskTexts(result: BlueprintResult): string[] {
+  return result.risks.map(riskText);
+}
+
 // ─── Category config ──────────────────────────────────────────────────────────
 const PRODUCT_CATEGORY: Record<string, { label: string; color: string; bg: string; border: string; dot: string; icon: string }> = {
   sales_cloud:              { label: "CRM",       color: "text-blue-700",    bg: "bg-blue-50",    border: "border-blue-200",  dot: "bg-blue-500",    icon: "📊" },
@@ -1108,7 +1116,7 @@ Users: ${result.executiveSnapshot.usersDetected} (${result.executiveSnapshot.use
 Complexity: ${result.executiveSnapshot.complexityLevel}
 Focus: ${result.executiveSnapshot.primaryFocus}
 Cost range: $${result.costEstimate.license.totalLow.toLocaleString()} – $${result.costEstimate.license.totalHigh.toLocaleString()} / year
-Top risks: ${result.risks.slice(0, 3).join("; ")}
+Top risks: ${riskTexts(result).slice(0, 3).join("; ")}
 Roadmap phases: ${result.roadmap.map((r) => r.phase).join(" → ")}
 `.trim();
 
@@ -2470,7 +2478,7 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
       `$${result.costEstimate.license.totalLow.toLocaleString()} – $${result.costEstimate.license.totalHigh.toLocaleString()} / year (license)`,
       ``,
       `TOP RISKS:`,
-      result.risks.slice(0, 3).map((r, i) => `${i + 1}. ${r}`).join("\n"),
+      riskTexts(result).slice(0, 3).map((r, i) => `${i + 1}. ${r}`).join("\n"),
       ``,
       `View full blueprint: ${shareUrl}`,
       ``,
@@ -2908,7 +2916,7 @@ export function BlueprintDashboard({ result: initial, slug, isOwner, aiPowered =
                 )}
               </CardContent>
             </Card>
-            <RisksSection risks={result.risks} onSave={editList("risks")} />
+            <RisksSection risks={riskTexts(result)} onSave={editList("legacyRisks" as keyof BlueprintResult)} />
             <RecommendationExpansionPanel result={result} />
           </div>
         )}

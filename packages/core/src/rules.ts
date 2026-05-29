@@ -1,6 +1,19 @@
 import { estimateImplementation } from "./estimateImplementation";
 import { estimateLicenseCost } from "./estimateLicenses";
-import { BlueprintResult, ClarificationAnswers, OOTBRow, ProductDecision, ProductKey, Signals } from "./types";
+import { analyzeRequirements } from "./analyzer";
+import { mapToCapabilities } from "./capabilities";
+import { recommendClouds } from "./recommender";
+import { buildObjectModel } from "./builders/objects";
+import { buildAutomations } from "./builders/automations";
+import { buildIntegrationMap } from "./builders/integrations";
+import { buildAnalyticsPack } from "./builders/analytics";
+import { buildSecurityModel } from "./builders/security";
+import { buildRoadmap } from "./builders/roadmap";
+import { buildRisks } from "./builders/risks";
+import { buildAssumptions } from "./builders/assumptions";
+import { buildClarifyingQuestions } from "./builders/questions";
+import { buildAIReadiness } from "./builders/aireadiness";
+import { BlueprintResultV2, ClarificationAnswers, OOTBRow, ProductDecision, ProductKey, SalesforceRecommendation, Signals, UserStory } from "./types";
 
 const has = (text: string, needles: string[]) => needles.some((n) => text.includes(n));
 const countMatches = (text: string, needles: string[]) => needles.filter((n) => text.includes(n)).length;
@@ -339,6 +352,7 @@ const products: Record<ProductKey, string> = {
   mulesoft: "MuleSoft",
   slack_collab: "Slack",
   salesforce_shield: "Salesforce Shield",
+  salesforce_platform: "Salesforce Platform",
   // Industry
   health_cloud: "Health Cloud",
   financial_services_cloud: "Financial Services Cloud",
@@ -615,10 +629,10 @@ export function scoreOOTB(signals: Signals): OOTBRow[] {
   ];
 }
 
-export function generateBlueprint(
+function generateBlueprintV1(
   input: string,
   answers: ClarificationAnswers = {}
-): BlueprintResult {
+) {
   const signals = extractSignals(input, answers);
   const decisions = decideProducts(signals);
   const recommendedNames = decisions.filter((d) => d.level === "recommended").map((d) => d.name);
@@ -706,4 +720,161 @@ export function generateBlueprint(
     ],
     confidenceScore,
   };
+}
+
+export function generateBlueprint(
+  input: string,
+  answers: ClarificationAnswers = {}
+): BlueprintResultV2 {
+  const signals = extractSignals(input, answers);
+  const analysis = analyzeRequirements(input, signals, answers);
+  const capabilities = mapToCapabilities(analysis);
+  const recommendations = recommendClouds(capabilities, analysis);
+  const legacy = generateBlueprintV1(input, answers);
+  const decisions = projectProductDecisions(recommendations, signals);
+  const recommendedNames = recommendations.filter((d) => d.level === "recommended").map((d) => d.product);
+  const license = estimateLicenseCost({ userCount: signals.users, recommendedProducts: recommendedNames });
+  const enterpriseFloor = signals.users >= 200 ? 200 * 100 * 12 : 0;
+  const licenseLow = Math.max(license.totalLow, enterpriseFloor);
+  const implementationBand = estimateImplementation({ complexityLevel: signals.complexityLevel, integrationCount: signals.externalSystemsCount });
+  const implLow = signals.complexityLevel === "High" ? Math.max(implementationBand.implLow, 150000) : implementationBand.implLow;
+  const confidenceScore = legacy.confidenceScore;
+
+  const objectModel = buildObjectModel(analysis.primaryProcess, capabilities);
+  const automations = buildAutomations(analysis.primaryProcess, capabilities);
+  const integrations = buildIntegrationMap(signals);
+  const analytics = buildAnalyticsPack(analysis.primaryProcess, recommendations);
+  const security = buildSecurityModel(analysis, recommendations);
+  const aiReadiness = buildAIReadiness(signals, recommendations, analysis);
+  const assumptions = buildAssumptions(analysis, signals);
+  const clarifyingQuestions = buildClarifyingQuestions(analysis);
+  const risks = buildRisks(analysis.primaryProcess, integrations, analysis);
+  const roadmap = buildRoadmap(analysis.primaryProcess, capabilities, recommendations);
+  const userStories = buildUserStories(analysis.personas.map((persona) => persona.name), analysis.primaryProcess);
+
+  const objectsAndAutomations = [
+    ...objectModel.standard.map((object) => `Standard object: ${object.name} - ${object.purpose}`),
+    ...objectModel.custom.map((object) => `Custom object: ${object.name} - ${object.purpose}`),
+    ...automations.map((automation) => `${automation.type}: ${automation.name} - ${automation.purpose}`),
+  ];
+  const integrationMap = integrations.map((integration) => ({
+    system: integration.system,
+    pattern: integration.pattern === "event-driven" ? "Event" as const : integration.pattern === "batch sync" ? "Batch" as const : "API" as const,
+  }));
+  const analyticsPack = analytics.map((item) => item.name);
+  const legacyRoadmap = roadmap.map((phase) => ({
+    phase: `Phase ${phase.phase}: ${phase.title} (${phase.duration})`,
+    outcomes: phase.deliverables,
+  }));
+
+  return {
+    ...legacy,
+    schemaVersion: "v2",
+    executiveSnapshot: {
+      ...legacy.executiveSnapshot,
+      primaryFocus: focusLabel(analysis.primaryProcess, legacy.executiveSnapshot.primaryFocus),
+      confidenceScore,
+    },
+    products: decisions,
+    analysis,
+    capabilities,
+    recommendations,
+    whyMapping: recommendations.map((d) => ({
+      need: d.capabilities.join(", ") || analysis.primaryProcess,
+      product: d.product,
+      why: d.reason,
+    })),
+    objectModel,
+    automations,
+    integrations,
+    analytics,
+    security,
+    aiReadiness,
+    assumptions,
+    clarifyingQuestions,
+    objectsAndAutomations,
+    integrationMap,
+    analyticsPack,
+    costEstimate: {
+      license: {
+        ...license,
+        totalLow: licenseLow,
+      },
+      implementation: {
+        low: implLow,
+        high: implementationBand.implHigh,
+        rationale: implementationBand.rationale,
+      },
+      yearOneTotal: {
+        low: licenseLow + implLow,
+        high: license.totalHigh + implementationBand.implHigh,
+      },
+      assumptions: legacy.costEstimate.assumptions,
+      disclaimer: legacy.costEstimate.disclaimer,
+    },
+    risks,
+    roadmap,
+    legacyRoadmap,
+    legacyRisks: risks.map((risk) => risk.title),
+    userStories,
+    blueprintConfidence: confidenceScore,
+    confidenceScore,
+  };
+}
+
+function projectProductDecisions(
+  recommendations: SalesforceRecommendation[],
+  signals: Signals
+): ProductDecision[] {
+  const legacy = decideProducts(signals);
+  const byName = new Map(recommendations.map((recommendation) => [recommendation.product, recommendation]));
+  const mapped = legacy.map((decision) => {
+    const recommendation = byName.get(decision.name);
+    return recommendation
+      ? {
+          ...decision,
+          level: recommendation.level,
+          reasons: [recommendation.reason],
+          triggers: recommendation.capabilities,
+        }
+      : decision;
+  });
+
+  const platform = byName.get("Salesforce Platform");
+  if (platform) {
+    mapped.push({
+      key: "salesforce_platform",
+      name: "Salesforce Platform",
+      level: platform.level,
+      reasons: [platform.reason],
+      triggers: platform.capabilities,
+    });
+  }
+
+  return mapped;
+}
+
+function buildUserStories(personas: string[], processType: string): UserStory[] {
+  return personas.slice(0, 3).map((persona) => ({
+    persona,
+    action: `complete ${processType.replace(/_/g, " ")} work in Salesforce`,
+    outcome: "records, approvals, and reporting stay current",
+    acceptanceCriteria: [
+      "Required fields prevent incomplete handoffs",
+      "Status changes trigger the correct automation",
+      "Managers can report on open and completed work",
+    ],
+  }));
+}
+
+function focusLabel(processType: string, fallback: string): string {
+  const labels: Record<string, string> = {
+    sales_pipeline: "Sales Pipeline",
+    case_management: "Service Operations",
+    field_service_execution: "Field Service Execution",
+    portal_self_service: "Self-Service Portal",
+    retail_execution: "Retail Execution",
+    employee_request: "Employee Workflow",
+  };
+  return labels[processType] ?? fallback;
 }

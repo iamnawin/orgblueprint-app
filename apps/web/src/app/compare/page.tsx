@@ -287,7 +287,7 @@ export default async function ComparePage({ searchParams }: Props) {
                 {resultA.risks.slice(0, 4).map((risk, i) => (
                   <li key={i} className="flex gap-2 text-xs text-slate-600 leading-relaxed">
                     <span className="flex-shrink-0 text-blue-400 font-bold">{i + 1}.</span>
-                    {risk}
+                    {typeof risk === "string" ? risk : risk.title}
                   </li>
                 ))}
               </ul>
@@ -298,7 +298,7 @@ export default async function ComparePage({ searchParams }: Props) {
                 {resultB.risks.slice(0, 4).map((risk, i) => (
                   <li key={i} className="flex gap-2 text-xs text-slate-600 leading-relaxed">
                     <span className="flex-shrink-0 text-purple-400 font-bold">{i + 1}.</span>
-                    {risk}
+                    {typeof risk === "string" ? risk : risk.title}
                   </li>
                 ))}
               </ul>

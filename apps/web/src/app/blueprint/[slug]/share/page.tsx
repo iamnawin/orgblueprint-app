@@ -30,7 +30,7 @@ export default async function SharePage({ params }: Props) {
   const result = JSON.parse(blueprint.result) as BlueprintResult;
   const recommended = result.products.filter((p) => p.level === "recommended");
   const optional = result.products.filter((p) => p.level === "optional");
-  const topRisks = result.risks.slice(0, 5);
+  const topRisks = result.risks.slice(0, 5).map((risk) => typeof risk === "string" ? risk : risk.title);
 
   const complexityColor =
     result.executiveSnapshot.complexityLevel === "Low" ? "#22c55e" :

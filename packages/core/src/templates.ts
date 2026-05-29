@@ -3,9 +3,10 @@
  * Produces polished, business-friendly text for each blueprint section
  * without making any external API calls.
  */
-import { BlueprintResult, ProductDecision, Signals } from "./types";
+import { BlueprintResult, BlueprintResultV1, ProductDecision, Signals } from "./types";
 
 type ProductKeys = Set<string>;
+type LegacyRoadmap = BlueprintResultV1["roadmap"];
 
 function keys(products: ProductDecision[]): ProductKeys {
   return new Set(products.filter((p) => p.level !== "not_needed").map((p) => p.key));
@@ -158,8 +159,8 @@ export function buildAnalyticsPack(k: ProductKeys, signals: Signals): string[] {
 }
 
 // ── Roadmap ───────────────────────────────────────────────────────────────────
-export function buildRoadmap(k: ProductKeys, signals: Signals): BlueprintResult["roadmap"] {
-  const phases: BlueprintResult["roadmap"] = [];
+export function buildRoadmap(k: ProductKeys, signals: Signals): LegacyRoadmap {
+  const phases: LegacyRoadmap = [];
 
   phases.push({
     phase: "Phase 1 — Foundation (Weeks 1–6)",
@@ -373,6 +374,10 @@ export function enrichWithTemplates(
   result: BlueprintResult,
   signals: Signals
 ): BlueprintResult {
+  if (result.schemaVersion === "v2") {
+    return result;
+  }
+
   const k = keys(result.products);
 
   return {

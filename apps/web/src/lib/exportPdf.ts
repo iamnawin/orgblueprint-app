@@ -256,7 +256,7 @@ export async function downloadBlueprintPdf(
 
   // Risks
   heading2("Key Risks");
-  result.risks.forEach((s) => bullet(s));
+  result.risks.forEach((s) => bullet(typeof s === "string" ? s : s.title));
 
   // Document Checklist
   heading2("Document Checklist");

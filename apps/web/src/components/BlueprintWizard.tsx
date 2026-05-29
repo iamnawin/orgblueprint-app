@@ -141,7 +141,7 @@ export function BlueprintWizard() {
 
           <section className="grid gap-4 md:grid-cols-2">
             <Card title="Document Pack"><ul className="list-disc pl-5 text-sm">{result.documentChecklist.map((doc)=><li key={doc}>{doc}</li>)}</ul></Card>
-            <Card title="Risks"><div className="space-y-2 text-sm">{result.risks.map((risk)=><p key={risk}>• {risk}</p>)}<p className="font-medium">Confidence explanation: based on explicit trigger density and ambiguity level.</p></div></Card>
+            <Card title="Risks"><div className="space-y-2 text-sm">{result.risks.map((risk, index)=><p key={typeof risk === "string" ? risk : risk.title + index}>• {typeof risk === "string" ? risk : risk.title}</p>)}<p className="font-medium">Confidence explanation: based on explicit trigger density and ambiguity level.</p></div></Card>
           </section>
 
           <div className="flex flex-wrap gap-2">
@@ -166,3 +166,4 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
   const icon = title.includes("Architecture") ? <Layers size={16} /> : title.includes("Analytics") ? <BarChart3 size={16} /> : <ShieldAlert size={16} />;
   return <section className="rounded-xl bg-white p-4 shadow"><h3 className="mb-2 flex items-center gap-2 text-lg font-semibold">{icon}{title}</h3>{children}</section>;
 }
+
