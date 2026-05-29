@@ -4,6 +4,8 @@
  */
 import type { BlueprintResult } from "@orgblueprint/core";
 
+type BlueprintResultV2View = Extract<BlueprintResult, { schemaVersion: "v2" }>;
+
 type TextOptions = {
   maxWidth?: number;
   align?: "left" | "center" | "right";
@@ -103,6 +105,74 @@ export async function downloadBlueprintPdf(
     }
   }
 
+  function isV2Blueprint(value: BlueprintResult): value is BlueprintResultV2View {
+    return value.schemaVersion === "v2";
+  }
+
+  function addV2PdfSections(value: BlueprintResultV2View) {
+    const processLabel = value.analysis.primaryProcess.replace(/_/g, " ");
+    const objects = [...value.objectModel.standard, ...value.objectModel.custom];
+    const activeRecommendations = value.recommendations.filter((item) => item.level !== "not_needed");
+
+    heading2("Process Analysis");
+    kv("Primary Process", processLabel);
+    kv("Industry", value.analysis.industry);
+    kv("Blueprint Confidence", `${value.blueprintConfidence}/100`);
+    kv("Personas", value.analysis.personas.map((persona) => persona.name).join(", ") || "Not detected");
+
+    heading2("Business Capabilities");
+    value.capabilities.forEach((capability) => {
+      bullet(`${capability.name} - ${capability.description} (${capability.confidence})`);
+    });
+
+    heading2("Salesforce Recommendations");
+    activeRecommendations.forEach((recommendation) => {
+      bullet(`${recommendation.product} - ${recommendation.reason} (${recommendation.confidence}% ${recommendation.level})`);
+    });
+
+    heading2("Object Model");
+    objects.slice(0, 8).forEach((object) => {
+      bullet(`${object.name} - ${object.purpose} (${object.type})`);
+    });
+
+    heading2("Automations");
+    value.automations.forEach((automation) => {
+      bullet(`${automation.name} - ${automation.purpose} (${automation.type}, ${automation.complexity})`);
+    });
+
+    heading2("Integrations");
+    if (value.integrations.length === 0) {
+      bullet("No integration keywords detected in the input.");
+    } else {
+      value.integrations.forEach((integration) => {
+        bullet(`${integration.system} - ${integration.notes} (${integration.pattern}, ${integration.type})`);
+      });
+    }
+
+    heading2("Analytics");
+    value.analytics.forEach((item) => {
+      bullet(`${item.name} - ${item.audience} (${item.type})`);
+    });
+
+    heading2("Security");
+    kv("Sharing Model", value.security.sharingModel);
+    kv("Record Access", value.security.recordLevelAccess);
+    kv("Permission Sets", value.security.permissionSets.join(", "));
+
+    heading2("AI Readiness");
+    kv("Readiness Score", `${value.aiReadiness.score}/100`);
+    value.aiReadiness.blockers.forEach((blocker) => bullet(blocker));
+
+    heading2("Risks & Assumptions");
+    value.risks.slice(0, 4).forEach((risk) => bullet(`${risk.title} - ${risk.mitigation}`));
+    value.assumptions.slice(0, 4).forEach((assumption) => bullet(assumption.text));
+
+    heading2("User Stories");
+    value.userStories.forEach((story) => {
+      bullet(`${story.persona} can ${story.action} so ${story.outcome}.`);
+    });
+  }
+
   // ── Cover ─────────────────────────────────────────────────────────────────
   // Dark gradient background (approximated with rect)
   doc.setFillColor(15, 23, 42);
@@ -177,6 +247,10 @@ export async function downloadBlueprintPdf(
   kv("Users", `${result.executiveSnapshot.usersDetected} (${result.executiveSnapshot.userCountBand})`);
   kv("Complexity", result.executiveSnapshot.complexityLevel);
   kv("Confidence Score", `${result.executiveSnapshot.confidenceScore}/100`);
+
+  if (isV2Blueprint(result)) {
+    addV2PdfSections(result);
+  }
 
   // Product Recommendations
   heading2("Product Recommendations");

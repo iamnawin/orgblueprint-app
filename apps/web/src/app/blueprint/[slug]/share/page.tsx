@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { notFound, redirect } from "next/navigation";
 import { BlueprintResult } from "@orgblueprint/core";
+import { V2OutputSections } from "@/components/V2OutputSections";
 
 interface Props {
   params: { slug: string };
@@ -165,6 +166,8 @@ export default async function SharePage({ params }: Props) {
               </div>
             </div>
           </div>
+
+          <V2OutputSections result={result} />
 
           {/* Recommended Products */}
           {recommended.length > 0 && (

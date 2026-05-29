@@ -6,6 +6,7 @@ import { BlueprintResult } from "@orgblueprint/core";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { V2CompareSummary } from "@/components/V2OutputSections";
 
 interface Props {
   searchParams: { a?: string; b?: string };
@@ -153,6 +154,8 @@ export default async function ComparePage({ searchParams }: Props) {
           </div>
         </CardContent>
       </Card>
+
+      <V2CompareSummary resultA={resultA} resultB={resultB} />
 
       {/* Products: unique to A */}
       {onlyInA.length > 0 && (

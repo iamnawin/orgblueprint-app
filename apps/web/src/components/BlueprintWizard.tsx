@@ -3,6 +3,7 @@
 import { BlueprintResult, ClarificationAnswers } from "@orgblueprint/core";
 import { BarChart3, Download, Layers, RefreshCw, ShieldAlert } from "lucide-react";
 import { ReactNode, useMemo, useState } from "react";
+import { V2OutputSections } from "@/components/V2OutputSections";
 
 type Stage = "landing" | "describe" | "questions" | "confirm" | "results";
 
@@ -102,6 +103,8 @@ export function BlueprintWizard() {
               <div className="mt-2 h-2 rounded bg-slate-100"><div className="h-2 rounded bg-blue-600" style={{ width: `${result.executiveSnapshot.confidenceScore}%` }} /></div>
             </section>
           </section>
+
+          <V2OutputSections result={result} />
 
           <section className="rounded-xl bg-white p-4 shadow">
             <div className="mb-3 flex items-center justify-between"><h3 className="text-lg font-semibold">Product Recommendations</h3><button className="rounded border px-3 py-1 text-sm">Why details</button></div>

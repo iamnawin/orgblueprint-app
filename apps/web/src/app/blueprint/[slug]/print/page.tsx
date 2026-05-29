@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { notFound, redirect } from "next/navigation";
 import { BlueprintResult } from "@orgblueprint/core";
 import { generateTechnicalBlueprint } from "@/lib/technicalBlueprint";
+import { V2OutputSections } from "@/components/V2OutputSections";
 
 const BUSINESS_OBJECT_MAP = [
   { businessName: "Customers",           sfObject: "Account",          description: "Company or organization records." },
@@ -155,6 +156,8 @@ export default async function PrintPage({ params, searchParams }: Props) {
               <tr><td><strong>Confidence Score</strong></td><td>{result.executiveSnapshot.confidenceScore}/100</td></tr>
             </tbody>
           </table>
+
+          <V2OutputSections result={result} />
 
           <h2>Product Recommendations</h2>
 
